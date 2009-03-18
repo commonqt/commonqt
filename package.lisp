@@ -63,6 +63,7 @@
            #:qtrace
            #:enable-syntax
            #:note-deleted
+           #:delete-object
            #:enum=))
 
 (defpackage :qt-user

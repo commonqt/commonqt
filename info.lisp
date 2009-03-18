@@ -382,7 +382,7 @@
 
 (defun init-smoke ()
   (ensure-loaded)
-  (setf *cached-objects* (make-hash-table))
+  (setf *cached-objects* (tg:make-weak-hash-table :weakness :value))
   (cffi:with-foreign-object (data '|struct SmokeData|)
     (setf *commonqtbinding*
           (sw_init data (cffi:callback method-invocation-callback)))

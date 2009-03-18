@@ -57,6 +57,7 @@
       <li><a href="http://common-lisp.net/project/alexandria/">Alexandria</a></li>
       <li><a href="http://www.cliki.net/closer-mop">closer-mop</a></li>
       <li><a href="http://common-lisp.net/project/iterate/">Iterate</a></li>
+      <li><a href="http://www.cliki.net/trivial-garbage">trivial-garbage</a></li>
     </ul>
     and their dependencies.
   </p>
@@ -429,6 +430,20 @@ Properties:
     an <tt>qt:uint</tt> wrapper object.
   </p>
 
+  <section>Automatic deletion</section>
+  <p>
+    Objects created by Lisp code are deleted automatically in a
+    finalizer.
+  </p>
+  <p>
+    This implies that application programmers need to keep references on
+    the lisp side to any object that is still used from C++ code.
+  </p>
+  <p>
+    (Which is definitely not ideal, but IIUC, Ruby and Python and all
+    the others do the same.)
+  </p>
+
   <section>How about CLOS bindings?</section>
   <p>
     Why a reader macro instead of Lisp functions?
@@ -465,7 +480,7 @@ Properties:
     CommonQt probably still has many bugs.
   </p>
   <p>
-    In all likelihood we leak memory like a sieve.
+    In all likelihood we still leak memory in some places.
   </p>
 
   <section>Fixme: Type mappings</section>

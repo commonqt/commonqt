@@ -79,11 +79,6 @@
             :initform :unborn
             :accessor qobject-pointer)))
 
-(defclass deleted-qobject (abstract-qobject)
-  ())
-
-(defmethod note-deleted ((object qobject)))
-
 (defmethod print-object ((instance qobject) stream)
   (print-unreadable-object (instance stream :type nil :identity nil)
     (cond
@@ -366,7 +361,13 @@
 (defun cache! (object)
   (setf (gethash (cffi:pointer-address (qobject-pointer object))
                  *cached-objects*)
-        object))
+        object)
+  (tg:finalize object
+               (let ((ptr (qobject-pointer object)))
+                 (lambda ()
+                   (when (gethash (cffi:pointer-address ptr) *cached-objects*)
+                     (sw_delete ptr)))))
+  object)
 
 (defmethod new ((class qclass) &rest args)
   (apply #'new
@@ -462,6 +463,15 @@
                      (list (and rtype (unmarshal rtype stack))))))
                 (qmethod-argument-types method)
                 args))))))
+
+(defclass deleted-object (abstract-qobject)
+  ())
+
+(defmethod note-deleted ((object qobject))
+  (tg:cancel-finalization object))
+
+(defmethod delete-object ((object qobject))
+  (sw_delete (qobject-pointer object)))
 
 (defmethod find-qclass ((class string) &optional (errorp t))
   ;; fixme: use a hash table
