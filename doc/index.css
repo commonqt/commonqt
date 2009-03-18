@@ -1,0 +1,160 @@
+a {
+  text-decoration: none;
+  color: black;
+  border-bottom: 1px dotted #777777;
+}
+
+a:hover {
+  color: #0070a0;
+  border-bottom: 1px solid #aaaaaa;
+}
+
+body {
+  color: #000000;
+  background-color: #ffffff;
+  margin-top: 2em;
+  margin-right: 0pt;
+  margin-bottom: 10%;
+  font-family: verdana, arial;
+}
+
+p {
+  width: 80%;
+}
+
+.main {
+  margin-top: 20px;
+  margin-left: 40px;
+  padding-left: 30px;
+}
+
+h1,h2,h3 {
+  color: #000000;
+  margin-top: 2em;
+  margin-left: -30px;
+  padding-bottom: 0;
+}
+
+.def {
+  border-bottom: 1px solid black;
+  padding: 1px 1px 1px 1px;
+  margin-bottom: 1px;
+  font-weight: bold;
+  margin-right: 40px;
+}
+
+.def:hover {
+  background-color: #0070a0;
+}
+
+.def a {
+  text-decoration: none;
+  color: #000000;
+  border-bottom: 0px solid white;
+  border-top: 0px solid white;
+  border-left: 0px solid white;
+  border-right: 0px solid white;
+}
+
+.def a:hover {
+  background-color: #0070a0;
+  color: #000000;
+  text-decoration: none;
+  border-bottom: 0px solid white;
+  border-top: 0px solid white;
+  border-left: 0px solid white;
+  border-right: 0px solid white;
+}
+
+.nomargin {
+  margin-bottom: 0;
+  margin-top: 0;
+}
+
+.noindent {
+  margin-left: -30px;
+}
+
+#header {
+  padding-bottom: 1px;
+  width: 70%;
+  border-bottom: 1px solid black;
+  font-family: verdana, arial;
+  font-size: 15pt;
+}
+
+.code {
+  background-color: #eeeeee;
+  border: solid 1px #d0d0d0;
+  padding: 1em;
+  width: 80%;
+}
+
+.example {
+  background-color: #ffffff;
+  padding: 0 0 0 0;
+  margin-left: 2em;
+  margin-bottom: 0;
+  margin-top: 0;
+  width: 80%;
+}
+
+.result {
+  border: solid 1px #d0d0d0;
+  border-top: 0px;
+  padding: 1em;
+  margin-top: 0;
+  width: 80%;
+}
+
+div.sidebar {
+  float: right;
+  min-width: 30%;
+  padding: 0pt 5pt 5pt 5pt;
+  font-family: verdana, arial;
+}
+
+div.sidebar-title {
+  font-weight: bold;
+  color: #ffffff;
+  background-color: #777777;
+  border: solid #777777;
+  border-top-width: 1px;
+  border-bottom-width: 2px;
+  border-left-width: 4px;
+  border-right-width: 0px;
+  padding-left: 1px;
+  margin: 0em 2pt 0px 2em;
+}
+
+div.sidebar-title a {
+  color: #ffffff;
+}
+
+div.sidebar-main {
+  background-color: #f7f7f7;
+  border: solid #777777;
+  border-top-width: 0px;
+  border-bottom-width: 0px;
+  border-left-width: 4px;
+  border-right-width: 0px;
+  margin: 0em 2pt 1em 2em;
+  padding: 1em;
+}
+
+div.sidebar ul.main {
+  padding: 0pt 0pt 0pt 1em;
+  margin: 0 0 1em;
+}
+
+div.sidebar ul.sub {
+  list-style-type: square;
+  padding: 0pt 0pt 0pt 1em;
+  margin: 0 0 1em;
+}
+
+div.sidebar ul.hack {
+  padding: 0 0 0 0;
+  margin: 0 0 1em;
+  list-style-type: none;
+}
