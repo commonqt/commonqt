@@ -51,7 +51,7 @@ void*
 sw_init(SmokeData *data, void *callback)
 {
         init_qt_Smoke();
-        commonQtBinding = new CommonQtBinding(qt_Smoke);
+        qt_Smoke->binding = commonQtBinding = new CommonQtBinding(qt_Smoke);
 
         data->classes = qt_Smoke->classes;
         data->numClasses = qt_Smoke->numClasses;

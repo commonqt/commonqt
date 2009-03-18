@@ -1,5 +1,5 @@
-CFLAGS=-I/usr/include/qt4 -I/home/david/src/kdebindings/smoke
-LDFLAGS:=-L/home/david/src/kdebindings/lib
+CFLAGS:=-I/usr/include/qt4
+LDFLAGS:=
 
 all: libcommonqt.so
 
@@ -15,4 +15,4 @@ faslclean:
 	c++ -fPIC -c -o $@ $< -I. $(CFLAGS)
 
 libcommonqt.so: commonqt.o
-	c++ -fPIC -shared -o $@ $^ -lsmokeqt $(LDFLAGS)
+	c++ -fPIC -shared -o $@ $^ -lsmokeqt4 $(LDFLAGS)
