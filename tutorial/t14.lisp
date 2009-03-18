@@ -1,6 +1,6 @@
 ;;; -*- show-trailing-whitespace: t; indent-tabs-mode: nil -*-
 
-;;; http://doc.trolltech.com/4.3/tutorial-t13.html
+;;; http://doc.trolltech.com/4.3/tutorial-t14.html
 
 (defpackage :qt-tutorial-14
   (:use :cl :qt)
