@@ -62,7 +62,8 @@
            #:call-without-override
            #:qtrace
            #:enable-syntax
-           #:note-deleted))
+           #:note-deleted
+           #:enum=))
 
 (defpackage :qt-user
   (:use :cl :qt)

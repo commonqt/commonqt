@@ -256,6 +256,19 @@
         argument)
   (marshal-next))
 
+(defmarshal ((eql :stack)
+             (eql :|Qt::PenStyle|)
+             (eql 'enum))
+    ((argument enum)
+     type
+     stack-item
+     :test (lambda (arg *)
+             (or (eq (enum-type-name arg) :|Qt::GlobalColor|)
+                 (eq (enum-type-name arg) :|Qt::PenStyle|))))
+  (setf (cffi:foreign-slot-value stack-item '|union StackItem| 'uint)
+        (primitive-value argument))
+  (marshal-next))
+
 ;;; fixme: enum type safety? 
 
 ;;; (defmarshal ((eql :stack)

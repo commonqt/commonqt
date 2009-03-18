@@ -40,6 +40,16 @@
                                      '|union StackItem|
                                      'class)))
 
+(defmethod unmarshal-using-type ((kind (eql :reference))
+                                 (name t)
+                                 (stack-item-slot (eql 'class))
+                                 type
+                                 stack-item)
+  (%qobject (qtype-class type)
+            (cffi:foreign-slot-value stack-item
+                                     '|union StackItem|
+                                     'class)))
+
 (defmethod unmarshal-using-type ((kind (eql :stack))
                                  (name t)
                                  (stack-item-slot (eql 'class))
