@@ -109,6 +109,30 @@
     </div>
   </xsl:template>
 
+  <xsl:template match="tutorials">
+    <xsl:call-template name="iterate-tutorials">
+      <xsl:with-param name="i" select="1"/>
+    </xsl:call-template>
+  </xsl:template>
+
+  <xsl:template name="iterate-tutorials">
+    <xsl:param name="i"/>
+    <xsl:param name="n" select="14"/>
+    <xsl:if test="$i &lt;= $n">
+      <li>
+	<a href="http://doc.trolltech.com/4.3/tutorial-t{$i}.html">
+	  C++ version
+	</a>,
+	<a href="http://www.lichteblau.com/git/?p=commonqt.git;a=blob;f=tutorial/t{$i}.lisp;hb=smoke2">
+	  Lisp version
+	</a>
+      </li>
+      <xsl:call-template name="iterate-tutorials">
+	<xsl:with-param name="i" select="$i+1"/>
+      </xsl:call-template>
+    </xsl:if>
+  </xsl:template>
+
   <xsl:template name="sidebar">
     <div class="sidebar">
       <xsl:if test="/page/@clear-sidebar">
