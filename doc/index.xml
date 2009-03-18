@@ -86,7 +86,9 @@
   <p>
     Lisp translations of the
     <a href="http://doc.trolltech.com/4.3/tutorial.html">Qt tutorial</a>:
-    <a href=""></a>
+    <ol>
+      <tutorials/>
+    </ol>
   </p>
 
   <section>Calling instance methods</section>
