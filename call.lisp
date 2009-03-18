@@ -137,6 +137,16 @@
   (check-type value (signed-byte 32))
   (make-instance 'enum :type-name type-name :value value))
 
+(defmethod print-object ((instance primitive) stream)
+  (print-unreadable-object (instance stream :type t :identity nil)
+    (format stream "~A ~A"
+            (enum-type-name instance)
+            (primitive-value instance))))
+
+(defun enum= (a b)
+  (and (eq (enum-type-name a) (enum-type-name b))
+       (eql (primitive-value a) (primitive-value b))))
+
 (defun qobject= (x y)
   (cffi-sys:pointer-eq (qobject-pointer x) (qobject-pointer y)))
 

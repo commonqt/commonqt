@@ -7,5 +7,6 @@
                  (:file "tutorial/t10")
                  (:file "tutorial/t11")
                  (:file "tutorial/t12")
-                 (:file "tutorial/t13"))
+                 (:file "tutorial/t13")
+                 (:file "tutorial/t14"))
     :depends-on (:qt))
