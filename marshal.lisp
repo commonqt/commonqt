@@ -241,7 +241,7 @@
     ((argument integer)
      type
      stack-item
-     :test (lambda (arg *) (typep arg (signed-byte 32))))
+     :test (lambda (arg *) (typep arg '(signed-byte 32))))
   (setf (cffi:foreign-slot-value stack-item '|union StackItem| 'enum)
         argument)
   (marshal-next))
