@@ -31,7 +31,7 @@
   <p>
     Debian users:
   </p>
-  <example>aptitude install libsmokeqt4-dev</example>
+  <example>aptitude install libsmokeqt4-dev libqt4-dev</example>
   <p>
     Gentoo users (might need use flags for Qt4):
   </p>
