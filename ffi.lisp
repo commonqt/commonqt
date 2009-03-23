@@ -115,6 +115,7 @@
 
 (cffi:defcstruct |struct Class|
   (className :string)
+  (external :char)
   (parents :short)
   (classfn :pointer) ;; void (*classfn)(Index method, void *obj, Stack args)
   (enumfn :pointer)

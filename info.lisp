@@ -131,9 +131,10 @@
             (qmethod-name instance))))
 
 (defun parse-qclass (id struct)
-  (cffi:with-foreign-slots ((classname enumfn flags classfn parents)
+  (cffi:with-foreign-slots ((classname enumfn flags classfn parents
+                                       external)
                             struct |struct Class|)
-    (if (and #+(or) (zerop external))
+    (if (zerop external)
         (let ((parsed-flags '()))
           (flet ((flag (symbol mask)
                    (when (logtest mask flags)
@@ -406,7 +407,7 @@
       (let ((qclasses (make-array (1+ nclasses) :initial-element nil))
             (method-names (make-array (1+ nmethodnames) :initial-element nil))
             (qmethods (make-array nmethods :initial-element nil))
-            (qtypes (make-array ntypes :initial-element nil)))
+            (qtypes (make-array (1+ ntypes) :initial-element nil)))
         (setf *class-table* qclasses)
         (setf *method-table* qmethods)
         (setf *type-table* qtypes)
@@ -419,7 +420,7 @@
              (parse-qclass-parents (elt qclasses i)
                                    (cffi:mem-aref classes '|struct Class| i)
                                    inheritancelist))
-        (loop for i from 1 below ntypes do
+        (loop for i from 1 to ntypes do
              (setf (elt qtypes i)
                    (parse-qtype
                     i
