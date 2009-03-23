@@ -24,7 +24,7 @@ extern "C" {
                 void *castFn;
         } SmokeData;
 
-        void* sw_init(SmokeData *data, void *callback);
+        void* sw_init(SmokeData *data, void *, void *, void *);
         void* sw_make_qstring(char *);
         void sw_delete_qstring(void *);
         void* sw_make_metaobject(void *, char *, int *);

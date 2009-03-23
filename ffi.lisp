@@ -46,7 +46,9 @@
 
 (defcfun "sw_init" :pointer
   (data :pointer)
-  (callback :pointer))
+  (deletion-callback :pointer)
+  (method-callback :pointer)
+  (child-callback :pointer))
 
 (defcfun "sw_make_qstring" :pointer
   (str :string))
@@ -123,6 +125,14 @@
   (classid :short)
   (flags :short))
 
+(cffi:defcallback deletion-callback
+    :void
+    ((obj :pointer))
+  ;; Just dispatch to an ordinary function for debugging purposes.
+  ;; Redefinition of a callback wouldn't affect the existing C++ code,
+  ;; redefinition of the function does.
+  (%deletion-callback obj))
+
 (cffi:defcallback method-invocation-callback
     :int
     ((method :short)
@@ -133,3 +143,12 @@
   ;; Redefinition of a callback wouldn't affect the existing C++ code,
   ;; redefinition of the function does.
   (%method-invocation-callback method obj args abstractp))
+
+(cffi:defcallback child-callback
+    :void
+    ((added :char)                      ;bool
+     (obj :pointer))
+  ;; Just dispatch to an ordinary function for debugging purposes.
+  ;; Redefinition of a callback wouldn't affect the existing C++ code,
+  ;; redefinition of the function does.
+  (%child-callback added obj))

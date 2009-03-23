@@ -30,36 +30,55 @@
 #+sbcl (declaim (optimize (debug 2)))
 (named-readtables:in-readtable :qt)
 
+(defun pointer->cached-object (ptr)
+  (gethash (cffi:pointer-address ptr) *cached-objects*))
+
+(defun (setf pointer->cached-object) (newval ptr)
+  (setf (gethash (cffi:pointer-address ptr) *cached-objects*)
+        newval))
+
+(defun %deletion-callback (obj)
+  (restart-case
+      (let ((object (pointer->cached-object obj)))
+        (when object
+          (note-deleted object)
+          (change-class object 'deleted-object)))
+    (abort ()
+      :report (lambda (stream) (write-string "Abort smoke callback" stream)))))
+
 (defun %method-invocation-callback (method obj stack abstractp)
   (declare (ignore abstractp))
   (restart-case
-      (if (eql method -1)
-          (let ((object (gethash (cffi:pointer-address obj) *cached-objects*)))
-            (when object
-              (note-deleted object)
-              (change-class object 'deleted-object)
-              (remhash (cffi:pointer-address obj) *cached-objects*))
-            #xdeadbeef)
-          (let* ((object (gethash (cffi:pointer-address obj) *cached-objects*))
-                 (method (elt *method-table* method))
-                 (fun (and object (find-method-override object method))))
-            (if fun
-                (let* ((args
-                        (loop for type in (qmethod-argument-types method)
-                           for i from 1
-                           for item = (cffi:mem-aref stack
-                                                     '|union StackItem|
-                                                     i)
-                           collect (unmarshal type item)))
-                       (result (override fun object method args))
-                       (rtype (qmethod-return-type method)))
-                  (when rtype
-                    (marshal result rtype stack (lambda ())))
-                  1)
-                0)))
+      (let* ((object (pointer->cached-object obj))
+             (method (elt *method-table* method))
+             (fun (and object (find-method-override object method))))
+        (if fun
+            (let* ((args
+                    (loop for type in (qmethod-argument-types method)
+                       for i from 1
+                       for item = (cffi:mem-aref stack
+                                                 '|union StackItem|
+                                                 i)
+                       collect (unmarshal type item)))
+                   (result (override fun object method args))
+                   (rtype (qmethod-return-type method)))
+              (when rtype
+                (marshal result rtype stack (lambda ())))
+              1)
+            0))
     (abort ()
       :report (lambda (stream) (write-string "Abort smoke callback" stream))
       0)))
+
+(defun %child-callback (added obj)
+  (restart-case
+      (let ((object (pointer->cached-object obj)))
+        (when object
+          (if (zerop added)
+              (note-child-removed object)
+              (note-child-added object))))
+    (abort ()
+      :report (lambda (stream) (write-string "Abort smoke callback" stream)))))
 
 (defclass abstract-qobject ()
   ((class :initarg :class
@@ -146,7 +165,7 @@
   (cffi-sys:pointer-eq (qobject-pointer x) (qobject-pointer y)))
 
 (defun %qobject (class ptr)
-  (or (gethash (cffi:pointer-address ptr) *cached-objects*)
+  (or (pointer->cached-object ptr)
       (if (cffi:null-pointer-p ptr)
           (make-instance 'null-qobject :class class)
           (make-instance 'qobject :class class :pointer ptr))))
@@ -359,14 +378,18 @@
      (funcall fun))))
 
 (defun cache! (object)
-  (setf (gethash (cffi:pointer-address (qobject-pointer object))
-                 *cached-objects*)
-        object)
+  (setf (pointer->cached-object (qobject-pointer object)) object)
   (tg:finalize object
-               (let ((ptr (qobject-pointer object)))
+               (let ((ptr (qobject-pointer object))
+                     (class (qobject-class object))
+                     (str (princ-to-string object)))
                  (lambda ()
-                   (when (gethash (cffi:pointer-address ptr) *cached-objects*)
-                     (sw_delete ptr)))))
+                   (handler-case
+                       (call (%qobject class ptr)
+                             (format nil "~~~A" (qclass-name class)))
+                     (error (c)
+                       (princ c)
+                       (force-output))))))
   object)
 
 (defmethod new ((class qclass) &rest args)
@@ -468,10 +491,17 @@
   ())
 
 (defmethod note-deleted ((object qobject))
-  (tg:cancel-finalization object))
+  (tg:cancel-finalization object)
+  (remhash (cffi:pointer-address (qobject-pointer object)) *cached-objects*))
 
 (defmethod delete-object ((object qobject))
   (sw_delete (qobject-pointer object)))
+
+(defmethod note-child-added ((object qobject))
+  (setf (gethash object *keep-alive*) t))
+
+(defmethod note-child-removed ((object qobject))
+  (remhash object *keep-alive*))
 
 (defmethod find-qclass ((class string) &optional (errorp t))
   ;; fixme: use a hash table

@@ -63,6 +63,8 @@
            #:qtrace
            #:enable-syntax
            #:note-deleted
+           #:note-child-added
+           #:note-child-removed
            #:delete-object
            #:enum=))
 

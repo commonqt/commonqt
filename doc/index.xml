@@ -21,7 +21,8 @@
   </p>
   <p>
     It was developed using the LGPLed smoke 2 from kdebindings svn and
-    Qt 4.5 and is available under a BSD-style license.
+    Qt 4.5 and is available under a BSD-style license.  Qt >= 4.3 is
+    required for proper memory management.
   </p>
   <p>
     You can also use its branch for smoke 1 support with the binaries
@@ -60,6 +61,9 @@
       <li><a href="http://www.cliki.net/trivial-garbage">trivial-garbage</a></li>
     </ul>
     and their dependencies.
+  </p>
+  <p>
+    Tested with SBCL and CCL on Linux.
   </p>
   <section>Installation</section>
   <p>
@@ -436,12 +440,18 @@ Properties:
     finalizer.
   </p>
   <p>
-    This implies that application programmers need to keep references on
-    the lisp side to any object that is still used from C++ code.
+    This implies that application programmers sometimes need to keep
+    references on the lisp side to any object that is still used from
+    C++ code.
   </p>
   <p>
-    (Which is definitely not ideal, but IIUC, Ruby and Python and all
-    the others do the same.)
+    As an exception, CommonQt keeps track of child widgets added to
+    their parent, and ensures that there is a strong reference to the
+    child keeping it alive while it is on the screen.
+  </p>
+  <p>
+    (fixme: There are one or two other special cases in addition to
+    child widgets in QtRuby.  Need to port them over.)
   </p>
 
   <section>How about CLOS bindings?</section>

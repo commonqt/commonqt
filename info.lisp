@@ -379,13 +379,18 @@
 
 (defvar *commonqtbinding*)
 (defvar *castfn*)
+(defvar *keep-alive*)
 
 (defun init-smoke ()
   (ensure-loaded)
   (setf *cached-objects* (tg:make-weak-hash-table :weakness :value))
+  (setf *keep-alive* (make-hash-table))
   (cffi:with-foreign-object (data '|struct SmokeData|)
     (setf *commonqtbinding*
-          (sw_init data (cffi:callback method-invocation-callback)))
+          (sw_init data
+                   (cffi:callback deletion-callback)
+                   (cffi:callback method-invocation-callback)
+                   (cffi:callback child-callback)))
     (cffi:with-foreign-slots (( ;;
                                nmethodmaps methodmaps
                                nclasses classes
