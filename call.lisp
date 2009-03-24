@@ -442,17 +442,15 @@
       (error "No applicable constructor ~A found for arguments ~A"
              (qclass-name class) args))
     (assert (eq class (qtype-class (qmethod-return-type method))))
-    (let* ((m (qmethod-struct method))
-           (c (qclass-struct class)))
-      (with-tracing (method nil args)
-        (apply #'values
-               (call-with-marshalling
-                (lambda (stack)
-                  (setf (qobject-pointer instance) (%call-ctor method stack ))
-                  (cache! instance)
-                  (list instance))
-                (qmethod-argument-types method)
-                args))))))
+    (with-tracing (method nil args)
+      (apply #'values
+             (call-with-marshalling
+              (lambda (stack)
+                (setf (qobject-pointer instance) (%call-ctor method stack ))
+                (cache! instance)
+                (list instance))
+              (qmethod-argument-types method)
+              args)))))
 
 (defun call (instance method &rest args)
   (%call t instance method args))
