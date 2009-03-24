@@ -33,6 +33,10 @@ extern "C" {
 
 	void sw_map_children(void *x, void *y);
 
+	void* sw_make_qpointer(void* target);
+	bool sw_qpointer_is_null(void* x);
+	void sw_delete_qpointer(void* x);
+
 #ifdef __cplusplus
 }
 #endif

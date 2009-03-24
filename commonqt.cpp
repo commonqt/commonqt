@@ -4,6 +4,7 @@
 //
 #include <smoke.h>
 #include <Qt/qstring.h>
+#include <Qt/qpointer.h>
 #include <Qt/qmetaobject.h>
 #include <QtCore/qobject.h>
 #include <QtGui/qapplication.h>
@@ -167,4 +168,24 @@ sw_map_children(void *x, void *y)
 	const QList<QObject*> l = o->children();
 	for (int i=0; i < l.size(); ++i)
 		cb(l.at(i));
+}
+
+void*
+sw_make_qpointer(void* target)
+{
+        return new QPointer<QObject>((QObject*) target);
+}
+
+bool
+sw_qpointer_is_null(void* x)
+{
+	QPointer<QObject>* ptr = (QPointer<QObject>*) x;
+	return ptr->isNull();
+}
+
+void
+sw_delete_qpointer(void* x)
+{
+	QPointer<QObject>* ptr = (QPointer<QObject>*) x;
+	delete ptr;
 }

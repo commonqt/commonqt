@@ -108,7 +108,9 @@
 (defclass qobject (abstract-qobject)
   ((pointer :initarg :pointer
             :initform :unborn
-            :accessor qobject-pointer)))
+            :accessor qobject-pointer)
+   (qpointer :initarg :qpointer
+             :accessor qobject-qpointer)))
 
 (defmethod print-object ((instance qobject) stream)
   (print-unreadable-object (instance stream :type nil :identity nil)
@@ -391,17 +393,26 @@
 
 (defun cache! (object)
   (setf (pointer->cached-object (qobject-pointer object)) object)
+  ;; use of QPointer is a very big hammer, but should be a very reliable
+  ;; way of avoiding double frees
+  (setf (qobject-qpointer object) (sw_make_qpointer (qobject-pointer object)))
   (tg:finalize object
                (let ((ptr (qobject-pointer object))
                      (class (qobject-class object))
-                     (str (princ-to-string object)))
+                     (str (princ-to-string object))
+                     (qp (qobject-qpointer object)))
                  (lambda ()
-                   (handler-case
-                       (call (%qobject class ptr)
-                             (format nil "~~~A" (qclass-name class)))
-                     (error (c)
-                       (princ c)
-                       (force-output))))))
+;;;                    (format t "[~A ~A]~%"
+;;;                            (zerop (sw_qpointer_is_null qp))
+;;;                            str)
+                   (when (zerop (sw_qpointer_is_null qp))
+                     (handler-case
+                         (call (%qobject class ptr)
+                               (format nil "~~~A" (qclass-name class)))
+                       (error (c)
+                         (format t "Error in finalizer: ~A, for object: ~A~%"
+                                 c str))))
+                   (sw_delete_qpointer qp))))
   object)
 
 (defmethod new ((class qclass) &rest args)
@@ -501,7 +512,7 @@
   ())
 
 (defmethod note-deleted ((object qobject))
-  (tg:cancel-finalization object)
+  ;; (tg:cancel-finalization object)
   (remhash (cffi:pointer-address (qobject-pointer object)) *cached-objects*))
 
 (defmethod delete-object ((object qobject))
