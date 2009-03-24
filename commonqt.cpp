@@ -155,3 +155,16 @@ sw_event_notify(void **data)
 	commonQtBinding->child_callback(e->added(), e->child());
 	return false;
 }
+
+typedef void (*t_ptr_callback)(void *);
+
+// quick hack, to be rewritten once we have QList marshalling support
+void
+sw_map_children(void *x, void *y)
+{
+	t_ptr_callback cb = (t_ptr_callback) y;
+	QObject* o = (QObject*) x;
+	const QList<QObject*> l = o->children();
+	for (int i=0; i < l.size(); ++i)
+		cb(l.at(i));
+}

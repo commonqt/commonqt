@@ -31,6 +31,8 @@ extern "C" {
         void sw_delete(void *p);
         void* sw_qstring_to_utf8(void* s);
 
+	void sw_map_children(void *x, void *y);
+
 #ifdef __cplusplus
 }
 #endif

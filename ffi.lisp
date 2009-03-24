@@ -50,6 +50,10 @@
   (method-callback :pointer)
   (child-callback :pointer))
 
+(defcfun "sw_map_children" :void
+  (obj :pointer)
+  (cb :pointer))
+
 (defcfun "sw_make_qstring" :pointer
   (str :string))
 
@@ -152,3 +156,10 @@
   ;; Redefinition of a callback wouldn't affect the existing C++ code,
   ;; redefinition of the function does.
   (%child-callback added obj))
+
+(defvar *ptr-callback*)
+
+(cffi:defcallback ptr-callback
+    :void
+    ((obj :pointer))
+  (funcall *ptr-callback* obj))
