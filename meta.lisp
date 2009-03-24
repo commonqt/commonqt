@@ -283,8 +283,16 @@
 (defmethod find-method-override ((object abstract-qobject) (method t))
   nil)
 
+(defmethod find-method-override ((object qobject) (method t))
+  (when (alexandria:starts-with #\~ (qmethod-name method))
+    (format t "dtor called on ~A~%" object)
+    (force-output)
+    (note-deleted object)
+    nil))
+
 (defmethod find-method-override ((object dynamic-object) method)
-  (gethash (qmethod-name method) (class-overrides (class-of object))))
+  (or (gethash (qmethod-name method) (class-overrides (class-of object)))
+      (call-next-method)))
 
 (defvar *next-qmethod-trampoline* nil)
 (defvar *next-qmethod* nil)
