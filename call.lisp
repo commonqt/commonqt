@@ -80,6 +80,18 @@
     (abort ()
       :report (lambda (stream) (write-string "Abort smoke callback" stream)))))
 
+(defun map-qobject-children (fn x)
+  (let ((*ptr-callback*
+         (lambda (ptr)
+           (funcall fn (%qobject (find-qclass "QObject") ptr)))))
+    (sw_map_children (qobject-pointer x) (cffi:callback ptr-callback))))
+
+(defun map-qobject-hierarchy (fn x)
+  (funcall fn x)
+  (map-qobject-children (lambda (y)
+                          (map-qobject-hierarchy fn y))
+                        x))
+
 (defclass abstract-qobject ()
   ((class :initarg :class
           :accessor qobject-class)))
@@ -96,7 +108,9 @@
 (defclass qobject (abstract-qobject)
   ((pointer :initarg :pointer
             :initform :unborn
-            :accessor qobject-pointer)))
+            :accessor qobject-pointer)
+   (qpointer :initarg :qpointer
+             :accessor qobject-qpointer)))
 
 (defmethod print-object ((instance qobject) stream)
   (print-unreadable-object (instance stream :type nil :identity nil)
@@ -379,17 +393,26 @@
 
 (defun cache! (object)
   (setf (pointer->cached-object (qobject-pointer object)) object)
+  ;; use of QPointer is a very big hammer, but should be a very reliable
+  ;; way of avoiding double frees
+  (setf (qobject-qpointer object) (sw_make_qpointer (qobject-pointer object)))
   (tg:finalize object
                (let ((ptr (qobject-pointer object))
                      (class (qobject-class object))
-                     (str (princ-to-string object)))
+                     (str (princ-to-string object))
+                     (qp (qobject-qpointer object)))
                  (lambda ()
-                   (handler-case
-                       (call (%qobject class ptr)
-                             (format nil "~~~A" (qclass-name class)))
-                     (error (c)
-                       (princ c)
-                       (force-output))))))
+;;;                    (format t "[~A ~A]~%"
+;;;                            (zerop (sw_qpointer_is_null qp))
+;;;                            str)
+                   (when (zerop (sw_qpointer_is_null qp))
+                     (handler-case
+                         (call (%qobject class ptr)
+                               (format nil "~~~A" (qclass-name class)))
+                       (error (c)
+                         (format t "Error in finalizer: ~A, for object: ~A~%"
+                                 c str))))
+                   (sw_delete_qpointer qp))))
   object)
 
 (defmethod new ((class qclass) &rest args)
@@ -430,17 +453,15 @@
       (error "No applicable constructor ~A found for arguments ~A"
              (qclass-name class) args))
     (assert (eq class (qtype-class (qmethod-return-type method))))
-    (let* ((m (qmethod-struct method))
-           (c (qclass-struct class)))
-      (with-tracing (method nil args)
-        (apply #'values
-               (call-with-marshalling
-                (lambda (stack)
-                  (setf (qobject-pointer instance) (%call-ctor method stack ))
-                  (cache! instance)
-                  (list instance))
-                (qmethod-argument-types method)
-                args))))))
+    (with-tracing (method nil args)
+      (apply #'values
+             (call-with-marshalling
+              (lambda (stack)
+                (setf (qobject-pointer instance) (%call-ctor method stack ))
+                (cache! instance)
+                (list instance))
+              (qmethod-argument-types method)
+              args)))))
 
 (defun call (instance method &rest args)
   (%call t instance method args))
@@ -491,7 +512,7 @@
   ())
 
 (defmethod note-deleted ((object qobject))
-  (tg:cancel-finalization object)
+  ;; (tg:cancel-finalization object)
   (remhash (cffi:pointer-address (qobject-pointer object)) *cached-objects*))
 
 (defmethod delete-object ((object qobject))

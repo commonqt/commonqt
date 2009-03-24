@@ -11,5 +11,6 @@
                  (:file "t11")
                  (:file "t12")
                  (:file "t13")
-                 (:file "t14"))
+                 (:file "t14")
+                 (:file "conv"))
     :depends-on (:qt))

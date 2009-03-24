@@ -4,6 +4,7 @@
 //
 #include <smoke.h>
 #include <Qt/qstring.h>
+#include <Qt/qpointer.h>
 #include <Qt/qmetaobject.h>
 #include <QtCore/qobject.h>
 #include <QtGui/qapplication.h>
@@ -154,4 +155,37 @@ sw_event_notify(void **data)
 	QChildEvent* e = static_cast<QChildEvent*>(event);
 	commonQtBinding->child_callback(e->added(), e->child());
 	return false;
+}
+
+typedef void (*t_ptr_callback)(void *);
+
+// quick hack, to be rewritten once we have QList marshalling support
+void
+sw_map_children(void *x, void *y)
+{
+	t_ptr_callback cb = (t_ptr_callback) y;
+	QObject* o = (QObject*) x;
+	const QList<QObject*> l = o->children();
+	for (int i=0; i < l.size(); ++i)
+		cb(l.at(i));
+}
+
+void*
+sw_make_qpointer(void* target)
+{
+        return new QPointer<QObject>((QObject*) target);
+}
+
+bool
+sw_qpointer_is_null(void* x)
+{
+	QPointer<QObject>* ptr = (QPointer<QObject>*) x;
+	return ptr->isNull();
+}
+
+void
+sw_delete_qpointer(void* x)
+{
+	QPointer<QObject>* ptr = (QPointer<QObject>*) x;
+	delete ptr;
 }
