@@ -195,6 +195,8 @@
 (defmethod argument-hash-key ((object vector)) '?)
 (defmethod argument-hash-key ((object string)) '$)
 (defmethod argument-hash-key ((object integer)) '$)
+(defmethod argument-hash-key ((object (eql t))) '$)
+(defmethod argument-hash-key ((object null)) '$)
 
 (defmethod can-marshal-p ((kind t) (name t) (slot t) (arg t) (type t))
   nil)

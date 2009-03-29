@@ -234,6 +234,13 @@
           (setf overrides (merge-overrides overrides (default-overrides)))))
     (setf member-table (concatenate 'vector signals qt-slots))))
 
+(defun %qobject-metaobject ()
+  (or *qobject-metaobject*
+      (setf *qobject-metaobject*
+            (let ((qobj (new (find-qclass "QObject"))))
+              (prog1 (#_metaObject qobj)
+                (delete-object qobj))))))
+
 (defun ensure-qt-class-caches (qt-class)
   (check-type qt-class qt-class)
   (ensure-smoke)
@@ -254,7 +261,7 @@
                            (class-qt-superclass qt-class)))
                    (qobject (find-qclass "QObject"))
                    (parent (if (eq class qobject)
-                               (#_staticQtMetaObject class)
+                               (%qobject-metaobject)
                                (#_staticMetaObject class))))
               (make-metaobject parent
                                (let ((name (class-name qt-class)))
@@ -494,7 +501,7 @@
   (let* ((meta (class-qmetaobject (class-of object)))
          (id (#_indexOfSignal meta name))
          (offset (#_methodOffset meta)))
-    (unless (plusp id)
+    (unless (>= id 0)
       (error "no such signal ~A on ~A" name object))
     (apply #'values
            (call-with-signal-marshalling
