@@ -380,11 +380,13 @@
 (defvar *commonqtbinding*)
 (defvar *castfn*)
 (defvar *keep-alive*)
+(defvar *qobject-metaobject* nil)
 
 (defun init-smoke ()
   (ensure-loaded)
   (setf *cached-objects* (tg:make-weak-hash-table :weakness :value))
   (setf *keep-alive* (make-hash-table))
+  (setf *qobject-metaobject* nil)
   (cffi:with-foreign-object (data '|struct SmokeData|)
     (setf *commonqtbinding*
           (sw_init data

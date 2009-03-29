@@ -234,13 +234,12 @@
           (setf overrides (merge-overrides overrides (default-overrides)))))
     (setf member-table (concatenate 'vector signals qt-slots))))
 
-(let (qobject-metaobject)
-  (defun %qobject-metaobject ()
-    (or qobject-metaobject
-        (setf qobject-metaobject
-              (let ((qobj (new (find-qclass "QObject"))))
-                (prog1 (#_metaObject qobj)
-                  (delete-object qobj)))))))
+(defun %qobject-metaobject ()
+  (or *qobject-metaobject*
+      (setf *qobject-metaobject*
+            (let ((qobj (new (find-qclass "QObject"))))
+              (prog1 (#_metaObject qobj)
+                (delete-object qobj))))))
 
 (defun ensure-qt-class-caches (qt-class)
   (check-type qt-class qt-class)
