@@ -389,7 +389,9 @@
          args))
 
 (defmethod new ((class symbol) &rest args)
-  (apply #'new (find-class class) (when args (list :qt-ctor-args args))))
+  (apply #'make-instance
+         (find-class class)
+         (when args (list :qt-ctor-args args))))
 
 (defclass class-info ()
   ((key :initarg :key
