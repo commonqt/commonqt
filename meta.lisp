@@ -260,9 +260,13 @@
             (let* ((class (find-qclass
                            (class-qt-superclass qt-class)))
                    (qobject (find-qclass "QObject"))
-                   (parent (if (eq class qobject)
-                               (%qobject-metaobject)
-                               (#_staticMetaObject class))))
+                   (parent (cond
+                             ((eq class qobject)
+                              (%qobject-metaobject))
+                             ((qsubtypep class qobject)
+                              (#_staticMetaObject class))
+                             (t
+                              (null-qobject (find-qclass "QMetaObject"))))))
               (make-metaobject parent
                                (let ((name (class-name qt-class)))
                                  (format nil "~A::~A"
@@ -385,7 +389,9 @@
          args))
 
 (defmethod new ((class symbol) &rest args)
-  (apply #'new (find-class class) (when args (list :qt-ctor-args args))))
+  (apply #'make-instance
+         (find-class class)
+         (when args (list :qt-ctor-args args))))
 
 (defclass class-info ()
   ((key :initarg :key

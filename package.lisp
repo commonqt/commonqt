@@ -36,7 +36,9 @@
            #:call-next-qmethod
            #:new
            #:qt-class
+           #:abstract-qobject
            #:null-qobject
+           #:qobject
            #:qsignal
            #:qslot
            #:find-qclass
@@ -66,7 +68,8 @@
            #:note-child-added
            #:note-child-removed
            #:delete-object
-           #:enum=))
+           #:enum=
+           #:find-method-override))
 
 (defpackage :qt-user
   (:use :cl :qt)

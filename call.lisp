@@ -475,6 +475,8 @@
   (typecase instance
     (symbol
      (setf instance (class-effective-class (find-class instance))))
+    (qt-class
+     (setf instance (class-effective-class instance)))
     (string
      (setf instance (find-qclass instance))))
   (let ((name method)
