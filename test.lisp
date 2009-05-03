@@ -102,3 +102,25 @@
 
 (defun enable-syntax ()
   (named-readtables:in-readtable :qt))
+
+(defun windows-version ()
+  (let ((v (sw_windows_version)))
+    (if (minusp v) nil v)))
+
+(defvar +xp+ #x30)
+(defvar +2003+ #x40)
+(defvar +vista+ #x80)
+
+(defun set-nice-theme ()
+  ;; This function isn't called by CommonQt automatically, but user
+  ;; code can use it if desired.
+  ;;
+  ;; The native look on Vista is great, but XP's widgets look antiquated.
+  ;; Let's use Plastique on XP instead.
+  ;;
+  ;; On non-Windows, we don't have this problem, so do nothing.
+  ;;
+  (ensure-smoke)
+  (let ((v (windows-version)))
+    (when (and v (< v +vista+))
+      (#_QApplication::setStyle "Plastique"))))

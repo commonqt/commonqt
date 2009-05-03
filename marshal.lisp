@@ -173,9 +173,20 @@
   (marshal-next))
 
 (defmarshal ((eql :stack)
+             (eql :|unsigned int|)
+             (eql 'uint))
+    ((argument integer)
+     type
+     stack-item
+     :test (lambda (arg *) (typep arg '(unsigned-byte 32))))
+  (setf (cffi:foreign-slot-value stack-item '|union StackItem| 'uint)
+        argument)
+  (marshal-next))
+
+(defmarshal ((eql :stack)
              (eql :|qreal|)
              (eql 'float))
-    ((argument rational)
+    ((argument real)
      type
      stack-item)
   (setf (cffi:foreign-slot-value stack-item '|union StackItem| 'float)
@@ -185,7 +196,7 @@
 (defmarshal ((eql :stack)
              (eql :|qreal|)
              (eql 'double))
-    ((argument rational)
+    ((argument real)
      type
      stack-item)
   (setf (cffi:foreign-slot-value stack-item '|union StackItem| 'double)

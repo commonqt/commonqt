@@ -38,17 +38,22 @@
                                  (asdf:find-system :qt)))))
   (setf *loaded* t))
 
-#-(and sbcl linkage-table)
+;; On SBCL/win32, :LINKAGE-TABLE is on *FEATURES*, but that's a lie, it
+;; can't actually process FFI definitions before the library has been
+;; loaded.
+#-(and sbcl (and linkage-table (not windows)))
 (load-smoke-library)
 
 (defmacro defcfun (name ret &rest args)
   `(cffi:defcfun (,name ,(intern (string-upcase name) :qt)) ,ret ,@args))
 
-(defcfun "sw_init" :pointer
+(defcfun "sw_init" :void
   (data :pointer)
   (deletion-callback :pointer)
   (method-callback :pointer)
   (child-callback :pointer))
+
+(defcfun "sw_windows_version" :int)
 
 (defcfun "sw_map_children" :void
   (obj :pointer)
@@ -94,7 +99,9 @@
   (inheritanceList :pointer)
   (argumentList :pointer)
   (ambiguousMethodList :pointer)
-  (castFn :pointer))
+  (castFn :pointer)
+  (thin :pointer)
+  (fat :pointer))
 
 (cffi:defcunion |union StackItem|
   (ptr :pointer)
@@ -139,7 +146,35 @@
   (classid :short)
   (flags :short))
 
-(cffi:defcallback deletion-callback
+(defvar *callbacks* (make-hash-table :test 'equal))
+
+#+(and ccl windows)
+(in-package :cffi-sys)
+#+(and ccl windows)
+(format t "patching cffi for stdcall callbacks support~%")
+#+(and ccl windows)
+(defmacro %defcallback (name rettype arg-names arg-types body
+                        &key calling-convention)
+  (let ((cb-name (intern-callback name)))
+    `(progn
+       (defcallback ,cb-name
+           (,@ (ecase calling-convention
+                 ((:cdecl nil) '())
+                 ((:stdcall) '(:discard-stack-args)))
+               ,@(mapcan (lambda (sym type)
+                           (list (convert-foreign-type type) sym))
+                         arg-names arg-types)
+               ,(convert-foreign-type rettype))
+         ,body)
+       (setf (gethash ',name *callbacks*) (symbol-value ',cb-name)))))
+#+(and ccl windows) (in-package :qt)
+
+(defmacro defcallback (name ret (&rest args) &body body)
+  `(cffi:defcallback (,name #+(and ccl windows) :calling-convention
+                            #+(and ccl windows) :stdcall)
+       ,ret ,args ,@body))
+
+(defcallback deletion-callback
     :void
     ((obj :pointer))
   ;; Just dispatch to an ordinary function for debugging purposes.
@@ -147,7 +182,7 @@
   ;; redefinition of the function does.
   (%deletion-callback obj))
 
-(cffi:defcallback method-invocation-callback
+(defcallback method-invocation-callback
     :int
     ((method :short)
      (obj :pointer)
@@ -158,7 +193,7 @@
   ;; redefinition of the function does.
   (%method-invocation-callback method obj args abstractp))
 
-(cffi:defcallback child-callback
+(defcallback child-callback
     :void
     ((added :char)                      ;bool
      (obj :pointer))
@@ -169,7 +204,7 @@
 
 (defvar *ptr-callback*)
 
-(cffi:defcallback ptr-callback
+(defcallback ptr-callback
     :void
     ((obj :pointer))
   (funcall *ptr-callback* obj))

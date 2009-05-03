@@ -195,6 +195,7 @@
 (defmethod argument-hash-key ((object vector)) '?)
 (defmethod argument-hash-key ((object string)) '$)
 (defmethod argument-hash-key ((object integer)) '$)
+(defmethod argument-hash-key ((object real)) '$)
 (defmethod argument-hash-key ((object (eql t))) '$)
 (defmethod argument-hash-key ((object null)) '$)
 
@@ -393,28 +394,42 @@
     (t
      (funcall fun))))
 
+(defvar *pending-finalizations* nil)
+
+(defun finalize (ptr class description qp)
+  #+(or)
+  (format t "[~A ~A]~%"
+          (zerop (sw_qpointer_is_null qp))
+          description)
+  (when (zerop (sw_qpointer_is_null qp))
+    (handler-case
+        (call (%qobject class ptr)
+              (format nil "~~~A" (qclass-name class)))
+      (error (c)
+        (format t "Error in finalizer: ~A, for object: ~A~%"
+                c description))))
+  (sw_delete_qpointer qp))
+
 (defun cache! (object)
   (setf (pointer->cached-object (qobject-pointer object)) object)
   ;; use of QPointer is a very big hammer, but should be a very reliable
   ;; way of avoiding double frees
   (setf (qobject-qpointer object) (sw_make_qpointer (qobject-pointer object)))
+  ;; Let's avoid calling finalizers in random after-gc situations.
+  ;; Instead we postpone them until the next object is created, which
+  ;; can only happen in a Qt-related thread.  And object creation time
+  ;; seems like moment for cleanup for older objects.
+  (mapc #'funcall *pending-finalizations*)
+  (setf *pending-finalizations* nil)
   (tg:finalize object
                (let ((ptr (qobject-pointer object))
                      (class (qobject-class object))
                      (str (princ-to-string object))
                      (qp (qobject-qpointer object)))
                  (lambda ()
-;;;                    (format t "[~A ~A]~%"
-;;;                            (zerop (sw_qpointer_is_null qp))
-;;;                            str)
-                   (when (zerop (sw_qpointer_is_null qp))
-                     (handler-case
-                         (call (%qobject class ptr)
-                               (format nil "~~~A" (qclass-name class)))
-                       (error (c)
-                         (format t "Error in finalizer: ~A, for object: ~A~%"
-                                 c str))))
-                   (sw_delete_qpointer qp))))
+                   (push (lambda ()
+                           (finalize ptr class str qp))
+                         *pending-finalizations*))))
   object)
 
 (defmethod new ((class qclass) &rest args)
@@ -424,7 +439,7 @@
                         :pointer :unborn)
          args))
 
-(defun %call-ctor (method stack)
+(defun %call-ctor (method stack binding)
   (cffi:foreign-funcall-pointer
    (qclass-trampoline-fun (qmethod-class method))
    ()
@@ -438,7 +453,7 @@
              (cffi:mem-aref stack2 '|union StackItem| 1)
              '|union StackItem|
              'ptr)
-            *commonqtbinding*)
+            binding)
       (cffi:foreign-funcall-pointer
        (qclass-trampoline-fun (qmethod-class method))
        ()
@@ -459,7 +474,12 @@
       (apply #'values
              (call-with-marshalling
               (lambda (stack)
-                (setf (qobject-pointer instance) (%call-ctor method stack ))
+                (setf (qobject-pointer instance)
+                      (%call-ctor method
+                                  stack
+                                  (if (typep instance 'dynamic-object)
+                                      *fat-binding*
+                                      *thin-binding*)))
                 (cache! instance)
                 (list instance))
               (qmethod-argument-types method)

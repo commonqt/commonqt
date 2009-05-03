@@ -378,7 +378,9 @@
     (setf *initialized* nil)
     (load-smoke-library)))
 
-(defvar *commonqtbinding*)
+(defvar *thin-binding*)
+(defvar *fat-binding*)
+
 (defvar *castfn*)
 (defvar *keep-alive*)
 (defvar *qobject-metaobject* nil)
@@ -389,11 +391,10 @@
   (setf *keep-alive* (make-hash-table))
   (setf *qobject-metaobject* nil)
   (cffi:with-foreign-object (data '|struct SmokeData|)
-    (setf *commonqtbinding*
-          (sw_init data
-                   (cffi:callback deletion-callback)
-                   (cffi:callback method-invocation-callback)
-                   (cffi:callback child-callback)))
+    (sw_init data
+             (cffi:callback deletion-callback)
+             (cffi:callback method-invocation-callback)
+             (cffi:callback child-callback))
     (cffi:with-foreign-slots (( ;;
                                nmethodmaps methodmaps
                                nclasses classes
@@ -403,8 +404,12 @@
                                argumentlist
                                inheritancelist
                                ambiguousmethodlist
-                               castfn)
+                               castfn
+                               thin
+                               fat)
                               data |struct SmokeData|)
+      (setf *thin-binding* thin)
+      (setf *fat-binding* fat)
       (setf *castfn* castfn)
       (let ((qclasses (make-array (1+ nclasses) :initial-element nil))
             (method-names (make-array (1+ nmethodnames) :initial-element nil))

@@ -164,7 +164,8 @@
           (iter (for (method fun) in override)
                 (collect (make-instance 'override-spec
                                         :method-name method
-                                        :target-function fun)))))
+                                        :target-function
+                                        (parse-function fun))))))
     (apply next-method
            class
            :allow-other-keys t

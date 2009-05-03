@@ -22,9 +22,12 @@ extern "C" {
                 short *argumentList;
                 short *ambiguousMethodList;
                 void *castFn;
+
+		void *thin;
+		void *fat;
         } SmokeData;
 
-        void* sw_init(SmokeData *data, void *, void *, void *);
+        void sw_init(SmokeData *data, void *, void *, void *);
         void* sw_make_qstring(char *);
         void sw_delete_qstring(void *);
         void* sw_make_metaobject(void *, char *, int *);
@@ -36,6 +39,8 @@ extern "C" {
 	void* sw_make_qpointer(void* target);
 	bool sw_qpointer_is_null(void* x);
 	void sw_delete_qpointer(void* x);
+
+	int sw_windows_version();
 
 #ifdef __cplusplus
 }

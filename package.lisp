@@ -69,7 +69,9 @@
            #:note-child-removed
            #:delete-object
            #:enum=
-           #:find-method-override))
+           #:find-method-override
+           #:windows-version
+           #:set-nice-theme))
 
 (defpackage :qt-user
   (:use :cl :qt)

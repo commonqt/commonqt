@@ -28,7 +28,7 @@
 
 (defsystem :qt
     :serial t
-    :components ((cpp->so "commonqt")
+    :components (#-(or mswindows windows) (cpp->so "commonqt")
                  (:file "package")
                  (:file "ffi")
                  (:file "info")

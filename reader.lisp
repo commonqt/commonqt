@@ -29,6 +29,7 @@
 (in-package :qt)
 #+sbcl (declaim (optimize (debug 2)))
 
+;; old syntax retained for compatibility
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defun read-smoke-lambda/quotes (stream char n)
     (declare (ignore n))
@@ -46,21 +47,39 @@
     (setf (readtable-case table) :preserve)
     table))
 
+;; newer syntax
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (defun read-smoke-lambda/quoteless (stream char n)
+  (defun read-smoke-lambda/quoteless (stream char n &aux it)
     (declare (ignore n))
     (check-type char (eql #\_))
-    (flet ((next ()
-             (symbol-name
-              (let ((*readtable* *case-preserving-readtable*))
-                (read stream t nil t)))))
-      (let ((method-name (next)))
-        (if (equal method-name "new")   ;it's magic!
-            (let ((class-name (next)))
-              `(lambda (&rest args)
-                 (apply #'new ,class-name args)))
-            `(lambda (instance &rest args)
-               (apply #'call instance ,method-name args)))))))
+    (let ((method-name
+           (coerce (iter
+                    (let* ((char (peek-char nil stream))
+                           (code (char-code char)))
+                      (if (or (eql char #\_)
+                              (eql char #\:)
+                              (<= 65 code 90)
+                              (<= 97 code 122)
+                              (<= 48 code 57))
+                          (collect (read-char stream))
+                          (finish))))
+                   'string)))
+      (cond                             ;it's magic!
+        ((equal method-name "new")
+         (let ((class-name
+                (symbol-name
+                 (let ((*readtable* *case-preserving-readtable*))
+                   (read stream t nil t)))))
+           `(lambda (&rest args)
+              (apply #'new ,class-name args))))
+        ((setf it (search "::" method-name))
+         (let ((class-name (subseq method-name 0 it))
+               (method-name (subseq method-name (+ it 2))))
+           `(lambda (&rest args)
+              (apply #'call ,class-name ,method-name args))))
+        (t
+         `(lambda (instance &rest args)
+            (apply #'call instance ,method-name args)))))))
 
 (named-readtables:defreadtable :qt
     (:merge :standard)

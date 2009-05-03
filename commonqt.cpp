@@ -10,6 +10,15 @@
 #include <QtGui/qapplication.h>
 #include "commonqt.h"
 
+// work around bugs in CCL cdecl callback support
+#ifdef WINDOWS
+#define MAYBE_STDCALL __stdcall
+#else
+#define MAYBE_STDCALL
+#endif
+
+// #define DEBUG 1
+
 extern Smoke* qt_Smoke;
 extern void init_qt_Smoke();
 
@@ -19,16 +28,14 @@ extern void init_qt_Smoke();
 
 using namespace std;
 
-static bool sw_event_notify(void **data);
+typedef void (MAYBE_STDCALL *t_deletion_callback)(void*);
+typedef bool (MAYBE_STDCALL *t_callmethod_callback)(short, void*, void*, bool);
+typedef void (MAYBE_STDCALL *t_child_callback)(bool, void*);
 
-typedef void (*t_deletion_callback)(void*);
-typedef bool (*t_callmethod_callback)(short, void*, void*, bool);
-typedef void (*t_child_callback)(bool, void*);
-
-class CommonQtBinding : public SmokeBinding
+class ThinBinding : public SmokeBinding
 {
 public:
-        CommonQtBinding(Smoke* s) : SmokeBinding(s) {}
+        ThinBinding(Smoke* s) : SmokeBinding(s) {}
 
         t_deletion_callback deletion_callback;
         t_callmethod_callback callmethod_callback;
@@ -41,29 +48,85 @@ public:
         bool callMethod(Smoke::Index method, void* obj,
                 Smoke::Stack args, bool isAbstract)
         {
+		Smoke::Method* m = &qt_Smoke->methods[method];
+		const char* name = qt_Smoke->methodNames[m->name];
+		Smoke::Class* c = &qt_Smoke->classes[m->classId];
+		if (*name == '~')
+			callmethod_callback(method, obj, args, isAbstract);
+		else if (!strcmp(name, "notify")
+			 && !strcmp(c->className, "QApplication"))
+		{
+			QEvent* e = (QEvent*) args[2].s_voidp;
+			if (e->type() == QEvent::ChildAdded
+			    || e->type() == QEvent::ChildRemoved)
+			{
+				QChildEvent* f = (QChildEvent*) e;
+				child_callback(f->added(), f->child());
+			}
+		}
+		return false;
+	}
+
+        char* className(Smoke::Index classId) {
+                return (char*) smoke->classes[classId].className;
+        }
+};
+
+class FatBinding : public SmokeBinding
+{
+public:
+	FatBinding(Smoke* s) : SmokeBinding(s) {}
+
+        t_deletion_callback deletion_callback;
+        t_callmethod_callback callmethod_callback;
+	t_child_callback child_callback;
+
+        void deleted(Smoke::Index classId, void* obj) {
+                deletion_callback(obj);
+        }
+
+        bool callMethod(Smoke::Index method, void* obj,
+                Smoke::Stack args, bool isAbstract)
+        {
+#if 0
+		{
+			Smoke::Method* m = &qt_Smoke->methods[method];
+			short ic = m->classId;
+			short iname = m->name;
+			Smoke::Class* c = &qt_Smoke->classes[ic];
+			const char *name = qt_Smoke->methodNames[iname];
+
+			cout << "calling " << c->className <<  "." << name << endl;
+		}
+#endif
                 return callmethod_callback(method, obj, args, isAbstract);
         }
 
         char* className(Smoke::Index classId) {
+#if 0
                 char* real = (char*) smoke->classes[classId].className;
                 char* prefix = (char*) "HACK_";
                 char* result = (char*) malloc(strlen(real) + strlen(prefix) + 1);
                 strcpy(result, prefix);
                 strcpy(result + strlen(prefix), real);
                 return result;
+#endif
+                return (char*) smoke->classes[classId].className;
         }
 };
 
-static CommonQtBinding* commonQtBinding;
+static ThinBinding* thinBinding;
+static FatBinding* fatBinding;
 
-void*
+void
 sw_init(SmokeData *data,
 	void *deletion_callback,
 	void *method_callback,
 	void *child_callback)
 {
         init_qt_Smoke();
-        commonQtBinding = new CommonQtBinding(qt_Smoke);
+        thinBinding = new ThinBinding(qt_Smoke);
+        fatBinding = new FatBinding(qt_Smoke);
 
         data->classes = qt_Smoke->classes;
         data->numClasses = qt_Smoke->numClasses;
@@ -85,24 +148,31 @@ sw_init(SmokeData *data,
         data->ambiguousMethodList = qt_Smoke->ambiguousMethodList;
         data->castFn = (void *) qt_Smoke->castFn;
 
-	commonQtBinding->deletion_callback
+	fatBinding->deletion_callback
 		= (t_deletion_callback) deletion_callback;
 
-        commonQtBinding->callmethod_callback
+        fatBinding->callmethod_callback
                 = (t_callmethod_callback) method_callback;
 
-	commonQtBinding->child_callback
+	fatBinding->child_callback
 		= (t_child_callback) child_callback;
 
-#if QT_VERSION >= 0x40300
-    QInternal::registerCallback(QInternal::EventNotifyCallback,
-				sw_event_notify);
-#else
-#warn Old version of Qt detected.  At least Qt 4.3 is needed for memory management heuristics
-        cout << "warning: Old version of Qt detected.  At least Qt 4.3 is needed for memory management heuristics" << endl;
-#endif
+	thinBinding->deletion_callback = fatBinding->deletion_callback;
+	thinBinding->callmethod_callback = fatBinding->callmethod_callback;
+	thinBinding->child_callback = fatBinding->child_callback;
 
-        return commonQtBinding;
+        data->thin = thinBinding;
+        data->fat = fatBinding;
+}
+
+int
+sw_windows_version()
+{
+#ifdef WINDOWS
+	return QSysInfo::windowsVersion();
+#else
+	return -1;
+#endif
 }
 
 void*
@@ -141,20 +211,6 @@ sw_delete(void *p)
 {
         QObject* q = (QObject*) p;
         delete q;
-}
-
-static bool
-sw_event_notify(void **data)
-{
-	QEvent* event = (QEvent*) data[1];
-
-	if (event->type() != QEvent::ChildAdded
-	    && event->type() != QEvent::ChildRemoved)
-		return false;
-
-	QChildEvent* e = static_cast<QChildEvent*>(event);
-	commonQtBinding->child_callback(e->added(), e->child());
-	return false;
 }
 
 typedef void (*t_ptr_callback)(void *);

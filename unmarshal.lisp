@@ -98,6 +98,16 @@
                                 'int))
 
 (defmethod unmarshal-using-type ((kind (eql :stack))
+                                 (name (eql :|unsigned int|))
+                                 (stack-item-slot (eql 'uint))
+                                 type
+                                 stack-item)
+  ;; was: (int ...)
+  (cffi:foreign-slot-value stack-item
+                                '|union StackItem|
+                                'uint))
+
+(defmethod unmarshal-using-type ((kind (eql :stack))
                                  (name (eql :|double|))
                                  (stack-item-slot (eql 'double))
                                  type

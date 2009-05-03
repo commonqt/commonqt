@@ -198,7 +198,7 @@
 
 (defun paint-barrier (instance painter)
   (#_setPen painter (#_new QPen (#_black "Qt")))
-  (#_setBrush painter (#_new QBrush (#_yellow "Qt") (#_SolidPattern "Qt")))
+  (#_setBrush painter (#_new QBrush (#_blue "Qt") (#_SolidPattern "Qt")))
   (#_drawRect painter (barrier-rect instance)))
 
 (defmethod paint-event ((instance cannon-field) paint-event)
