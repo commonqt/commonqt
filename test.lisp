@@ -100,8 +100,8 @@
       (setf qt-user:*application*
             (apply #'make-qapplication command-line-args))))
 
-(defun enable-syntax ()
-  (named-readtables:in-readtable :qt))
+(defmacro enable-syntax ()
+  `(named-readtables:in-readtable :qt))
 
 (defun windows-version ()
   (let ((v (sw_windows_version)))
