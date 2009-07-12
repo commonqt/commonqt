@@ -248,7 +248,7 @@
   (with-slots (effective-class qmetaobject smoke-generation) qt-class
     (unless (and qmetaobject
                  effective-class
-                 (eq smoke-generation *class-table*))
+                 (eq smoke-generation *classes-by-name*))
       ;; clear everything out to ensure a clean state in case of errors
       ;; in the following forms
       (setf effective-class nil)
@@ -279,7 +279,7 @@
                                (mapcar #'convert-dynamic-member
                                        (class-slots qt-class)))))
       ;; mark as fresh
-      (setf (class-smoke-generation qt-class) *class-table*))))
+      (setf (class-smoke-generation qt-class) *classes-by-name*))))
 
 (defun convert-dynamic-member (member)
   (make-slot-or-signal (dynamic-member-name member)))

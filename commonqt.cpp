@@ -19,8 +19,8 @@
 
 // #define DEBUG 1
 
-extern Smoke* qt_Smoke;
 extern void init_qt_Smoke();
+extern void init_qtwebkit_Smoke();
 
 #include <iostream>
 #include <string>
@@ -28,9 +28,9 @@ extern void init_qt_Smoke();
 
 using namespace std;
 
-typedef void (MAYBE_STDCALL *t_deletion_callback)(void*);
-typedef bool (MAYBE_STDCALL *t_callmethod_callback)(short, void*, void*, bool);
-typedef void (MAYBE_STDCALL *t_child_callback)(bool, void*);
+typedef void (MAYBE_STDCALL *t_deletion_callback)(void*, void*);
+typedef bool (MAYBE_STDCALL *t_callmethod_callback)(void*, short, void*, void*, bool);
+typedef void (MAYBE_STDCALL *t_child_callback)(void*, bool, void*);
 
 class ThinBinding : public SmokeBinding
 {
@@ -42,17 +42,17 @@ public:
 	t_child_callback child_callback;
 
         void deleted(Smoke::Index classId, void* obj) {
-                deletion_callback(obj);
+                deletion_callback(smoke, obj);
         }
 
         bool callMethod(Smoke::Index method, void* obj,
                 Smoke::Stack args, bool isAbstract)
         {
-		Smoke::Method* m = &qt_Smoke->methods[method];
-		const char* name = qt_Smoke->methodNames[m->name];
-		Smoke::Class* c = &qt_Smoke->classes[m->classId];
+		Smoke::Method* m = &smoke->methods[method];
+		const char* name = smoke->methodNames[m->name];
+		Smoke::Class* c = &smoke->classes[m->classId];
 		if (*name == '~')
-			callmethod_callback(method, obj, args, isAbstract);
+			callmethod_callback(smoke, method, obj, args, isAbstract);
 		else if (!strcmp(name, "notify")
 			 && !strcmp(c->className, "QApplication"))
 		{
@@ -61,7 +61,7 @@ public:
 			    || e->type() == QEvent::ChildRemoved)
 			{
 				QChildEvent* f = (QChildEvent*) e;
-				child_callback(f->added(), f->child());
+				child_callback(smoke, f->added(), f->child());
 			}
 		}
 		return false;
@@ -82,7 +82,7 @@ public:
 	t_child_callback child_callback;
 
         void deleted(Smoke::Index classId, void* obj) {
-                deletion_callback(obj);
+                deletion_callback(smoke, obj);
         }
 
         bool callMethod(Smoke::Index method, void* obj,
@@ -99,7 +99,7 @@ public:
 			cout << "calling " << c->className <<  "." << name << endl;
 		}
 #endif
-                return callmethod_callback(method, obj, args, isAbstract);
+                return callmethod_callback(smoke, method, obj, args, isAbstract);
         }
 
         char* className(Smoke::Index classId) {
@@ -115,38 +115,42 @@ public:
         }
 };
 
-static ThinBinding* thinBinding;
-static FatBinding* fatBinding;
-
 void
-sw_init(SmokeData *data,
-	void *deletion_callback,
-	void *method_callback,
-	void *child_callback)
+sw_init()
 {
         init_qt_Smoke();
-        thinBinding = new ThinBinding(qt_Smoke);
-        fatBinding = new FatBinding(qt_Smoke);
+        init_qtwebkit_Smoke();
+}
 
-        data->classes = qt_Smoke->classes;
-        data->numClasses = qt_Smoke->numClasses;
+void
+sw_smoke(Smoke* smoke,
+	 SmokeData* data,
+	 void* deletion_callback,
+	 void* method_callback,
+	 void* child_callback)
+{
+        ThinBinding* thinBinding = new ThinBinding(smoke);
+        FatBinding* fatBinding = new FatBinding(smoke);
 
-        data->methods = qt_Smoke->methods;
-        data->numMethods = qt_Smoke->numMethods;
+        data->classes = smoke->classes;
+        data->numClasses = smoke->numClasses;
 
-        data->methodMaps = qt_Smoke->methodMaps;
-        data->numMethodMaps = qt_Smoke->numMethodMaps;
+        data->methods = smoke->methods;
+        data->numMethods = smoke->numMethods;
 
-        data->methodNames = qt_Smoke->methodNames;
-        data->numMethodNames = qt_Smoke->numMethodNames;
+        data->methodMaps = smoke->methodMaps;
+        data->numMethodMaps = smoke->numMethodMaps;
 
-        data->types = qt_Smoke->types;
-        data->numTypes = qt_Smoke->numTypes;
+        data->methodNames = smoke->methodNames;
+        data->numMethodNames = smoke->numMethodNames;
 
-        data->inheritanceList = qt_Smoke->inheritanceList;
-        data->argumentList = qt_Smoke->argumentList;
-        data->ambiguousMethodList = qt_Smoke->ambiguousMethodList;
-        data->castFn = (void *) qt_Smoke->castFn;
+        data->types = smoke->types;
+        data->numTypes = smoke->numTypes;
+
+        data->inheritanceList = smoke->inheritanceList;
+        data->argumentList = smoke->argumentList;
+        data->ambiguousMethodList = smoke->ambiguousMethodList;
+        data->castFn = (void *) smoke->castFn;
 
 	fatBinding->deletion_callback
 		= (t_deletion_callback) deletion_callback;

@@ -27,7 +27,8 @@ extern "C" {
 		void *fat;
         } SmokeData;
 
-        void sw_init(SmokeData *data, void *, void *, void *);
+        void sw_init();
+        void sw_smoke(Smoke *, SmokeData *data, void *, void *, void *);
         void* sw_make_qstring(char *);
         void sw_delete_qstring(void *);
         void* sw_make_metaobject(void *, char *, int *);

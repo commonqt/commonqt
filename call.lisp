@@ -46,11 +46,13 @@
     (abort ()
       :report (lambda (stream) (write-string "Abort smoke callback" stream)))))
 
-(defun %method-invocation-callback (method obj stack abstractp)
+(defun %method-invocation-callback (smoke method obj stack abstractp)
   (declare (ignore abstractp))
   (restart-case
-      (let* ((object (pointer->cached-object obj))
-             (method (elt *method-table* method))
+      (let* ((smoke (gethash (cffi:pointer-address smoke)
+                             *smoke-instances-by-pointer*))
+             (object (pointer->cached-object obj))
+             (method (elt (smoke-method-table smoke) method))
              (fun (and object (find-method-override object method))))
         (if fun
             (let* ((args
@@ -478,9 +480,12 @@
                 (setf (qobject-pointer instance)
                       (%call-ctor method
                                   stack
-                                  (if (typep instance 'dynamic-object)
-                                      *fat-binding*
-                                      *thin-binding*)))
+                                  (let ((smoke
+                                         (qclass-smoke
+                                          (qmethod-class method))))
+                                    (if (typep instance 'dynamic-object)
+                                        (smoke-fat-binding smoke)
+                                        (smoke-thin-binding smoke)))))
                 (cache! instance)
                 (list instance))
               (qmethod-argument-types method)
@@ -550,12 +555,7 @@
   (remhash object *keep-alive*))
 
 (defmethod find-qclass ((class string) &optional (errorp t))
-  ;; fixme: use a hash table
-  (or (find class
-            *class-table*
-            :start 1
-            :test #'string=
-            :key #'qclass-name)
+  (or (gethash class *classes-by-name*)
       (when errorp
         (error "no such class: ~A" class))))
 

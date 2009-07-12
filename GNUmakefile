@@ -20,4 +20,4 @@ faslclean:
 	c++ -fPIC -c -o $@ $< -I. $(CFLAGS)
 
 libcommonqt.so: commonqt.o
-	c++ -fPIC -shared -o $@ $^ -lsmokeqt $(LDFLAGS)
+	c++ -fPIC -shared -o $@ $^ -lsmokeqt -lsmokeqtwebkit $(LDFLAGS)

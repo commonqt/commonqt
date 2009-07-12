@@ -29,10 +29,23 @@
 (in-package :qt)
 #+sbcl (declaim (optimize (debug 2)))
 
-(defvar *class-table*)
-(defvar *method-table*)
-(defvar *prototype-table*)
-(defvar *type-table*)
+(defvar *classes-by-name*)
+
+(defclass smoke ()
+  ((pointer :initarg :pointer
+            :accessor smoke-pointer)
+   (cast-fun :initarg :cast-fun
+             :accessor smoke-cast-fun)
+   (thin-binding :initarg :thin-binding
+                 :accessor smoke-thin-binding)
+   (fat-binding :initarg :fat-binding
+                :accessor smoke-fat-binding)
+   (class-table :initarg :class-table
+                :accessor smoke-class-table)
+   (method-table :initarg :method-table
+                 :accessor smoke-method-table)
+   (type-table :initarg :type-table
+               :accessor smoke-type-table)))
 
 (defclass qclass ()
   ((id :initarg :id
@@ -54,11 +67,15 @@
    (hashed-prototypes :initform nil
                       :accessor qclass-hashed-prototypes)
    (tracep :initform nil
-           :accessor qclass-tracep)))
+           :accessor qclass-tracep)
+   (smoke :initarg :smoke
+          :accessor qclass-smoke)))
 
 (defclass external-qclass ()
   ((id :initarg :id
        :accessor qclass-id)
+   (name :initarg :name
+         :accessor qclass-name)
    (struct :initarg :struct
            :accessor qclass-struct)))
 
@@ -130,7 +147,7 @@
             (qclass-name (qmethod-class instance))
             (qmethod-name instance))))
 
-(defun parse-qclass (id struct)
+(defun parse-qclass (smoke id struct)
   (cffi:with-foreign-slots ((classname enumfn flags classfn parents
                                        external)
                             struct |struct Class|)
@@ -149,21 +166,26 @@
                          :name classname
                          :enum-fun enumfn
                          :trampoline-fun classfn
-                         :flags parsed-flags))
+                         :flags parsed-flags
+                         :smoke smoke))
         (make-instance 'external-qclass
+                       :name classname
                        :id id
                        :struct struct))))
 
 (defun parse-qclass-parents (qclass struct inheritancelist)
-  (cffi:with-foreign-slots ((parents) struct |struct Class|)
-    (setf (qclass-superclasses qclass)
-          (loop
-             for i from parents
-             for classid = (cffi:mem-aref inheritancelist :short i)
-             while (plusp classid)
-             collect (elt *class-table* classid)))))
+  (unless (typep qclass 'external-qclass)
+    (cffi:with-foreign-slots ((parents) struct |struct Class|)
+      (setf (qclass-superclasses qclass)
+            (loop
+               for i from parents
+               for classid = (cffi:mem-aref inheritancelist :short i)
+               while (plusp classid)
+               collect (resolve-external-qclass
+                        (elt (smoke-class-table (qclass-smoke qclass))
+                             classid)))))))
 
-(defun parse-qmethod (id struct method-names argumentlist)
+(defun parse-qmethod (smoke id struct method-names argumentlist)
   (cffi:with-foreign-slots
       ((name classid ret args numargs flags methodForClassFun)
        struct |struct Method|)
@@ -173,7 +195,7 @@
               repeat numargs
               collect
               (let ((typeid (cffi:mem-aref argumentlist :short i)))
-                (elt *type-table* typeid))))
+                (elt (smoke-type-table smoke) typeid))))
           (parsed-flags '()))
       (flet ((flag (symbol mask)
                (when (logtest mask flags)
@@ -188,18 +210,18 @@
         (flag :protected #x80))
       (make-instance 'qmethod
                      :id id
-                     :class (elt *class-table* classid)
+                     :class (elt (smoke-class-table smoke) classid)
                      :struct struct
                      :name (elt method-names name)
-                     :return-type (elt *type-table* ret)
+                     :return-type (elt (smoke-type-table smoke) ret)
                      :argument-types parsed-args
                      :flags parsed-flags
                      :method-arg-for-classfn methodForClassFun))))
 
-(defun parse-qprototype (struct method-names ambiguous-methods)
+(defun parse-qprototype (smoke struct method-names ambiguous-methods)
   (cffi:with-foreign-slots ((name classid methodid) struct |struct MethodMap|)
     (flet ((get-method (id)
-             (elt *method-table* id)))
+             (elt (smoke-method-table smoke) id)))
       (let ((methods
              (if (plusp methodid)
                  (list (get-method methodid))
@@ -209,16 +231,16 @@
                     while (plusp id)
                     collect (get-method id)))))
         (make-instance 'qprototype
-                       :class (elt *class-table* classid)
+                       :class (elt (smoke-class-table smoke) classid)
                        :methods methods
                        :name (elt method-names name))))))
 
-(defun parse-qtype (id struct)
+(defun parse-qtype (smoke id struct)
   (cffi:with-foreign-slots ((name classid flags)
                             struct |struct Type|)
     (make-instance 'qtype
                    :id id
-                   :class (elt *class-table* classid)
+                   :class (elt (smoke-class-table smoke) classid)
                    :name name
                    :interned-name (intern name :keyword)
                    :stack-item-slot (elt #(ptr bool char uchar short
@@ -232,25 +254,26 @@
                    :constp (logtest #x40 flags))))
 
 (defun build-hash-prototypes! (class)
-  (let ((table (make-hash-table :test 'equal)))
-    (setf (qclass-hashed-prototypes class) table)
-    (dolist (map (qclass-prototypes class))
-      (let ((any-method (car (qprototype-methods map))))
-        (when any-method
-          (let* ((a (qmethod-name any-method))
-                 (b (qprototype-name map))
-                 (n (length (qmethod-name any-method)))
-                 (m (length (qprototype-name map)))
-                 (key
-                  (cons a
-                        (loop
-                           for i from n below m
-                           collect (ecase (elt b i)
-                                     (#\$ '$)
-                                     (#\# 'qobject)
-                                     (#\? '?))))))
-            (setf (gethash key table)
-                  (qprototype-methods map))))))))
+  (unless (typep class 'external-qclass)
+    (let ((table (make-hash-table :test 'equal)))
+      (setf (qclass-hashed-prototypes class) table)
+      (dolist (map (qclass-prototypes class))
+        (let ((any-method (car (qprototype-methods map))))
+          (when any-method
+            (let* ((a (qmethod-name any-method))
+                   (b (qprototype-name map))
+                   (n (length (qmethod-name any-method)))
+                   (m (length (qprototype-name map)))
+                   (key
+                    (cons a
+                          (loop
+                             for i from n below m
+                             collect (ecase (elt b i)
+                                       (#\$ '$)
+                                       (#\# 'qobject)
+                                       (#\? '?))))))
+              (setf (gethash key table)
+                    (qprototype-methods map)))))))))
 
 (defun qapropos (str)
   (setf str (string-upcase str))
@@ -378,20 +401,29 @@
     (setf *initialized* nil)
     (load-smoke-library)))
 
-(defvar *thin-binding*)
-(defvar *fat-binding*)
-
 (defvar *castfn*)
 (defvar *keep-alive*)
 (defvar *qobject-metaobject* nil)
+(defvar *smoke-instances-by-pointer*)
 
 (defun init-smoke ()
   (ensure-loaded)
+  (setf *smoke-instances-by-pointer* (make-hash-table))
+  (setf *classes-by-name* (make-hash-table :test 'equal))
   (setf *cached-objects* (tg:make-weak-hash-table :weakness :value))
   (setf *keep-alive* (make-hash-table))
   (setf *qobject-metaobject* nil)
+  (sw_init)
+  (mapc #'init-smoke-1 (list qt_Smoke qtwebkit_Smoke))
+  (setf *initialized* t))
+
+(defun resolve-external-qclass (c)
+  (or (gethash (qclass-name c) *classes-by-name*) c))
+
+(defun init-smoke-1 (smoke)
   (cffi:with-foreign-object (data '|struct SmokeData|)
-    (sw_init data
+    (sw_smoke smoke
+             data
              (cffi:callback deletion-callback)
              (cffi:callback method-invocation-callback)
              (cffi:callback child-callback))
@@ -408,28 +440,47 @@
                                thin
                                fat)
                               data |struct SmokeData|)
-      (setf *thin-binding* thin)
-      (setf *fat-binding* fat)
-      (setf *castfn* castfn)
-      (let ((qclasses (make-array (1+ nclasses) :initial-element nil))
-            (method-names (make-array (1+ nmethodnames) :initial-element nil))
-            (qmethods (make-array nmethods :initial-element nil))
-            (qtypes (make-array (1+ ntypes) :initial-element nil)))
-        (setf *class-table* qclasses)
-        (setf *method-table* qmethods)
-        (setf *type-table* qtypes)
+      (unless (boundp '*castfn*)
+        ;; fixme: is this smoke-specific?
+        (setf *castfn* castfn))
+      (let* ((qclasses (make-array (1+ nclasses) :initial-element nil))
+             (method-names (make-array (1+ nmethodnames) :initial-element nil))
+             (qmethods (make-array nmethods :initial-element nil))
+             (qtypes (make-array (1+ ntypes) :initial-element nil))
+             (smoke (make-instance 'smoke
+                                   :pointer smoke
+                                   :thin-binding thin
+                                   :fat-binding fat
+                                   :class-table qclasses
+                                   :method-table qmethods
+                                   :type-table qtypes)))
+        (setf (gethash (cffi:pointer-address (smoke-pointer smoke))
+                       *smoke-instances-by-pointer*)
+              smoke)
         (loop for i from 1 to nclasses do
-             (setf (elt qclasses i)
-                   (parse-qclass
-                    i
-                    (cffi:mem-aref classes '|struct Class| i))))
+             (let ((class
+                    (parse-qclass
+                     smoke
+                     i
+                     (cffi:mem-aref classes '|struct Class| i))))
+               (setf (elt qclasses i) class)
+               (unless (typep class 'external-qclass)
+                 (setf (gethash (qclass-name class) *classes-by-name*)
+                       class))))
         (loop for i from 1 to nclasses do
              (parse-qclass-parents (elt qclasses i)
                                    (cffi:mem-aref classes '|struct Class| i)
                                    inheritancelist))
+        (loop for i from 1 to nclasses do
+             (let ((c (elt qclasses i)))
+               (when (typep c 'external-qclass)
+                 (let ((d (resolve-external-qclass c)))
+                   (when d
+                     (setf (elt qclasses i) d))))))
         (loop for i from 1 to ntypes do
              (setf (elt qtypes i)
                    (parse-qtype
+                    smoke
                     i
                     (cffi:mem-aref types '|struct Type| i))))
         (loop for i from 0 below nmethodnames do
@@ -438,6 +489,7 @@
         (loop for i from 1 below nmethods do
              (setf (elt qmethods i)
                    (parse-qmethod
+                    smoke
                     i
                     (cffi:mem-aref methods '|struct Method| i)
                     method-names
@@ -445,6 +497,7 @@
         (loop for i from 1 below nmethodmaps do
              (let ((mminfo
                     (parse-qprototype
+                     smoke
                      (cffi:mem-aref methodmaps '|struct MethodMap| i)
                      method-names
                      ambiguousmethodlist)))
@@ -453,8 +506,7 @@
                       (qprototype-class mminfo)))))
         (loop for i from 1 to nclasses do
              (let ((class (elt qclasses i)))
-               (build-hash-prototypes! class))))))
-  (setf *initialized* t))
+               (build-hash-prototypes! class)))))))
 
 (defun ensure-smoke ()
   (ensure-loaded)

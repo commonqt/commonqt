@@ -47,7 +47,13 @@
 (defmacro defcfun (name ret &rest args)
   `(cffi:defcfun (,name ,(intern (string-upcase name) :qt)) ,ret ,@args))
 
-(defcfun "sw_init" :void
+(cffi:defcvar ("qt_Smoke" qt_Smoke) :pointer)
+(cffi:defcvar ("qtwebkit_Smoke" qtwebkit_Smoke) :pointer)
+
+(defcfun "sw_init" :void)
+
+(defcfun "sw_smoke" :void
+  (smoke :pointer)
   (data :pointer)
   (deletion-callback :pointer)
   (method-callback :pointer)
@@ -176,7 +182,8 @@
 
 (defcallback deletion-callback
     :void
-    ((obj :pointer))
+    ((smoke :pointer)
+     (obj :pointer))
   ;; Just dispatch to an ordinary function for debugging purposes.
   ;; Redefinition of a callback wouldn't affect the existing C++ code,
   ;; redefinition of the function does.
@@ -184,18 +191,20 @@
 
 (defcallback method-invocation-callback
     :int
-    ((method :short)
+    ((smoke :pointer)
+     (method :short)
      (obj :pointer)
      (args :pointer)
      (abstractp :int))
   ;; Just dispatch to an ordinary function for debugging purposes.
   ;; Redefinition of a callback wouldn't affect the existing C++ code,
   ;; redefinition of the function does.
-  (%method-invocation-callback method obj args abstractp))
+  (%method-invocation-callback smoke method obj args abstractp))
 
 (defcallback child-callback
     :void
-    ((added :char)                      ;bool
+    ((smoke :pointer)
+     (added :char)                      ;bool
      (obj :pointer))
   ;; Just dispatch to an ordinary function for debugging purposes.
   ;; Redefinition of a callback wouldn't affect the existing C++ code,
