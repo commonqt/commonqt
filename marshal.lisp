@@ -341,3 +341,15 @@
                  stack-item
                  (lambda () (marshal-next)))
       (char**-to-string-vector! argument argv (length argument) t))))
+
+(defmarshal ((eql :pointer) (eql :|bool*|) t)
+    ((argument bool*)
+     type
+     stack-item)
+  (setf (cffi:foreign-slot-value stack-item
+                                 '|union StackItem|
+                                 (qtype-stack-item-slot type))
+        (primitive-value argument))
+  (splice-reference-result
+   (marshal-next)
+   (cffi:mem-aref (primitive-value argument) :int)))
