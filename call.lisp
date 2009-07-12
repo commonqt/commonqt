@@ -156,6 +156,7 @@
 (defprimitive qstring ($) string)
 (defprimitive int& ($) (satisfies cffi:pointerp))
 (defprimitive void** (?) (satisfies cffi:pointerp))
+(defprimitive bool* ($) (satisfies cffi:pointerp))
 
 (defclass enum ($)
   ((type-name :initarg :type-name
