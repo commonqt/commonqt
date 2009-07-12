@@ -108,6 +108,17 @@
                                 'uint))
 
 (defmethod unmarshal-using-type ((kind (eql :stack))
+                                 (name (eql :|Qt::KeyboardModifiers|))
+                                 (stack-item-slot (eql 'uint))
+                                 type
+                                 stack-item)
+  ;; was: (int ...)
+  (enum (cffi:foreign-slot-value stack-item
+                                 '|union StackItem|
+                                 'uint)
+        (qtype-interned-name type)))
+
+(defmethod unmarshal-using-type ((kind (eql :stack))
                                  (name (eql :|double|))
                                  (stack-item-slot (eql 'double))
                                  type
