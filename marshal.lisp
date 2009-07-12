@@ -248,6 +248,18 @@
 
 (defmarshal ((eql :stack)
              t
+             (eql 'uint))
+    ((argument enum)
+     type
+     stack-item
+     :test (lambda (arg type)
+             t #+nil (eq (enum-type-name arg) (qtype-interned-name type))))
+  (setf (cffi:foreign-slot-value stack-item '|union StackItem| 'uint)
+        (primitive-value argument))
+  (marshal-next))
+
+(defmarshal ((eql :stack)
+             t
              (eql 'enum))
     ((argument integer)
      type
