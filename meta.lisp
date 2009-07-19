@@ -358,6 +358,7 @@
     (:|int| 'int)
     (:|uint| 'uint)
     (:|bool| 'bool)
+    (:|QString| 'ptr)
     (t (error "don't know how to unmarshal slot argument ~A" x))))
 
 (defun ensure-dynamic-member-types (member)
@@ -382,7 +383,12 @@
 (defun unmarshal-slot-args (member argv)
   (iter (for type in (ensure-dynamic-member-types member))
         (for i from 1)
-        (collect (unmarshal type (cffi:mem-aref argv :pointer i)))))
+        (collect (if (eq (qtype-interned-name type) ':|QString|)
+                     (call (%qobject (find-qclass "QByteArray")
+                                     (sw_qstring_to_utf8
+                                      (cffi:mem-aref argv :pointer i)))
+                           "data")
+                     (unmarshal type (cffi:mem-aref argv :pointer i))))))
 
 (defmethod new ((class qt-class) &rest args)
   (apply #'new
