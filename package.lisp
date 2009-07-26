@@ -71,7 +71,10 @@
            #:enum=
            #:find-method-override
            #:windows-version
-           #:set-nice-theme))
+           #:set-nice-theme
+
+           #:save-lisp-and-die
+           #:rebirth))
 
 (defpackage :qt-user
   (:use :cl :qt)

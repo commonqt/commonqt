@@ -32,7 +32,9 @@
 
 (defun %cast (ptr from to)
   (cffi:foreign-funcall-pointer
-   *castfn*
+   (smoke-cast-fun
+    ;; let's hope this doesn't turn out to be smoke-instance-specific
+    (car *smoke-instance-list*))
    ()
    :pointer ptr
    :short from
