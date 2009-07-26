@@ -41,7 +41,7 @@
 ;; On SBCL/win32, :LINKAGE-TABLE is on *FEATURES*, but that's a lie, it
 ;; can't actually process FFI definitions before the library has been
 ;; loaded.
-#-(and sbcl (and linkage-table (not windows)))
+#-(or ccl (and sbcl (and linkage-table (not windows))))
 (load-smoke-library)
 
 (defmacro defcfun (name ret &rest args)
