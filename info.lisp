@@ -275,20 +275,24 @@
               (setf (gethash key table)
                     (qprototype-methods map)))))))))
 
+(defun map-classes (fn)
+  (iter (for (nil class) in-hashtable *classes-by-name*)
+        (funcall fn class)))
+
+(defun map-methods (fn)
+  (map-classes
+   (lambda (class)
+     (dolist (map (qclass-prototypes class))
+       (mapc fn (qprototype-methods map))))))
+
 (defun qapropos (str)
   (setf str (string-upcase str))
-  (map nil
-       (lambda (class)
-         (when (and class
-                    (search str (string-upcase (qclass-name class))))
-           (format t "Class ~A~%" (qclass-name class))))
-       *class-table*)
-  (map nil
-       (lambda (method)
-         (when (and method
-                    (search str (string-upcase (qmethod-name method))))
-           (format t "Method ~A~%" (qmethod-fancy-name method))))
-       *method-table*))
+  (map-classes (lambda (class)
+                 (when (search str (string-upcase (qclass-name class)))
+                   (format t "Class ~A~%" (qclass-name class)))))
+  (map-methods (lambda (method)
+                 (when (search str (string-upcase (qmethod-name method)))
+                   (format t "Method ~A~%" (qmethod-fancy-name method))))))
 
 (defun find-qclass-ignoring-case (str)
   (find str
