@@ -167,3 +167,22 @@
                                             '|union StackItem|
                                             'ptr)))
         "data"))
+
+(defclass qthread ()
+  ((pointer :initarg :pointer
+            :accessor qthread-pointer)))
+
+(defmethod print-object ((instance qthread) stream)
+  (print-unreadable-object (instance stream :type t :identity nil)
+    (format stream "~X" (cffi:pointer-address (qthread-pointer instance)))))
+
+(defmethod unmarshal-using-type ((kind (eql :pointer))
+                                 (name (eql :|QThread*|))
+                                 (stack-item-slot (eql 'ptr))
+                                 type
+                                 stack-item)
+  (make-instance 'qthread
+                 :pointer
+                 (cffi:foreign-slot-value stack-item
+                                          '|union StackItem|
+                                          'ptr)))
