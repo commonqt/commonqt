@@ -309,11 +309,11 @@
                    (format t "Method ~A~%" (qmethod-fancy-name method))))))
 
 (defun find-qclass-ignoring-case (str)
-  (find str
-        *class-table*
-        :start 1
-        :test #'string-equal
-        :key #'qclass-name))
+  (block nil
+    (map-classes
+     (lambda (class)
+       (when (string-equal (qclass-name class) str)
+         (return class))))))
 
 (defun qmethod-dotted-name (method)
   (format nil "~A.~A"
@@ -327,12 +327,14 @@
           (qmethod-id method)))
 
 (defun find-dotted-qmethods (str)
-  (coerce (remove-if-not (lambda (method)
-                           (and method
-                                (string-equal (qmethod-dotted-name method)
-                                              str)))
-                         *method-table*)
-          'list))
+  (let ((result '()))
+    (map-methods
+     (lambda (method)
+       (when (and method
+                  (string-equal (qmethod-dotted-name method)
+                                str))
+         (push method result))))
+    result))
 
 (defun describe-qclass-methods (class)
   (dolist (mminfo (qclass-prototypes class))
