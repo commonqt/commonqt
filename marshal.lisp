@@ -132,6 +132,18 @@
         (primitive-value argument))
   (marshal-next))
 
+(defmarshal ((eql :pointer)
+             t
+             (eql 'ptr))
+    ((argument $)
+     type
+     stack-item)
+  (setf (cffi:foreign-slot-value stack-item
+                                 '|union StackItem|
+                                 (qtype-stack-item-slot type))
+        (primitive-value argument))
+  (marshal-next))
+
 (defmarshal ((eql :stack)
              (eql :|int|)
              (eql 'int))
@@ -164,6 +176,21 @@
   (marshal-next))
 
 (defmarshal ((eql :stack)
+             (eql :|qint64|)
+             (eql 'long))
+    ((argument integer)
+     type
+     stack-item
+     ;; XXX
+     ;; this is fishy: qint64 is obviously a 64-bit type, but it maps
+     ;; to a smoke stack slot of type long.  Let's carry on anyway,
+     ;; but check for 32 bits.
+     :test (lambda (arg *) (typep arg '(signed-byte 32))))
+  (setf (cffi:foreign-slot-value stack-item '|union StackItem| 'long)
+        argument)
+  (marshal-next))
+
+(defmarshal ((eql :stack)
              (eql :|uint|)
              (eql 'uint))
     ((argument integer)
@@ -182,6 +209,17 @@
      stack-item
      :test (lambda (arg *) (typep arg '(unsigned-byte 32))))
   (setf (cffi:foreign-slot-value stack-item '|union StackItem| 'uint)
+        argument)
+  (marshal-next))
+
+(defmarshal ((eql :stack)
+             (eql :|unsigned short|)
+             (eql 'ushort))
+    ((argument integer)
+     type
+     stack-item
+     :test (lambda (arg *) (typep arg '(unsigned-byte 16))))
+  (setf (cffi:foreign-slot-value stack-item '|union StackItem| 'ushort)
         argument)
   (marshal-next))
 

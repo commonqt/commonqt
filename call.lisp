@@ -154,6 +154,7 @@
 (defprimitive uint ($) (unsigned-byte 32))
 (defprimitive bool ($) (signed-byte 32))
 
+(defprimitive char* ($) (satisfies cffi:pointerp))
 (defprimitive char** (?) (satisfies cffi:pointerp))
 (defprimitive qstring ($) string)
 (defprimitive int& ($) (satisfies cffi:pointerp))
