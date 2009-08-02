@@ -170,6 +170,11 @@
 
 (defmethod print-object ((instance primitive) stream)
   (print-unreadable-object (instance stream :type t :identity nil)
+    (format stream "~A"
+            (primitive-value instance))))
+
+(defmethod print-object ((instance enum) stream)
+  (print-unreadable-object (instance stream :type t :identity nil)
     (format stream "~A ~A"
             (enum-type-name instance)
             (primitive-value instance))))
