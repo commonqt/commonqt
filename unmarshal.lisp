@@ -98,6 +98,24 @@
                                 'int))
 
 (defmethod unmarshal-using-type ((kind (eql :stack))
+                                 (name (eql :|ushort|))
+                                 (stack-item-slot (eql 'ushort))
+                                 type
+                                 stack-item)
+  (cffi:foreign-slot-value stack-item
+                           '|union StackItem|
+                           'ushort))
+
+(defmethod unmarshal-using-type ((kind (eql :stack))
+                                 (name (eql :|unsigned short|))
+                                 (stack-item-slot (eql 'ushort))
+                                 type
+                                 stack-item)
+  (cffi:foreign-slot-value stack-item
+                           '|union StackItem|
+                           'ushort))
+
+(defmethod unmarshal-using-type ((kind (eql :stack))
                                  (name (eql :|qint64|))
                                  (stack-item-slot (eql 'long))
                                  type
