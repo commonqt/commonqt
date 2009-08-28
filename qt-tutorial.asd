@@ -3,7 +3,12 @@
     :pathname (merge-pathnames
                "tutorial/"
                (make-pathname :name nil :type nil :defaults *load-truename*))
-    :components ((:file "t6")
+    :components ((:file "t1")
+                 (:file "t2")
+                 (:file "t3")
+                 (:file "t4")
+                 (:file "t5")
+                 (:file "t6")
                  (:file "t7")
                  (:file "t8")
                  (:file "t9")
