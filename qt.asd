@@ -40,4 +40,4 @@
                  (:file "property")
                  (:file "test"))
     :depends-on (:cffi :named-readtables :cl-ppcre :alexandria :closer-mop
-                       :iterate :trivial-garbage))
+                       :iterate :trivial-garbage :bordeaux-threads))

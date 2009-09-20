@@ -406,6 +406,14 @@
 
 (defvar *pending-finalizations* nil)
 
+(defun finalize-if-matching-thread (thread ptr class description qp)
+  (cond
+    ((eq thread (bordeaux-threads:current-thread))
+     (finalize ptr class description qp)
+     t)
+    (t
+     nil)))
+
 (defun finalize (ptr class description qp)
   #+(or)
   (format t "[~A ~A]~%"
@@ -428,17 +436,19 @@
   ;; Let's avoid calling finalizers in random after-gc situations.
   ;; Instead we postpone them until the next object is created, which
   ;; can only happen in a Qt-related thread.  And object creation time
-  ;; seems like moment for cleanup for older objects.
-  (mapc #'funcall *pending-finalizations*)
-  (setf *pending-finalizations* nil)
+  ;; seems like a good moment for cleanup for older objects.
+  (setf *pending-finalizations*
+        (remove-if #'funcall *pending-finalizations*))
   (tg:finalize object
                (let ((ptr (qobject-pointer object))
                      (class (qobject-class object))
                      (str (princ-to-string object))
-                     (qp (qobject-qpointer object)))
+                     (qp (qobject-qpointer object))
+                     (thread (bordeaux-threads:current-thread)))
                  (lambda ()
                    (push (lambda ()
-                           (finalize ptr class str qp))
+                           (finalize-if-matching-thread
+                            thread ptr class str qp))
                          *pending-finalizations*))))
   object)
 
