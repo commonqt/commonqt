@@ -160,6 +160,7 @@
 (defprimitive int& ($) (satisfies cffi:pointerp))
 (defprimitive void** (?) (satisfies cffi:pointerp))
 (defprimitive bool* ($) (satisfies cffi:pointerp))
+(defprimitive quintptr (?) (satisfies cffi:pointerp))
 
 (defclass enum ($)
   ((type-name :initarg :type-name

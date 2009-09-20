@@ -332,7 +332,7 @@
         (primitive-value argument))
   (marshal-next))
 
-;;; fixme: enum type safety? 
+;;; fixme: enum type safety?
 
 ;;; (defmarshal ((eql :stack)
 ;;;              (eql :|QMetaObject::Call|)
@@ -393,3 +393,15 @@
   (splice-reference-result
    (marshal-next)
    (cffi:mem-aref (primitive-value argument) :int)))
+
+(defmarshal ((eql :stack)
+             t
+             (eql 'ptr))
+    ((argument quintptr)
+     type
+     stack-item)
+  (setf (cffi:foreign-slot-value stack-item
+                                 '|union StackItem|
+                                 (qtype-stack-item-slot type))
+        (primitive-value argument))
+  (marshal-next))
