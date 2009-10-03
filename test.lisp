@@ -45,7 +45,7 @@
   (ensure-smoke)
   (%make-qapplication (cons "argv0dummy" args)))
 
-(defun %make-qapplication (args)
+(defun %make-qapplication (args &optional (guip t))
   (unless args
     (error "argv[0] not specified"))
   (mapc (lambda (arg) (check-type arg string)) args)
@@ -59,7 +59,9 @@
           (cffi:foreign-alloc :int)))
     (setf (cffi:mem-aref argc-ptr :int) (length args))
     (multiple-value-bind (qapplication updated-argc)
-        (#_new QApplication (int& argc-ptr) (char** argv))
+        (if guip
+            (#_new QApplication (int& argc-ptr) (char** argv))
+            (#_new QCoreApplication (int& argc-ptr) (char** argv)))
       (values qapplication
               (char**-to-string-vector argv updated-argc nil)))))
 
