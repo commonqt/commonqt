@@ -46,25 +46,24 @@
     (abort ()
       :report (lambda (stream) (write-string "Abort smoke callback" stream)))))
 
-(defun %method-invocation-callback (smoke method obj stack abstractp)
+(defun %method-invocation-callback (smoke method-idx obj stack abstractp)
   (declare (ignore abstractp))
   (restart-case
-      (let* ((smoke (gethash (cffi:pointer-address smoke)
-                             *smoke-instances-by-pointer*))
+      (let* ((<module> (module-number smoke))
              (object (pointer->cached-object obj))
-             (method (elt (smoke-method-table smoke) method))
-             (fun (and object (find-method-override object method))))
+             (<method> (bash method-idx <module> +method+))
+             (fun (and object (find-method-override object <method>))))
         (if fun
             (let* ((args
-                    (loop for type in (qmethod-argument-types method)
+                    (loop for type in (list-qmethod-argument-types <method>)
                        for i from 1
                        for item = (cffi:mem-aref stack
                                                  '|union StackItem|
                                                  i)
                        collect (unmarshal type item)))
-                   (result (override fun object method args))
-                   (rtype (qmethod-return-type method)))
-              (when rtype
+                   (result (override fun object <method> args))
+                   (rtype (qmethod-return-type <method>)))
+              (unless (qtype-void-p rtype)
                 (marshal result rtype stack (lambda ())))
               1)
             0))
@@ -194,20 +193,20 @@
           (make-instance 'null-qobject :class class)
           (make-instance 'qobject :class class :pointer ptr))))
 
-(defgeneric argument-hash-key (object))
+(defgeneric argument-munged-char (object))
 
-(defmethod argument-hash-key ((object t))
+(defmethod argument-munged-char ((object t))
   (error "don't know how to pass ~A to smoke functions" object))
 
-(defmethod argument-hash-key ((object abstract-qobject)) 'qobject)
-(defmethod argument-hash-key ((object $)) '$)
-(defmethod argument-hash-key ((object ?)) '?)
-(defmethod argument-hash-key ((object vector)) '?)
-(defmethod argument-hash-key ((object string)) '$)
-(defmethod argument-hash-key ((object integer)) '$)
-(defmethod argument-hash-key ((object real)) '$)
-(defmethod argument-hash-key ((object (eql t))) '$)
-(defmethod argument-hash-key ((object null)) '$)
+(defmethod argument-munged-char ((object abstract-qobject)) #\#)
+(defmethod argument-munged-char ((object $)) #\$)
+(defmethod argument-munged-char ((object ?)) #\?)
+(defmethod argument-munged-char ((object vector)) #\?)
+(defmethod argument-munged-char ((object string)) #\$)
+(defmethod argument-munged-char ((object integer)) #\$)
+(defmethod argument-munged-char ((object real)) #\$)
+(defmethod argument-munged-char ((object (eql t))) #\$)
+(defmethod argument-munged-char ((object null)) #\$)
 
 (defmethod can-marshal-p ((kind t) (name t) (slot t) (arg t) (type t))
   nil)
@@ -248,7 +247,10 @@
 (defgeneric find-applicable-method (object name args))
 
 (defmethod find-applicable-method ((object abstract-qobject) method-name args)
-  (find-applicable-method (qobject-class object) method-name args))
+  (qclass-find-applicable-method (qobject-class object) method-name args))
+
+(defmethod find-applicable-method ((class integer) method-name args)
+  (qclass-find-applicable-method class method-name args))
 
 (defun type= (x y)
   (and (eq (qtype-kind x) (qtype-kind y))
@@ -256,16 +258,19 @@
        (eq (qtype-stack-item-slot x) (qtype-stack-item-slot y))))
 
 (defun method-signature= (a b)
-  (let ((r (qmethod-argument-types a))
-        (s (qmethod-argument-types b)))
+  (let ((r (list-qmethod-argument-types a))
+        (s (list-qmethod-argument-types b)))
     (and (eql (length r) (length s))
          (every #'type= r s))))
 
-(defmethod find-applicable-method ((class qclass) method-name args)
-  (let ((key (cons method-name (mapcar #'argument-hash-key args))))
+(defun arguments-to-munged-name (name args)
+  (format nil "~A~{~C~}" name (mapcar #'argument-munged-char args)))
+
+(defun qclass-find-applicable-method (class method-name args)
+  (let ((munged-name (arguments-to-munged-name method-name args)))
     (labels ((recurse (c)
-               (append (gethash key (qclass-hashed-prototypes c))
-                       (some #'recurse (qclass-superclasses c)))))
+               (append (list-methodmap-methods (find-methodmap c munged-name))
+                       (some #'recurse (list-qclass-superclasses c)))))
       (let ((methods (remove-duplicates (recurse class)
                                         :from-end t
                                         :test #'method-signature=)))
@@ -286,7 +291,7 @@
                           (qtype-stack-item-slot type)
                           arg
                           type))
-         (qmethod-argument-types method)
+         (list-qmethod-argument-types method)
          args))
 
 (defun marshal (argument type stack-item cont)
@@ -298,16 +303,17 @@
                       stack-item
                       cont))
 
-(defmethod qtypep ((instance qobject) (class qtype))
-  (qtypep instance (qtype-class class)))
+(defun qtypep (instance thing)
+  (let ((kind (nth-value 2 (unbash thing))))
+    (cond
+     ((eql kind +class+) (qsubclassp (qobject-class instance) thing))
+     ((eql kind +type+) (qtypep instance (qtype-class thing)))
+     (t (error "not a type or class: ~A" thing)))))
 
-(defmethod qtypep ((instance qobject) (class qclass))
-  (qsubtypep (qobject-class instance) class))
-
-(defmethod qsubtypep ((a qclass) (b qclass))
+(defun qsubclassp (a b)
   (or (eq a b)
-      (some (lambda (super) (qsubtypep super b))
-            (qclass-superclasses a))))
+      (some (lambda (super) (qsubclassp super b))
+            (list-qclass-superclasses a))))
 
 ;; for reference results, return new values as multiple return values
 (defun splice-reference-result (result-list newval)
@@ -372,6 +378,7 @@
 
 (defun invoke-with-tracing (fun method instance args)
   (cond
+    #+nil ;tracing currently broken 
     ((plusp (qmethod-trace-counter method))
      (if instance
          (format *trace-output* ";; ~A.~A(~{~A~^, ~})~%"
@@ -452,7 +459,7 @@
                          *pending-finalizations*))))
   object)
 
-(defmethod new ((class qclass) &rest args)
+(defmethod new ((class integer) &rest args)
   (apply #'new
          (make-instance 'qobject
                         :class class
@@ -463,7 +470,7 @@
   (cffi:foreign-funcall-pointer
    (qclass-trampoline-fun (qmethod-class method))
    ()
-   :short (qmethod-method-arg-for-classfn method)
+   :short (qmethod-arg-for-classfn method)
    :pointer (cffi:null-pointer)
    :pointer stack
    :void)
@@ -483,9 +490,16 @@
        :void))
     new-object))
 
+(defun binding-for-ctor (method instance)
+  (let* ((<module> (ldb-module (qmethod-class method)))
+	 (data (data-ref <module>)))
+    (if (typep instance 'dynamic-object)
+	(data-fat data)
+	(data-thin data))))
+
 (defmethod new ((instance qobject) &rest args)
   (let* ((class (qobject-class instance))
-         (method (find-applicable-method class (qclass-name class) args)))
+         (method (qclass-find-applicable-method class (qclass-name class) args)))
     (unless method
       (error "No applicable constructor ~A found for arguments ~A"
              (qclass-name class) args))
@@ -497,15 +511,10 @@
                 (setf (qobject-pointer instance)
                       (%call-ctor method
                                   stack
-                                  (let ((smoke
-                                         (qclass-smoke
-                                          (qmethod-class method))))
-                                    (if (typep instance 'dynamic-object)
-                                        (smoke-fat-binding smoke)
-                                        (smoke-thin-binding smoke)))))
+				  (binding-for-ctor method instance)))
                 (cache! instance)
                 (list instance))
-              (qmethod-argument-types method)
+              (list-qmethod-argument-types method)
               args)))))
 
 (defun call (instance method &rest args)
@@ -523,14 +532,14 @@
     (string
      (setf instance (find-qclass instance))))
   (let ((name method)
-        (method (if (typep method 'qmethod)
-                    method
-                    (find-applicable-method instance method args))))
+        (method (etypecase method
+		  (integer method)
+		  (string (find-applicable-method instance method args)))))
     (unless method
       (error "No applicable method ~A found on ~A with arguments ~A"
              name instance args))
-    (when (typep instance 'qclass)
-      (unless (find :static (qmethod-flags method))
+    (when (typep instance 'integer)
+      (unless (qmethod-static-p method)
         (error "not a static method"))
       (setf instance (null-qobject instance)))
     (let ((rtype (qmethod-return-type method)))
@@ -547,12 +556,13 @@
                      (cffi:foreign-funcall-pointer
                       (qclass-trampoline-fun (qmethod-class method))
                       ()
-                      :short (qmethod-method-arg-for-classfn method)
+                      :short (qmethod-arg-for-classfn method)
                       :pointer (qobject-pointer instance)
                       :pointer stack
                       :void)
-                     (list (and rtype (unmarshal rtype stack))))))
-                (qmethod-argument-types method)
+                     (list (and (not (qtype-void-p rtype))
+				(unmarshal rtype stack))))))
+                (list-qmethod-argument-types method)
                 args))))))
 
 (defclass deleted-object (abstract-qobject)
@@ -571,21 +581,13 @@
 (defmethod note-child-removed ((object qobject))
   (remhash object *keep-alive*))
 
-(defmethod find-qclass ((class string) &optional (errorp t))
-  (or (gethash class *classes-by-name*)
-      (when errorp
-        (error "no such class: ~A" class))))
-
-(defmethod find-qclass ((class qclass) &optional (errorp t))
-  (declare (ignore errorp))
-  class)
-
-(defun map-superclasses (fun class)
+(defun map-cpl (fun class)
   (labels ((recurse (c)
              (funcall fun c)
-             (mapc #'recurse (qclass-superclasses c))))
+             (map-qclass-superclasses #'recurse c)))
     (recurse class)))
 
+#+broken
 (defun trace-qclass (class)
   (let ((class (find-qclass class)))
     (cond
@@ -593,12 +595,13 @@
        (format t "~%Class already traced: ~A~%" class))
       (t
        (setf (qclass-tracep class) t)
-       (map-superclasses (lambda (c)
+       (map-cpl (lambda (c)
                            (dolist (map (qclass-prototypes c))
                              (dolist (method (qprototype-methods map))
                                (trace-qmethod method))))
                          class)))))
 
+#+broken
 (defun untrace-qclass (class &optional force)
   (let ((class (find-qclass class)))
     (cond
@@ -607,24 +610,27 @@
       (t
        (unless (qclass-tracep class)
          (format t "~%Class not traced, untracing methods anyway: ~A~%" class))
-       (map-superclasses (lambda (c)
+       (map-cpl (lambda (c)
                            (dolist (map (qclass-prototypes c))
                              (dolist (method (qprototype-methods map))
                                (untrace-qmethod method))))
                          class)
        (setf (qclass-tracep class) nil)))))
 
+#+broken
 (defun trace-qmethod (method)
   (when (zerop (qmethod-trace-counter method))
     (format t "tracing ~A~%" (qmethod-fancy-name method)))
   (incf (qmethod-trace-counter method)))
 
+#+broken
 (defun untrace-qmethod (method)
   (when (eql (qmethod-trace-counter method) 1)
     (format t "untracing ~A~%" (qmethod-fancy-name method)))
   (setf (qmethod-trace-counter method)
         (max 0 (1- (qmethod-trace-counter method)))))
 
+#+broken
 (defun qtrace (&rest strs)
   (if strs
       (dolist (str strs)
@@ -638,6 +644,7 @@
          when (and method (plusp (qmethod-trace-counter method)))
          collect (qmethod-dotted-name method))))
 
+#+broken
 (defun quntrace (&rest strs)
   (cond
     (strs

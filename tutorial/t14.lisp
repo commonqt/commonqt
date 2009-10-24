@@ -9,8 +9,6 @@
 (in-package :qt-tutorial-14)
 (named-readtables:in-readtable :qt)
 
-(defvar *qapp*)
-
 (defclass cannon-field ()
     ((current-angle :initform 45
                     :accessor current-angle)
@@ -333,7 +331,7 @@
     (#_connect "QObject"
                 quit
                 (QSIGNAL "clicked()")
-                *qapp*
+                (#_QCoreApplication::instance)
                 (QSLOT "quit()"))
     (let ((angle (make-instance 'lcd-range :text "ANGLE"))
           (force (make-instance 'lcd-range :text "FORCE"))
@@ -457,11 +455,15 @@
     (restart-game cannon-field)
     (new-target cannon-field)))
 
-(defun main ()
-  (setf *qapp* (make-qapplication))
+(defun test ()
   (let ((window (make-instance 'game-board)))
     (#_setGeometry window 100 100 500 355)
     (#_show window)
+    window))
+
+(defun main ()
+  (make-qapplication)
+  (let ((window (test)))
     (unwind-protect
-         (#_exec *qapp*)
+         (#_exec (#_new QEventLoop))
       (#_hide window))))

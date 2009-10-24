@@ -3,6 +3,8 @@ extern "C" {
 #endif
 
         typedef struct SmokeData {
+		const char *name;
+
                 void *classes;
                 short numClasses;
 
@@ -42,6 +44,11 @@ extern "C" {
 	void sw_delete_qpointer(void* x);
 
 	int sw_windows_version();
+
+	void sw_find_class(char *, Smoke **, short *);
+	short sw_find_name(Smoke *, char *);
+	short sw_id_method(Smoke *, short, short);
+	short sw_id_type(Smoke *, char *);
 
 #ifdef __cplusplus
 }

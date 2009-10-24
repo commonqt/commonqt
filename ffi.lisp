@@ -31,26 +31,26 @@
 
 (defvar *loaded* nil)
 
-(defun load-smoke-library ()
+(defun load-libcommonqt ()
   (cffi:load-foreign-library
    (namestring (merge-pathnames "libcommonqt.so"
                                 (asdf::component-relative-pathname
                                  (asdf:find-system :qt)))))
   (setf *loaded* t))
 
-;; On SBCL/win32, :LINKAGE-TABLE is on *FEATURES*, but that's a lie, it
-;; can't actually process FFI definitions before the library has been
-;; loaded.
-#-(or ccl (and sbcl (and linkage-table (not windows))))
-(load-smoke-library)
+#-(or ccl
+      (and sbcl
+           ;; On SBCL/win32, :LINKAGE-TABLE is on *FEATURES*, but that's
+           ;; a lie, it can't actually process FFI definitions before
+           ;; the library has been loaded.
+           (and linkage-table (not windows))))
+(load-libcommonqt)
 
 (defmacro defcfun (name ret &rest args)
   `(cffi:defcfun (,name ,(intern (string-upcase name) :qt)) ,ret ,@args))
 
 (cffi:defcvar ("qt_Smoke" qt_Smoke) :pointer)
 (cffi:defcvar ("qtwebkit_Smoke" qtwebkit_Smoke) :pointer)
-
-(defcfun "sw_init" :void)
 
 (defcfun "sw_smoke" :void
   (smoke :pointer)
@@ -91,7 +91,26 @@
 (defcfun "sw_qstring_to_utf8" :pointer
   (obj :pointer))
 
+(defcfun "sw_find_name" :short
+  (smoke :pointer)
+  (str :string))
+
+(defcfun "sw_find_class" :void
+  (name :string)
+  (smoke** :pointer)
+  (index** :pointer))
+
+(defcfun "sw_id_method" :short
+  (smoke :pointer)
+  (class :short)
+  (name :short))
+
+(defcfun "sw_id_type" :short
+  (smoke :pointer)
+  (name :string))
+
 (cffi:defcstruct |struct SmokeData|
+  (name :string)
   (classes :pointer)
   (nclasses :short)
   (methods :pointer)
@@ -108,6 +127,27 @@
   (castFn :pointer)
   (thin :pointer)
   (fat :pointer))
+
+(macrolet ((% (fun slot)
+             `(defun ,fun (data)
+                (cffi:foreign-slot-value data '|struct SmokeData| ',slot))))
+  (% data-name name)
+  (% data-classes classes)
+  (% data-nclasses nclasses)
+  (% data-methods methods)
+  (% data-nmethods nmethods)
+  (% data-methodmaps methodmaps)
+  (% data-nmethodmaps nmethodmaps)
+  (% data-methodnames methodnames)
+  (% data-nmethodnames nmethodnames)
+  (% data-types types)
+  (% data-ntypes ntypes)
+  (% data-inheritanceList inheritanceList)
+  (% data-argumentList argumentList)
+  (% data-ambiguousMethodList ambiguousMethodList)
+  (% data-castFn castFn)
+  (% data-thin thin)
+  (% data-fat fat))
 
 (cffi:defcunion |union StackItem|
   (ptr :pointer)

@@ -111,7 +111,7 @@
               (format t "<unbound>~%")))))))
 
 (defun describe-qclass-properties (class inherited)
-  (when (find-applicable-method class "staticMetaObject" nil)
+  (when (qclass-find-applicable-method class "staticMetaObject" nil)
     (let* ((meta (#_staticMetaObject class))
            (super (#_superClass meta)))
       (format t "~%Properties:~%")

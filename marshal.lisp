@@ -32,9 +32,7 @@
 
 (defun %cast (ptr from to)
   (cffi:foreign-funcall-pointer
-   (smoke-cast-fun
-    ;; let's hope this doesn't turn out to be smoke-instance-specific
-    (car *smoke-instance-list*))
+   (data-castfn (elt *module-data-table* 0))
    ()
    :pointer ptr
    :short from
@@ -53,8 +51,8 @@
         ;; the presence of multiple inheritance isn't just cosmetics,
         ;; it does pointer arithmetic.
         (%cast (qobject-pointer argument)
-               (qclass-id (qobject-class argument))
-               (qclass-id (qtype-class type))))
+               (unbash (qobject-class argument))
+               (unbash (qtype-class type))))
   (marshal-next))
 
 (defmarshal ((eql :reference) (eql :|int&|) t)

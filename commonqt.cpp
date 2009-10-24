@@ -19,9 +19,6 @@
 
 // #define DEBUG 1
 
-extern void init_qt_Smoke();
-extern void init_qtwebkit_Smoke();
-
 #include <iostream>
 #include <string>
 #include <stdlib.h>
@@ -88,39 +85,13 @@ public:
         bool callMethod(Smoke::Index method, void* obj,
                 Smoke::Stack args, bool isAbstract)
         {
-#if 0
-		{
-			Smoke::Method* m = &qt_Smoke->methods[method];
-			short ic = m->classId;
-			short iname = m->name;
-			Smoke::Class* c = &qt_Smoke->classes[ic];
-			const char *name = qt_Smoke->methodNames[iname];
-
-			cout << "calling " << c->className <<  "." << name << endl;
-		}
-#endif
                 return callmethod_callback(smoke, method, obj, args, isAbstract);
         }
 
         char* className(Smoke::Index classId) {
-#if 0
-                char* real = (char*) smoke->classes[classId].className;
-                char* prefix = (char*) "HACK_";
-                char* result = (char*) malloc(strlen(real) + strlen(prefix) + 1);
-                strcpy(result, prefix);
-                strcpy(result + strlen(prefix), real);
-                return result;
-#endif
                 return (char*) smoke->classes[classId].className;
         }
 };
-
-void
-sw_init()
-{
-        init_qt_Smoke();
-        init_qtwebkit_Smoke();
-}
 
 void
 sw_smoke(Smoke* smoke,
@@ -131,6 +102,8 @@ sw_smoke(Smoke* smoke,
 {
         ThinBinding* thinBinding = new ThinBinding(smoke);
         FatBinding* fatBinding = new FatBinding(smoke);
+
+	data->name = smoke->moduleName();
 
         data->classes = smoke->classes;
         data->numClasses = smoke->numClasses;
@@ -248,4 +221,34 @@ sw_delete_qpointer(void* x)
 {
 	QPointer<QObject>* ptr = (QPointer<QObject>*) x;
 	delete ptr;
+}
+
+extern Smoke *qt_Smoke;
+
+void
+sw_find_class(char *name, Smoke **smoke, short *index)
+{
+	Smoke::ModuleIndex mi = qt_Smoke->findClass(name);
+	*smoke = mi.smoke;
+	*index = mi.index;
+}
+
+short
+sw_find_name(Smoke *smoke, char *name)
+{
+	Smoke::ModuleIndex mi = smoke->idMethodName(name);
+	return mi.index;
+}
+
+short
+sw_id_method(Smoke *smoke, short classIndex, short name)
+{
+	Smoke::ModuleIndex mi = smoke->idMethod(classIndex, name);
+	return mi.index;
+}
+
+short
+sw_id_type(Smoke *smoke, char *name)
+{
+	return smoke->idType(name);
 }

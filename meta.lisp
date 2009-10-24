@@ -246,9 +246,9 @@
   (check-type qt-class qt-class)
   (ensure-smoke)
   (with-slots (effective-class qmetaobject smoke-generation) qt-class
-    (unless (and qmetaobject
-                 effective-class
-                 (eq smoke-generation *classes-by-name*))
+    (unless (and qmetaobject 
+		 effective-class
+		 (eq smoke-generation *cached-objects*))
       ;; clear everything out to ensure a clean state in case of errors
       ;; in the following forms
       (setf effective-class nil)
@@ -260,11 +260,11 @@
       (setf qmetaobject
             (let* ((class (find-qclass
                            (class-qt-superclass qt-class)))
-                   (qobject (find-qclass "QObject"))
+                   (qobject-class (find-qclass "QObject"))
                    (parent (cond
-                             ((eq class qobject)
+                             ((eq class qobject-class)
                               (%qobject-metaobject))
-                             ((qsubtypep class qobject)
+                             ((qsubclassp class qobject-class)
                               (#_staticMetaObject class))
                              (t
                               (null-qobject (find-qclass "QMetaObject"))))))
@@ -279,7 +279,7 @@
                                (mapcar #'convert-dynamic-member
                                        (class-slots qt-class)))))
       ;; mark as fresh
-      (setf (class-smoke-generation qt-class) *classes-by-name*))))
+      (setf (class-smoke-generation qt-class) *cached-objects*))))
 
 (defun convert-dynamic-member (member)
   (make-slot-or-signal (dynamic-member-name member)))
@@ -331,7 +331,7 @@
 (defun qt_metacall-override (object call id stack)
   (let ((new-id (call-next-qmethod)))
     (cond
-      ((or (eql new-id -1)
+      ((or (minusp new-id)
            (not (eql (primitive-value call)
                      (primitive-value (#_InvokeMetaMethod
                                        (find-qclass "QMetaObject"))))))
@@ -366,15 +366,9 @@
     (unless (slot-boundp member 'cached-arg-types)
       (setf cached-arg-types
             (mapcar (lambda (name)
-                      (let* ((sym (intern name :keyword))
-                             (slot (guess-stack-item-slot sym)))
-                        (make-instance 'qtype
-                                       :class nil
-                                       :name name
-                                       :interned-name sym
-                                       :stack-item-slot slot
-                                       :kind :stack
-                                       :constp nil)))
+		      (or (find-qtype name)
+			  (error "no smoke type found for dynamic member arg type ~A.  Giving up." 
+				 name)))
                     (cl-ppcre:split
                      ","
                      (entry-arg-types (convert-dynamic-member member))))))

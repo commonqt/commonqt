@@ -51,18 +51,15 @@
            #:with-object
            #:primitive-value
            #:emit-signal
-           #:qclass
            #:qclass-name
            #:qclass-superclasses
            #:qclass-prototypes
            #:qprototype
            #:qprototype-methods
-           #:qmethod
            #:qmethod-name
            #:dynamic-object
            #:qmethod-argument-types
            #:call-without-override
-           #:qtrace
            #:enable-syntax
            #:note-deleted
            #:note-child-added
@@ -72,8 +69,6 @@
            #:find-method-override
            #:windows-version
            #:set-nice-theme
-
-           #:save-lisp-and-die
            #:rebirth))
 
 (defpackage :qt-user
