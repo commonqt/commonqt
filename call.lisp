@@ -373,44 +373,6 @@
 (defmethod new ((qclass string) &rest args)
   (apply #'new (find-qclass qclass) args))
 
-(defmacro with-tracing ((method instance args) &body body)
-  `(invoke-with-tracing (lambda () ,@body) ,method ,instance ,args))
-
-(defun invoke-with-tracing (fun method instance args)
-  (cond
-    #+nil ;tracing currently broken 
-    ((plusp (qmethod-trace-counter method))
-     (if instance
-         (format *trace-output* ";; ~A.~A(~{~A~^, ~})~%"
-                 instance
-                 (qmethod-name method)
-                 args)
-         (format *trace-output* ";; new ~A(~{~A~^, ~})~%"
-                 (qmethod-name method)
-                 args))
-     (let ((ok nil))
-       (unwind-protect
-            (let ((results (multiple-value-list (funcall fun))))
-              (if instance
-                  (format *trace-output* ";; ~A.~A returned ~{~A~^, ~}~%"
-                          instance
-                          (qmethod-name method)
-                          results)
-                  (format *trace-output* ";; new ~A returned ~{~A~^, ~}~%"
-                          (qmethod-name method)
-                          results))
-              (setf ok t)
-              (apply #'values results))
-         (unless ok
-           (if instance
-               (format *trace-output* ";; nlx unwind in ~A.~A~%"
-                       instance
-                       (qmethod-name method))
-               (format *trace-output* ";; nlx unwind in ~A~%"
-                       (qmethod-name method)))))))
-    (t
-     (funcall fun))))
-
 (defvar *pending-finalizations* nil)
 
 (defun finalize-if-matching-thread (thread ptr class description qp dynamicp)
@@ -520,18 +482,17 @@
       (error "No applicable constructor ~A found for arguments ~A"
              (qclass-name class) args))
     (assert (eq class (qtype-class (qmethod-return-type method))))
-    (with-tracing (method nil args)
-      (apply #'values
-             (call-with-marshalling
-              (lambda (stack)
-                (setf (qobject-pointer instance)
-                      (%call-ctor method
-                                  stack
-				  (binding-for-ctor method instance)))
-                (cache! instance)
-                (list instance))
-              (list-qmethod-argument-types method)
-              args)))))
+    (apply #'values
+	   (call-with-marshalling
+	    (lambda (stack)
+	      (setf (qobject-pointer instance)
+		    (%call-ctor method
+				stack
+				(binding-for-ctor method instance)))
+	      (cache! instance)
+	      (list instance))
+	    (list-qmethod-argument-types method)
+	    args))))
 
 (defun call (instance method &rest args)
   (%call t instance method args))
@@ -559,27 +520,26 @@
         (error "not a static method"))
       (setf instance (null-qobject instance)))
     (let ((rtype (qmethod-return-type method)))
-      (with-tracing (method instance args)
-        (apply #'values
-               (call-with-marshalling
-                (lambda (stack &aux fun)
-                  (cond
-                    ((and allow-override-p
-                          (setf fun
-                                (find-method-override instance method)))
-                     (multiple-value-list (override fun instance method args)))
-                    (t
-                     (cffi:foreign-funcall-pointer
-                      (qclass-trampoline-fun (qmethod-class method))
-                      ()
-                      :short (qmethod-arg-for-classfn method)
-                      :pointer (qobject-pointer instance)
-                      :pointer stack
-                      :void)
-                     (list (and (not (qtype-void-p rtype))
-				(unmarshal rtype stack))))))
-                (list-qmethod-argument-types method)
-                args))))))
+      (apply #'values
+	     (call-with-marshalling
+	      (lambda (stack &aux fun)
+		(cond
+		 ((and allow-override-p
+		       (setf fun
+			     (find-method-override instance method)))
+		  (multiple-value-list (override fun instance method args)))
+		 (t
+		  (cffi:foreign-funcall-pointer
+		   (qclass-trampoline-fun (qmethod-class method))
+		   ()
+		   :short (qmethod-arg-for-classfn method)
+		   :pointer (qobject-pointer instance)
+		   :pointer stack
+		   :void)
+		  (list (and (not (qtype-void-p rtype))
+			     (unmarshal rtype stack))))))
+	      (list-qmethod-argument-types method)
+	      args)))))
 
 (defclass deleted-object (abstract-qobject)
   ())
@@ -602,80 +562,3 @@
              (funcall fun c)
              (map-qclass-superclasses #'recurse c)))
     (recurse class)))
-
-#+broken
-(defun trace-qclass (class)
-  (let ((class (find-qclass class)))
-    (cond
-      ((qclass-tracep class)
-       (format t "~%Class already traced: ~A~%" class))
-      (t
-       (setf (qclass-tracep class) t)
-       (map-cpl (lambda (c)
-                           (dolist (map (qclass-prototypes c))
-                             (dolist (method (qprototype-methods map))
-                               (trace-qmethod method))))
-                         class)))))
-
-#+broken
-(defun untrace-qclass (class &optional force)
-  (let ((class (find-qclass class)))
-    (cond
-      ((not (or (qclass-tracep class) force))
-       (format t "~%Class not traced: ~A~%" class))
-      (t
-       (unless (qclass-tracep class)
-         (format t "~%Class not traced, untracing methods anyway: ~A~%" class))
-       (map-cpl (lambda (c)
-                           (dolist (map (qclass-prototypes c))
-                             (dolist (method (qprototype-methods map))
-                               (untrace-qmethod method))))
-                         class)
-       (setf (qclass-tracep class) nil)))))
-
-#+broken
-(defun trace-qmethod (method)
-  (when (zerop (qmethod-trace-counter method))
-    (format t "tracing ~A~%" (qmethod-fancy-name method)))
-  (incf (qmethod-trace-counter method)))
-
-#+broken
-(defun untrace-qmethod (method)
-  (when (eql (qmethod-trace-counter method) 1)
-    (format t "untracing ~A~%" (qmethod-fancy-name method)))
-  (setf (qmethod-trace-counter method)
-        (max 0 (1- (qmethod-trace-counter method)))))
-
-#+broken
-(defun qtrace (&rest strs)
-  (if strs
-      (dolist (str strs)
-        (let ((class (find-qclass-ignoring-case str)))
-          (when class
-            (trace-qclass class)))
-        (dolist (method (find-dotted-qmethods str))
-          (trace-qmethod method)))
-      (loop
-         for method across *method-table*
-         when (and method (plusp (qmethod-trace-counter method)))
-         collect (qmethod-dotted-name method))))
-
-#+broken
-(defun quntrace (&rest strs)
-  (cond
-    (strs
-     (dolist (str strs)
-       (let ((class (find-qclass-ignoring-case str)))
-         (when class
-           (untrace-qclass class)))
-       (dolist (method (find-dotted-qmethods str))
-         (untrace-qmethod method))))
-    (t
-     (loop
-        for class across *class-table*
-        when (and class (qclass-tracep class))
-        collect (untrace-qclass class))
-     (loop
-        for method across *method-table*
-        when (and method (plusp (qmethod-trace-counter method)))
-        collect (untrace-qmethod method)))))
