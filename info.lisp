@@ -43,10 +43,10 @@
 (defvar *module-data-table*
   (make-array (ash 1 +module-bits+) :initial-element nil))
 
-(declaim (notinline module-ref))
+#-debug (declaim (inline module-ref))
 (defun module-ref (i) (svref *module-table* i))
 
-(declaim (notinline data-ref))
+#-debug (declaim (inline data-ref))
 (defun data-ref (i) (svref *module-data-table* i))
 
 ;;;;
@@ -100,30 +100,32 @@
                    (and data (data-name data)))
             :test #'string=))
 
-(declaim (notinline bash))
+#-debug (declaim (inline bash))
 (defun bash (idx module-number kind)
   (logior kind
           (ash (logior module-number
                        (ash idx +module-bits+))
                +kind-bits+)))
 
-(declaim (notinline ldb-module))
+#-debug (declaim (inline ldb-module))
 (defun ldb-module (x)
   (ldb (byte +module-bits+ +kind-bits+) x))
 
+#-debug (declaim (inline ldb-kind))
 (defun ldb-kind (x)
   (ldb (byte +kind-bits+ 0) x))
 
-(declaim (notinline unbash))
+#-debug (declaim (inline unbash))
 (defun unbash (x)
   (values (ldb (byte 16 (+ +module-bits+ +kind-bits+)) x)
           (ldb-module x)
           (ldb (byte +kind-bits+ 0) x)))
 
+#-debug (declaim (inline unbash*))
 (defun unbash* (x expected-kind)
   (multiple-value-bind (idx <module> kind)
       (unbash x)
-    (assert (eql kind expected-kind))
+    #+debug (assert (eql kind expected-kind))
     (values idx <module> kind)))
 
 
@@ -153,6 +155,7 @@
 (defun qclass-struct (<class>)
   (multiple-value-bind (idx <module>)
       (unbash* <class> +class+)
+    #+debug (assert (<= 0 idx (data-nclasses (data-ref <module>))))
     (cffi:mem-aref (data-classes (data-ref <module>))
                    '|struct Class|
                    idx)))
@@ -279,6 +282,7 @@
 (defun methodmap-struct (<methodmap>)
   (multiple-value-bind (idx <module>)
       (unbash* <methodmap> +methodmap+)
+    #+debug (assert (<= 0 idx (data-nmethodmaps (data-ref <module>))))
     (cffi:mem-aref (data-methodmaps (data-ref <module>))
                    '|struct MethodMap|
                    idx)))
@@ -343,6 +347,7 @@
 (defun qmethod-struct (<method>)
   (multiple-value-bind (idx <module>)
       (unbash* <method> +method+)
+    #+debug (assert (<= 0 idx (data-nmethods (data-ref <module>))))
     (cffi:mem-aref (data-methods (data-ref <module>))
                    '|struct Method|
                    idx)))
@@ -422,6 +427,7 @@
 (defun qtype-struct (<type>)
   (multiple-value-bind (idx <module>)
       (unbash* <type> +type+)
+    #+debug (assert (<= 0 idx (data-ntypes (data-ref <module>))))
     (cffi:mem-aref (data-types (data-ref <module>))
                    '|struct Type|
                    idx)))
@@ -658,7 +664,7 @@
   (let ((name (string-downcase name)))
     (unless (named-module-number name)
       (let ((idx *n-modules*))
-        (assert (< idx (length *module-table*)))
+        #+debug (assert (< idx (length *module-table*)))
         (cffi:load-foreign-library (format nil "libsmoke~A.so" name))
         (let ((init (cffi:foreign-symbol-pointer
                      (format nil "_Z~Dinit_~A_Smokev"
