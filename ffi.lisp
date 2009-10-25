@@ -230,12 +230,12 @@
   (%deletion-callback obj))
 
 (defcallback method-invocation-callback
-    :int
+    :char
     ((smoke :pointer)
      (method :short)
      (obj :pointer)
      (args :pointer)
-     (abstractp :int))
+     (abstractp :char))
   ;; Just dispatch to an ordinary function for debugging purposes.
   ;; Redefinition of a callback wouldn't affect the existing C++ code,
   ;; redefinition of the function does.
