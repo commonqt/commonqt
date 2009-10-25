@@ -413,32 +413,45 @@
 
 (defvar *pending-finalizations* nil)
 
-(defun finalize-if-matching-thread (thread ptr class description qp)
+(defun finalize-if-matching-thread (thread ptr class description qp dynamicp)
   (cond
     ((eq thread (bordeaux-threads:current-thread))
-     (finalize ptr class description qp)
+     (finalize ptr class description qp dynamicp)
      t)
     (t
      nil)))
 
-(defun finalize (ptr class description qp)
-  #+(or)
-  (format t "[~A ~A]~%"
-          (zerop (sw_qpointer_is_null qp))
-          description)
-  (when (zerop (sw_qpointer_is_null qp))
-    (handler-case
-        (call (%qobject class ptr)
-              (format nil "~~~A" (qclass-name class)))
-      (error (c)
-        (format t "Error in finalizer: ~A, for object: ~A~%"
-                c description))))
+(defun qpointer-target-already-deleted-p (qp)
+  (logbitp 0 (sw_qpointer_is_null qp)))
+
+(defun finalize (ptr class description qp dynamicp)
+  (unless (qpointer-target-already-deleted-p qp)
+    (let ((object (%qobject class ptr))
+	  (qobjectp (qsubclassp class (find-qclass "QObject"))))
+      (cond
+       ((or (not qobjectp)
+	    (typep (#_parent object) 'null-qobject))
+	#+debug (format t "deleting ~A~%" object)
+	(handler-case
+	    (if qobjectp
+		(#_deleteLater object)
+		(call object (format nil "~~~A" (qclass-name class))))
+	  (error (c)
+            (format t "Error in finalizer: ~A, for object: ~A~%"
+		    c description))))
+       (dynamicp
+	(error "Bug in CommonQt?  previously dynamic object ~A still has parent ~A, but has been GCed"
+	       object (#_parent object)))
+       (t
+	(warn "Bug in CommonQt?  ~A still has parent ~A; not deleting"
+	      object (#_parent object))))))
   (sw_delete_qpointer qp))
 
 (defun cache! (object)
   (setf (pointer->cached-object (qobject-pointer object)) object)
   ;; use of QPointer is a very big hammer, but should be a very reliable
-  ;; way of avoiding double frees
+  ;; way of avoiding double frees.  (Perhaps this should only be done in
+  ;; a debugging mode?)
   (setf (qobject-qpointer object) (sw_make_qpointer (qobject-pointer object)))
   ;; Let's avoid calling finalizers in random after-gc situations.
   ;; Instead we postpone them until the next object is created, which
@@ -446,17 +459,20 @@
   ;; seems like a good moment for cleanup for older objects.
   (setf *pending-finalizations*
         (remove-if #'funcall *pending-finalizations*))
-  (tg:finalize object
-               (let ((ptr (qobject-pointer object))
-                     (class (qobject-class object))
-                     (str (princ-to-string object))
-                     (qp (qobject-qpointer object))
-                     (thread (bordeaux-threads:current-thread)))
-                 (lambda ()
-                   (push (lambda ()
-                           (finalize-if-matching-thread
-                            thread ptr class str qp))
-                         *pending-finalizations*))))
+  (when (or (not (qtypep object (find-qclass "QObject")))
+	    (typep (#_parent object) 'null-qobject))
+    (tg:finalize object
+		 (let ((ptr (qobject-pointer object))
+		       (class (qobject-class object))
+		       (str (princ-to-string object))
+		       (qp (qobject-qpointer object))
+		       (thread (bordeaux-threads:current-thread))
+		       (dynamicp (typep object 'dynamic-object)))
+		   (lambda ()
+		     (push (lambda ()
+			     (finalize-if-matching-thread
+			      thread ptr class str qp dynamicp))
+			   *pending-finalizations*)))))
   object)
 
 (defmethod new ((class integer) &rest args)

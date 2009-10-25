@@ -51,7 +51,8 @@ public:
 		if (*name == '~')
 			callmethod_callback(smoke, method, obj, args, isAbstract);
 		else if (!strcmp(name, "notify")
-			 && !strcmp(c->className, "QApplication"))
+			 && (!strcmp(c->className, "QApplication")
+			    || !strcmp(c->className, "QCoreApplication")))
 		{
 			QEvent* e = (QEvent*) args[2].s_voidp;
 			if (e->type() == QEvent::ChildAdded
