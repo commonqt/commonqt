@@ -87,13 +87,13 @@
   (format t "Metaobject for ~A:~%" object)
   (describe-metaobject-methods (#_metaObject object)))
 
-(defmacro with-object ((var form) &body body)
-  `(invoke-with-object (lambda (,var) ,@body) ,form))
+;;; (defmacro with-object ((var form) &body body)
+;;;   `(invoke-with-object (lambda (,var) ,@body) ,form))
 
-(defun invoke-with-object (fun object)
-  (unwind-protect
-       (funcall fun object)
-    #+nil (#_destroy object)))
+;;; (defun invoke-with-object (fun object)
+;;;   (unwind-protect
+;;;        (funcall fun object)
+;;;     #+nil (#_destroy object)))
 
 (defvar qt-user:*application* nil)
 

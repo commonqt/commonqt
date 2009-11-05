@@ -211,8 +211,10 @@
     (iter (for i from parents)
           (let ((classid (cffi:mem-aref inheritancelist :short i)))
             (while (plusp classid))
-            (funcall fun (resolve-external-qclass
-                          (bash classid <module> +class+)))))))
+	    (funcall fun (or (resolve-external-qclass
+			      (bash classid <module> +class+))
+			     (error "failed to resolve superclass: ~/qt:format-reference/"
+				    (bash classid <module> +class+))))))))
 
 (defun qclass-flags (<class>)
   (cffi:foreign-slot-value (qclass-struct <class>) '|struct Class| 'flags))
@@ -379,6 +381,18 @@
   (deftest qmethod-ctor-p #x20)
   (deftest qmethod-dtor-p #x40)
   (deftest qmethod-protected-p #x80))
+
+(defun list-qmethod-flags (<method>)
+  (remove-if-not (lambda (fun)
+		   (funcall fun <method>))
+		 '(qmethod-static-p
+		   qmethod-const-p
+		   qmethod-copyctor-p
+		   qmethod-internal-p
+		   qmethod-enum-p
+		   qmethod-ctor-p
+		   qmethod-dtor-p
+		   qmethod-protected-p)))
 
 (defun qmethod-return-type (<method>)
   (bash (cffi:foreign-slot-value (qmethod-struct <method>)
@@ -582,11 +596,13 @@
   (format t "    class: ~A~%" (qmethod-class method))
   (format t "    name: ~A~%" (qmethod-name method))
   (format t "    return type: ~A~%" (qmethod-return-type method))
-  (format t "    flags:~{ ~A~^,~}~%" (qmethod-flags method))
+  (format t "    flags: #x~X (~{~A~^, ~})~%"
+          (qmethod-flags method)
+          (list-qmethod-flags method))
   (format t "  argument types:~%")
   (if (list-qmethod-argument-types method)
-      (dolist (type (list-qmethod-argument-types method))
-        (format t "    ~A~%" type))
+      (dolist (<type> (list-qmethod-argument-types method))
+        (format t "    ~A~%" (qtype-name <type>)))
       (format t "    (none)~%")))
 
 (defun class-reference-p (x)
@@ -640,6 +656,7 @@
 
 ;;;; Startup stuff
 
+
 (defvar *cached-objects*)
 (defvar *keep-alive*)
 (defvar *qobject-metaobject* nil)
@@ -651,6 +668,7 @@
   (fill *module-table* nil)
   (fill *module-data-table* nil)
   (setf *cached-objects* (tg:make-weak-hash-table :weakness :value))
+  ;; (setf *cached-objects* (make-hash-table))
   (setf *keep-alive* (make-hash-table))
   (setf *qobject-metaobject* nil)
   (load-libcommonqt))

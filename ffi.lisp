@@ -80,6 +80,15 @@
 (defcfun "sw_delete_qstring" :void
   (qstring :pointer))
 
+(defcfun "sw_make_qstringlist" :pointer)
+
+(defcfun "sw_delete_qstringlist" :void
+  (qstringlist :pointer))
+
+(defcfun "sw_qstringlist_append" :void
+  (qstringlist :pointer)
+  (str :string))
+
 (defcfun "sw_make_metaobject" :pointer
   (parent :pointer)
   (str :pointer)
@@ -170,7 +179,7 @@
   (name :short)
   (args :short)
   (numargs :unsigned-char)
-  (flags :unsigned-char)
+  (flags :unsigned-char) ;short!
   (ret :short)
   (methodForClassFun :short))
 
@@ -194,11 +203,11 @@
 
 (defvar *callbacks* (make-hash-table :test 'equal))
 
-#+(and ccl windows)
+#+commonqt-use-stdcall
 (in-package :cffi-sys)
-#+(and ccl windows)
+#+commonqt-use-stdcall
 (format t "patching cffi for stdcall callbacks support~%")
-#+(and ccl windows)
+#+commonqt-use-stdcall
 (defmacro %defcallback (name rettype arg-names arg-types body
                         &key calling-convention)
   (let ((cb-name (intern-callback name)))
@@ -213,11 +222,11 @@
                ,(convert-foreign-type rettype))
          ,body)
        (setf (gethash ',name *callbacks*) (symbol-value ',cb-name)))))
-#+(and ccl windows) (in-package :qt)
+#+commonqt-use-stdcall (in-package :qt)
 
 (defmacro defcallback (name ret (&rest args) &body body)
-  `(cffi:defcallback (,name #+(and ccl windows) :calling-convention
-                            #+(and ccl windows) :stdcall)
+  `(cffi:defcallback (,name #+commonqt-use-stdcall :calling-convention
+                            #+commonqt-use-stdcall :stdcall)
        ,ret ,args ,@body))
 
 (defcallback deletion-callback

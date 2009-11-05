@@ -3,6 +3,12 @@
 
 (in-package :qt-system)
 
+#+(and clozure windows)
+(pushnew :commonqt-use-stdcall *features*)
+
+
+;;; .cpp
+
 (defclass cpp->so (source-file)
   ())
 
@@ -26,9 +32,38 @@
                                     :defaults (component-pathname c)))))
       (error 'operation-error :component c :operation o))))
 
+
+;;; qmake
+
+(defclass makefile (source-file)
+  ())
+
+(defmethod source-file-type ((c makefile) (s module)) nil)
+
+(defmethod output-files ((operation compile-op) (c makefile))
+  (list (make-pathname :name "Makefile"
+		       :type nil
+		       :defaults (component-pathname c))))
+
+(defmethod perform ((o load-op) (c makefile))
+  t)
+
+(defmethod perform ((o compile-op) (c makefile))
+  (unless (operation-done-p o c)
+    (when (find-package :qt)
+      (set (find-symbol "*LOADED*" :qt) nil))
+    (unless (zerop (run-shell-command
+                    "qmake ~S"
+                    (namestring (component-pathname c))))
+      (error 'operation-error :component c :operation o))))
+
+
+;;; system
+
 (defsystem :qt
     :serial t
-    :components (#-(or mswindows windows) (cpp->so "commonqt")
+    :components (#-(or mswindows windows) (makefile "commonqt.pro")
+                 #-(or mswindows windows) (cpp->so "commonqt")
                  (:file "package")
                  (:file "ffi")
                  (:file "info")

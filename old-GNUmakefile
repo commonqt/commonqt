@@ -1,4 +1,4 @@
-CFLAGS=-I/usr/include/qt4 -I/home/david/src/kdebindings/smoke
+CFLAGS=-I/opt/Qt/include -I/home/david/src/kdebindings/smoke
 LDFLAGS:=-L/home/david/src/kdebindings/lib
 
 #CFLAGS=-I/e/Qt/4.5.0/include -I/e/kdebindings/smoke

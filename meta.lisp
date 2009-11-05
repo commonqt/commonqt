@@ -240,13 +240,13 @@
       (setf *qobject-metaobject*
             (let ((qobj (new (find-qclass "QObject"))))
               (prog1 (#_metaObject qobj)
-                (delete-object qobj))))))
+                #+nil(delete-object qobj))))))
 
 (defun ensure-qt-class-caches (qt-class)
   (check-type qt-class qt-class)
   (ensure-smoke)
   (with-slots (effective-class qmetaobject smoke-generation) qt-class
-    (unless (and qmetaobject 
+    (unless (and qmetaobject
 		 effective-class
 		 (eq smoke-generation *cached-objects*))
       ;; clear everything out to ensure a clean state in case of errors
@@ -318,11 +318,21 @@
   (or *next-qmethod*
       (error "get-next-qmethod used outside of overriding method")))
 
-(defun override (fun object method args)
-  (let ((*next-qmethod* method)
-        (*next-qmethod-trampoline*
-         (lambda (new-args)
-           (apply #'call-without-override object method (or new-args args)))))
+(defun override (fun object <method> args)
+  (let* ((method-name 
+	  ;; dispatch on the method name rather than method index,
+	  ;; because the index sometimes points to a superclass method
+	  ;; rather than the specific class we want.  Don't know why.
+	  ;; Run-time lookup of the name ensures that we get the most
+	  ;; specific method that OBJECT has.
+	  (qmethod-name <method>))
+	 (*next-qmethod* method-name)
+	 (*next-qmethod-trampoline*
+	  (lambda (new-args)
+	    (apply #'call-without-override 
+		   object
+		   method-name
+		   (or new-args args)))))
     (apply fun object args)))
 
 (defun metaobject-override (object)

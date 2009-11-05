@@ -50,6 +50,10 @@ extern "C" {
 	short sw_id_method(Smoke *, short, short);
 	short sw_id_type(Smoke *, char *);
 
+	void* sw_make_qstringlist();
+	void sw_delete_qstringlist(void *);
+	void sw_qstringlist_append(void*, char*);
+
 #ifdef __cplusplus
 }
 #endif

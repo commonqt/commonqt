@@ -41,8 +41,7 @@
   (restart-case
       (let ((object (pointer->cached-object obj)))
         (when object
-          (note-deleted object)
-          (change-class object 'deleted-object)))
+          (note-deleted object)))
     (abort ()
       :report (lambda (stream) (write-string "Abort smoke callback" stream)))))
 
@@ -110,8 +109,8 @@
   ((pointer :initarg :pointer
             :initform :unborn
             :accessor qobject-pointer)
-   (qpointer :initarg :qpointer
-             :accessor qobject-qpointer)))
+   (deleted :initform nil
+            :accessor qobject-deleted)))
 
 (defmethod print-object ((instance qobject) stream)
   (print-unreadable-object (instance stream :type nil :identity nil)
@@ -156,6 +155,7 @@
 (defprimitive char* ($) (satisfies cffi:pointerp))
 (defprimitive char** (?) (satisfies cffi:pointerp))
 (defprimitive qstring ($) string)
+(defprimitive qstringlist (?) (satisfies cffi:pointerp))
 (defprimitive int& ($) (satisfies cffi:pointerp))
 (defprimitive void** (?) (satisfies cffi:pointerp))
 (defprimitive bool* ($) (satisfies cffi:pointerp))
@@ -373,68 +373,59 @@
 (defmethod new ((qclass string) &rest args)
   (apply #'new (find-qclass qclass) args))
 
-(defvar *pending-finalizations* nil)
-
-(defun finalize-if-matching-thread (thread ptr class description qp dynamicp)
-  (cond
-    ((eq thread (bordeaux-threads:current-thread))
-     (finalize ptr class description qp dynamicp)
-     t)
-    (t
-     nil)))
-
 (defun qpointer-target-already-deleted-p (qp)
   (logbitp 0 (sw_qpointer_is_null qp)))
 
-(defun finalize (ptr class description qp dynamicp)
-  (unless (qpointer-target-already-deleted-p qp)
-    (let ((object (%qobject class ptr))
-	  (qobjectp (qsubclassp class (find-qclass "QObject"))))
-      (cond
-       ((or (not qobjectp)
-	    (typep (#_parent object) 'null-qobject))
-	#+debug (format t "deleting ~A~%" object)
-	(handler-case
-	    (if qobjectp
-		(#_deleteLater object)
-		(call object (format nil "~~~A" (qclass-name class))))
-	  (error (c)
-            (format t "Error in finalizer: ~A, for object: ~A~%"
-		    c description))))
-       (dynamicp
-	(error "Bug in CommonQt?  previously dynamic object ~A still has parent ~A, but has been GCed"
-	       object (#_parent object)))
-       (t
-	(warn "Bug in CommonQt?  ~A still has parent ~A; not deleting"
-	      object (#_parent object))))))
-  (sw_delete_qpointer qp))
+(defun null-qobject-p (object)
+  (typep object 'null-qobject))
+
+(defun postmortem (ptr class description qobjectp dynamicp)
+  (declare (ignore ptr class))
+  (format t "Finalizer called for ~A (~{~A~^, ~}), possible memory leak.~%"
+          description
+          (append (when dynamicp '("Lisp"))
+                  (when qobjectp '("QObject"))))
+  (force-output)
+  #+(or)
+  (let* ((object (%qobject class ptr))
+         (parent (and qobjectp (#_parent object))))
+    (cond
+      ((or (not qobjectp)
+           (and parent (null-qobject-p parent)))
+       (format t "deleting ~A (~A)~%" object qobjectp)
+       (force-output)
+       (handler-case
+           (if qobjectp
+               (#_deleteLater object)
+               (call object (format nil "~~~A" (qclass-name class))))
+         (error (c)
+           (format t "Error in finalizer: ~A, for object: ~A~%"
+                   c description))))
+      (dynamicp
+       (warn "Bug in CommonQt?  previously dynamic object ~A still has parent ~A, but has been GCed"
+             object parent))
+      (t
+       (warn "Bug in CommonQt?  ~A still has parent ~A; not deleting"
+             object parent)))))
+
+#+(or)
+(defun run-pending ()
+  (setf *pending-finalizations*
+        (remove-if #'funcall *pending-finalizations*)))
 
 (defun cache! (object)
+  (assert (null (pointer->cached-object (qobject-pointer object))))
   (setf (pointer->cached-object (qobject-pointer object)) object)
-  ;; use of QPointer is a very big hammer, but should be a very reliable
-  ;; way of avoiding double frees.  (Perhaps this should only be done in
-  ;; a debugging mode?)
-  (setf (qobject-qpointer object) (sw_make_qpointer (qobject-pointer object)))
-  ;; Let's avoid calling finalizers in random after-gc situations.
-  ;; Instead we postpone them until the next object is created, which
-  ;; can only happen in a Qt-related thread.  And object creation time
-  ;; seems like a good moment for cleanup for older objects.
-  (setf *pending-finalizations*
-        (remove-if #'funcall *pending-finalizations*))
   (when (or (not (qtypep object (find-qclass "QObject")))
 	    (typep (#_parent object) 'null-qobject))
     (tg:finalize object
-		 (let ((ptr (qobject-pointer object))
-		       (class (qobject-class object))
-		       (str (princ-to-string object))
-		       (qp (qobject-qpointer object))
-		       (thread (bordeaux-threads:current-thread))
-		       (dynamicp (typep object 'dynamic-object)))
+		 (let* ((ptr (qobject-pointer object))
+			(class (qobject-class object))
+			(str (princ-to-string object))
+			(qobjectp (qsubclassp class (find-qclass "QObject")))
+			(dynamicp (typep object 'dynamic-object)))
 		   (lambda ()
-		     (push (lambda ()
-			     (finalize-if-matching-thread
-			      thread ptr class str qp dynamicp))
-			   *pending-finalizations*)))))
+		     (postmortem ptr class str qobjectp dynamicp)))))
   object)
 
 (defmethod new ((class integer) &rest args)
@@ -541,15 +532,48 @@
 	      (list-qmethod-argument-types method)
 	      args)))))
 
-(defclass deleted-object (abstract-qobject)
-  ())
+(defun note-deleted (object)
+  (check-type object abstract-qobject)
+  (unless (qobject-deleted object)
+    (tg:cancel-finalization object)
+    (remhash (cffi:pointer-address (qobject-pointer object)) *cached-objects*)
+    (setf (qobject-deleted object) t)))
 
-(defmethod note-deleted ((object qobject))
-  ;; (tg:cancel-finalization object)
-  (remhash (cffi:pointer-address (qobject-pointer object)) *cached-objects*))
+(defun delete-object (object)
+  (cond
+    ((typep object 'null-qobject)
+     (error "cannot delete null object: ~A" object))
+    ((qobject-deleted object)
+     (warn "not deleting dead object: ~A" object))
+    (t
+     #+nil (sw_delete (qobject-pointer object))
+     (call object (format nil "~~~A" (qclass-name (qobject-class object))))
+     (note-deleted object))))
 
-(defmethod delete-object ((object qobject))
-  (sw_delete (qobject-pointer object)))
+(defmacro with-object ((var &optional value) &body body)
+  (if value
+      `(call-with-object (lambda (,var) ,@body) ,value)
+      `(let ((,var nil))
+         (flet ((,var (x) (push x ,var) x))
+           (unwind-protect
+                (progn ,@body)
+             (mapc #'maybe-delete-object ,var))))))
+
+(defmacro with-objects ((&rest clauses) &body body)
+  (if clauses
+      `(with-object ,(car clauses) (with-objects ,(rest clauses) ,@body))
+      `(progn ,@body)))
+
+(defun maybe-delete-object (object)
+  (unless (or (typep object 'null-qobject)
+              (qobject-deleted object))
+    (delete-object object)))
+
+(defun call-with-object (fun object)
+  (check-type object abstract-qobject)
+  (unwind-protect
+       (funcall fun object)
+    (maybe-delete-object object)))
 
 (defmethod note-child-added ((object qobject))
   (setf (gethash object *keep-alive*) t))

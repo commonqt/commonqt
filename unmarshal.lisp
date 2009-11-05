@@ -126,6 +126,16 @@
                                 'long))
 
 (defmethod unmarshal-using-type ((kind (eql :stack))
+				 (name (eql :|long long|))
+				 (stack-item-slot (eql 'long))
+				 type
+				 stack-item)
+  ;; FIXME: 32 / 64 bit mismatch.  Same issue as in marshal.lisp.
+  (cffi:foreign-slot-value stack-item
+			   '|union StackItem|
+			   'long))
+
+(defmethod unmarshal-using-type ((kind (eql :stack))
                                  (name (eql :|unsigned int|))
                                  (stack-item-slot (eql 'uint))
                                  type

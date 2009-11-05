@@ -69,7 +69,9 @@
            #:find-method-override
            #:windows-version
            #:set-nice-theme
-           #:rebirth))
+           #:rebirth
+           #:with-object
+           #:with-objects))
 
 (defpackage :qt-user
   (:use :cl :qt)
