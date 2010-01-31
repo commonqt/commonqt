@@ -21,7 +21,8 @@
                   :accessor shoot-angle)
      (shoot-force :initform 0
                   :accessor shoot-force)
-     (target :accessor target)
+     (target :initform nil
+             :accessor target)
      (game-ended-p :initform nil
                    :accessor game-ended-p)
      (barrel-pressed-p :initform nil
@@ -53,7 +54,8 @@
     (prog1
         (call-next-method)
       (unless (eql oldval newval)
-        (#_update instance (cannon-rect instance))
+        (with-objects ((rect (cannon-rect instance)))
+          (#_update instance rect))
         (emit-signal instance "angleChanged(int)" newval)))))
 
 (defmethod (setf current-force) :around (newval (instance cannon-field))
@@ -61,7 +63,8 @@
     (prog1
         (call-next-method)
       (unless (eql oldval newval)
-        (#_update instance (cannon-rect instance))
+        (with-objects ((rect (cannon-rect instance)))
+          (#_update instance rect))
         (emit-signal instance "forceChanged(int)" newval)))))
 
 (defun cannon-rect (instance)
@@ -73,40 +76,44 @@
   (#_new QRect 145 (- (#_height instance) 100) 15 99))
 
 (defun barrel-hit-p (instance pos)
-  (let ((matrix (#_new QMatrix)))
+  (with-objects ((matrix (#_new QMatrix)))
     (#_translate matrix 0 (#_height instance))
     (#_rotate matrix (- (current-angle instance)))
-    (#_contains (barrel-rect) (#_map (#_inverted matrix) pos))))
+    (with-objects ((br (barrel-rect))
+                   (mapped-pos (#_map (#_inverted matrix) pos)))
+      (#_contains br mapped-pos))))
 
 (defun target-rect (instance)
   (let ((result (#_new QRect 0 0 20 10)))
-    (#_moveCenter result (#_new QPoint
-                                (#_x (target instance))
-                                (- (#_height instance)
-                                   1
-                                   (#_y (target instance)))))
+    (with-objects ((to (#_new QPoint
+                              (#_x (target instance))
+                              (- (#_height instance)
+                                 1
+                                 (#_y (target instance))))))
+      (#_moveCenter result to))
     result))
 
 (defun barrel-rect ()
   (#_new QRect 30 -5 20 10))
 
 (defun shot-rect (instance)
-  (let* ((gravity 4.0d0)
-         (time (/ (timer-count instance) 20.0d0))
-         (velocity (shoot-force instance))
-         (radians (* (shoot-angle instance) (/ pi 180.0d0)))
-         (velx (* velocity (cos radians)))
-         (vely (* velocity (sin radians)))
-         (barrelRect (barrel-rect))
-         (x0 (* (+ (#_right barrelRect) 5.0d0) (cos radians)))
-         (y0 (* (+ (#_right barrelRect) 5.0d0) (sin radians)))
-         (x (+ x0 (* velx time)))
-         (y (+ y0 (* vely time) (- (* 0.5d0 gravity time time))))
-         (result (#_new QRect 0 0 6 6)))
-    (#_moveCenter result (#_new QPoint
-                              (round x)
-                              (- (#_height instance) 1 (round y))))
-    result))
+  (with-objects ((barrel-rect (barrel-rect)))
+    (let* ((gravity 4.0d0)
+           (time (/ (timer-count instance) 20.0d0))
+           (velocity (shoot-force instance))
+           (radians (* (shoot-angle instance) (/ pi 180.0d0)))
+           (velx (* velocity (cos radians)))
+           (vely (* velocity (sin radians)))
+           (x0 (* (+ (#_right barrel-rect) 5.0d0) (cos radians)))
+           (y0 (* (+ (#_right barrel-rect) 5.0d0) (sin radians)))
+           (x (+ x0 (* velx time)))
+           (y (+ y0 (* vely time) (- (* 0.5d0 gravity time time))))
+           (result (#_new QRect 0 0 6 6)))
+      (with-objects ((to (#_new QPoint
+                                (round x)
+                                (- (#_height instance) 1 (round y)))))
+        (#_moveCenter result to))
+      result)))
 
 (defun is-shooting-p (instance)
   (#_isActive (auto-shoot-timer instance)))
@@ -134,22 +141,26 @@
   (emit-signal instance "canShoot(bool)" t))
 
 (defun move-shot (instance)
-  (let ((old (shot-rect instance)))
+  (with-objects ((old (shot-rect instance)))
     (incf (timer-count instance))
-    (let ((new (shot-rect instance)))
+    (with-objects ((new (shot-rect instance))
+                   (tr (target-rect instance)))
       (cond
-        ((#_intersects new (target-rect instance))
+        ((#_intersects new tr)
          (#_stop (auto-shoot-timer instance))
          (emit-signal instance "hit()")
          (emit-signal instance "canShoot(bool)" t))
         ((or (> (#_x new) (#_width instance))
              (> (#_y new) (#_height instance))
-             (#_intersects new (barrier-rect instance)))
+             (with-objects ((br (barrier-rect instance)))
+               (#_intersects new br)))
          (#_stop (auto-shoot-timer instance))
          (emit-signal instance "missed()")
          (emit-signal instance "canShoot(bool)" t))
         (t
-         (setf old (#_unite old new)))))
+         (let ((new (#_unite old new)))
+           (delete-object old)
+           (setf old new)))))
     (#_update instance old)))
 
 (defmethod initialize-instance :after ((instance cannon-field) &key parent)
@@ -162,11 +173,15 @@
              (QSIGNAL "timeout()")
              instance
              (QSLOT "moveShot()"))
-  (#_setPalette instance (#_new QPalette (#_new QColor 250 250 200)))
+  (with-objects ((col (#_new QColor 250 250 200))
+                 (pal (#_new QPalette col)))
+    (#_setPalette instance pal))
   (#_setAutoFillBackground instance (bool 1))
   (new-target instance))
 
 (defun new-target (instance)
+  (when (target instance)
+    (delete-object (target instance)))
   (setf (target instance)
         (#_new QPoint
                (+ 200 (random 190))
@@ -175,35 +190,46 @@
 
 (defun paint-shot (instance painter)
   (#_setPen painter (#_NoPen "Qt"))
-  (#_setBrush painter (#_new QBrush (#_black "Qt") (#_SolidPattern "Qt")))
-  (#_drawRect painter (shot-rect instance)))
+  (with-objects ((brush (#_new QBrush (#_black "Qt") (#_SolidPattern "Qt"))))
+    (#_setBrush painter brush))
+  (with-objects ((rect (shot-rect instance)))
+    (#_drawRect painter rect)))
 
 (defun paint-cannon (instance painter)
   (#_setPen painter (#_NoPen "Qt"))
-  (#_setBrush painter (#_new QBrush (#_blue "Qt") (#_SolidPattern "Qt")))
+  (with-objects ((brush (#_new QBrush (#_blue "Qt") (#_SolidPattern "Qt"))))
+    (#_setBrush painter brush))
 
   (#_save painter)
   (#_translate painter 0 (#_height (#_rect instance)))
-  (#_drawPie painter (#_new QRect -35 -35 70 70) 0 (* 90 16))
+  (with-objects ((rect (#_new QRect -35 -35 70 70)))
+    (#_drawPie painter rect 0 (* 90 16)))
   (#_rotate painter (- (current-angle instance)))
-  (#_drawRect painter (#_new QRect 30 -5 20 10))
+  (with-objects ((rect (#_new QRect 30 -5 20 10)))
+    (#_drawRect painter rect))
   (#_restore painter))
 
 (defun paint-target (instance painter)
   (#_setPen painter (#_NoPen "Qt"))
-  (#_setBrush painter (#_new QBrush (#_red "Qt") (#_SolidPattern "Qt")))
-  (#_drawRect painter (target-rect instance)))
+  (with-objects ((brush (#_new QBrush (#_red "Qt") (#_SolidPattern "Qt"))))
+    (#_setBrush painter brush))
+  (with-objects ((rect (target-rect instance)))
+    (#_drawRect painter rect)))
 
 (defun paint-barrier (instance painter)
-  (#_setPen painter (#_new QPen (#_black "Qt")))
-  (#_setBrush painter (#_new QBrush (#_blue "Qt") (#_SolidPattern "Qt")))
-  (#_drawRect painter (barrier-rect instance)))
+  (with-objects ((pen (#_new QPen (#_black "Qt"))))
+    (#_setPen painter pen))
+  (with-objects ((brush (#_new QBrush (#_blue "Qt") (#_SolidPattern "Qt"))))
+    (#_setBrush painter brush))
+  (with-objects ((rect (barrier-rect instance)))
+    (#_drawRect painter rect)))
 
 (defmethod paint-event ((instance cannon-field) paint-event)
-  (let ((painter (#_new QPainter instance)))
+  (with-objects ((painter (#_new QPainter instance)))
     (when (game-ended-p instance)
       (#_setPen painter (#_black "Qt"))
-      (#_setFont painter (#_new QFont "Courier" 48 (#_Bold "QFont")))
+      (with-objects ((font (#_new QFont "Courier" 48 (#_Bold "QFont"))))
+        (#_setFont painter font))
       (#_drawText painter (#_rect instance) (#_AlignCenter "Qt") "Game Over"))
     (paint-cannon instance painter)
     (when (is-shooting-p instance)
@@ -316,118 +342,112 @@
   (if parent
       (new instance parent)
       (new instance))
-  (let ((quit (#_new QPushButton "&Quit"))
-        (shoot (#_new QPushButton "&Shoot"))
-        (new-game (#_new QPushButton "&New Game"))
-        (font (#_new QFont (qstring "Times") 18 (#_Bold "QFont"))))
-    (#_setFont quit font)
-    (#_setFont shoot font)
-    (#_setFont new-game font)
-    (#_connect "QObject"
-                new-game
-                (QSIGNAL "clicked()")
-                instance
-                (QSLOT "newGame()"))
-    (#_connect "QObject"
-                quit
-                (QSIGNAL "clicked()")
-                (#_QCoreApplication::instance)
-                (QSLOT "quit()"))
-    (let ((angle (make-instance 'lcd-range :text "ANGLE"))
-          (force (make-instance 'lcd-range :text "FORCE"))
-          (hits (#_new QLCDNumber 2))
-          (shots-left (#_new QLCDNumber 2))
-          (hits-label (#_new QLabel "HITS"))
-          (shots-left-label (#_new QLabel "SHOTS LEFT"))
-          (cf (make-instance 'cannon-field))
-          (cannon-box (#_new QFrame)))
-      (#_setFrameStyle cannon-box
-                       (logior (primitive-value (#_WinPanel "QFrame"))
-                               (primitive-value (#_Sunken "QFrame"))))
-      (#_new QShortcut
-             (#_new QKeySequence (#_Key_Enter "Qt"))
-             instance
-             (QSLOT "fire()"))
-      (#_new QShortcut
-             (#_new QKeySequence (#_Key_Return "Qt"))
-             instance
-             (QSLOT "fire()"))
-      (#_new QShortcut
-             (#_new QKeySequence (#_CTRL "Qt") (#_Key_Q "Qt"))
-             instance
-             (QSLOT "close()"))
-      (setf (cannon-field instance) cf)
-      (setf (hits instance) hits)
-      (setf (shots-left instance) shots-left)
-      (#_setSegmentStyle hits (#_Filled "QLCDNumber"))
-      (#_setSegmentStyle shots-left (#_Filled "QLCDNumber"))
+  (with-objects ((font (#_new QFont (qstring "Times") 18 (#_Bold "QFont"))))
+    (let ((quit (#_new QPushButton "&Quit"))
+          (shoot (#_new QPushButton "&Shoot"))
+          (new-game (#_new QPushButton "&New Game")))
+      (#_setFont quit font)
+      (#_setFont shoot font)
+      (#_setFont new-game font)
       (#_connect "QObject"
-                 shoot
+                 new-game
                  (QSIGNAL "clicked()")
                  instance
-                 (QSLOT "fire()"))
+                 (QSLOT "newGame()"))
       (#_connect "QObject"
-                 cf
-                 (QSIGNAL "hit()")
-                 instance
-                 (QSLOT "hit()"))
-      (#_connect "QObject"
-                 cf
-                 (QSIGNAL "missed()")
-                 instance
-                 (QSLOT "missed()"))
-      (#_connect "QObject"
-                 cf
-                 (QSIGNAL "canShoot(bool)")
-                 shoot
-                 (QSLOT "setEnabled(bool)"))
-      (set-range angle 5 70)
-      (set-range force 10 50)
-      (#_connect "QObject"
-                  angle
-                  (QSIGNAL "valueChanged(int)")
-                  cf
-                  (QSLOT "setAngle(int)"))
-      (#_connect "QObject"
-                  cf
-                  (QSIGNAL "angleChanged(int)")
-                  angle
-                  (QSLOT "setValue(int)"))
-      (#_connect "QObject"
-                  force
-                  (QSIGNAL "valueChanged(int)")
-                  cf
-                  (QSLOT "setForce(int)"))
-      (#_connect "QObject"
-                  cf
-                  (QSIGNAL "forceChanged(int)")
-                  force
-                  (QSLOT "setValue(int)"))
-      (let ((left-layout (#_new QVBoxLayout))
-            (top-layout (#_new QHBoxLayout))
-            (grid (#_new QGridLayout)))
-        (#_addWidget left-layout angle)
-        (#_addWidget left-layout force)
-
-        (#_addWidget top-layout shoot)
-        (#_addWidget top-layout hits)
-        (#_addWidget top-layout hits-label)
-        (#_addWidget top-layout shots-left)
-        (#_addWidget top-layout shots-left-label)
-        (#_addStretch top-layout 1)
-        (#_addWidget top-layout new-game)
-
-        (#_addWidget grid quit 0 0)
-        (#_addLayout grid top-layout 0 1)
-        (#_addLayout grid left-layout 1 0)
-        (#_addWidget grid cannon-box 1 1 2 1)
-        (#_addWidget grid cf 1 1 2 1)
-        (#_setColumnStretch grid 1 10)
-        (#_setLayout instance grid))
-      (setf (value angle) 60)
-      (setf (value force) 25)
-      (#_setFocus angle)
-      (new-game instance))))
+                 quit
+                 (QSIGNAL "clicked()")
+                 (#_QCoreApplication::instance)
+                 (QSLOT "quit()"))
+      (let ((angle (make-instance 'lcd-range :text "ANGLE"))
+            (force (make-instance 'lcd-range :text "FORCE"))
+            (hits (#_new QLCDNumber 2))
+            (shots-left (#_new QLCDNumber 2))
+            (hits-label (#_new QLabel "HITS"))
+            (shots-left-label (#_new QLabel "SHOTS LEFT"))
+            (cf (make-instance 'cannon-field))
+            (cannon-box (#_new QFrame)))
+        (#_setFrameStyle cannon-box
+                         (logior (primitive-value (#_WinPanel "QFrame"))
+                                 (primitive-value (#_Sunken "QFrame"))))
+        (with-objects ((key (#_new QKeySequence (#_Key_Enter "Qt"))))
+          (#_new QShortcut key instance (QSLOT "fire()")))
+        (with-objects ((key (#_new QKeySequence (#_Key_Return "Qt"))))
+          (#_new QShortcut key instance (QSLOT "fire()")))
+        (with-objects ((key (#_new QKeySequence (#_CTRL "Qt") (#_Key_Q "Qt"))))
+          (#_new QShortcut key instance (QSLOT "close()")))
+        (setf (cannon-field instance) cf)
+        (setf (hits instance) hits)
+        (setf (shots-left instance) shots-left)
+        (#_setSegmentStyle hits (#_Filled "QLCDNumber"))
+        (#_setSegmentStyle shots-left (#_Filled "QLCDNumber"))
+        (#_connect "QObject"
+                   shoot
+                   (QSIGNAL "clicked()")
+                   instance
+                   (QSLOT "fire()"))
+        (#_connect "QObject"
+                   cf
+                   (QSIGNAL "hit()")
+                   instance
+                   (QSLOT "hit()"))
+        (#_connect "QObject"
+                   cf
+                   (QSIGNAL "missed()")
+                   instance
+                   (QSLOT "missed()"))
+        (#_connect "QObject"
+                   cf
+                   (QSIGNAL "canShoot(bool)")
+                   shoot
+                   (QSLOT "setEnabled(bool)"))
+        (set-range angle 5 70)
+        (set-range force 10 50)
+        (#_connect "QObject"
+                   angle
+                   (QSIGNAL "valueChanged(int)")
+                   cf
+                   (QSLOT "setAngle(int)"))
+        (#_connect "QObject"
+                   cf
+                   (QSIGNAL "angleChanged(int)")
+                   angle
+                   (QSLOT "setValue(int)"))
+        (#_connect "QObject"
+                   force
+                   (QSIGNAL "valueChanged(int)")
+                   cf
+                   (QSLOT "setForce(int)"))
+        (#_connect "QObject"
+                   cf
+                   (QSIGNAL "forceChanged(int)")
+                   force
+                   (QSLOT "setValue(int)"))
+        (let ((left-layout (#_new QVBoxLayout))
+              (top-layout (#_new QHBoxLayout))
+              (grid (#_new QGridLayout)))
+          (#_addWidget left-layout angle)
+          (#_addWidget left-layout force)
+          
+          (#_addWidget top-layout shoot)
+          (#_addWidget top-layout hits)
+          (#_addWidget top-layout hits-label)
+          (#_addWidget top-layout shots-left)
+          (#_addWidget top-layout shots-left-label)
+          (#_addStretch top-layout 1)
+          (#_addWidget top-layout new-game)
+          
+          (#_addWidget grid quit 0 0)
+          (#_addLayout grid top-layout 0 1)
+          (#_addLayout grid left-layout 1 0)
+          (#_addWidget grid cannon-box 1 1 2 1)
+          (#_addWidget grid cf 1 1 2 1)
+          (#_setColumnStretch grid 1 10)
+          (#_setLayout instance grid))
+        (setf (value angle) 60)
+        (setf (value force) 25)
+        (#_setFocus angle)
+        (new-game instance)))))
 
 (defmethod fire ((game game-board))
   (with-slots (cannon-field shots-left) game
