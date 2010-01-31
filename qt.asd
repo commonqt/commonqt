@@ -54,7 +54,8 @@
       (set (find-symbol "*LOADED*" :qt) nil))
     (unless (zerop (run-shell-command
                     "qmake ~S"
-                    (namestring (component-pathname c))))
+                    (namestring
+		     (merge-pathnames "commonqt.pro" (component-pathname c)))))
       (error 'operation-error :component c :operation o))))
 
 
