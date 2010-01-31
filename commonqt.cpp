@@ -243,12 +243,12 @@ sw_delete_qpointer(void* x)
 	delete ptr;
 }
 
-extern Smoke *qt_Smoke;
+extern Smoke *qtcore_Smoke;
 
 void
 sw_find_class(char *name, Smoke **smoke, short *index)
 {
-	Smoke::ModuleIndex mi = qt_Smoke->findClass(name);
+	Smoke::ModuleIndex mi = qtcore_Smoke->findClass(name);
 	*smoke = mi.smoke;
 	*index = mi.index;
 }
