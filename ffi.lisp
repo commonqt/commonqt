@@ -179,7 +179,7 @@
   (name :short)
   (args :short)
   (numargs :unsigned-char)
-  (flags :unsigned-char) ;short!
+  (flags :unsigned-short)
   (ret :short)
   (methodForClassFun :short))
 
