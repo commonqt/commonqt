@@ -91,7 +91,10 @@
 (defconstant +type+ 3)
 
 (defun module-number (smoke)
-  (position smoke *module-table* :test #'cffi:pointer-eq))
+  (position smoke
+            *module-table*
+            :test #'cffi:pointer-eq
+            :end *n-modules*))
 
 (defun named-module-number (name)
   (position name
