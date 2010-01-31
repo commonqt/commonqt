@@ -688,9 +688,7 @@
         #+debug (assert (< idx (length *module-table*)))
         (cffi:load-foreign-library (format nil "libsmoke~A.so" name))
         (let ((init (cffi:foreign-symbol-pointer
-                     (format nil "_Z~Dinit_~A_Smokev"
-                             (+ 11 (length name))
-                             name))))
+                     (format nil "init_~A_Smoke" name))))
           (assert init)
           (cffi:foreign-funcall-pointer init () :void))
         (let ((smoke-struct
