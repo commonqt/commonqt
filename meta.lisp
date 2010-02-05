@@ -244,7 +244,6 @@
 
 (defun ensure-qt-class-caches (qt-class)
   (check-type qt-class qt-class)
-  (ensure-smoke)
   (with-slots (effective-class qmetaobject smoke-generation) qt-class
     (unless (and qmetaobject
 		 effective-class

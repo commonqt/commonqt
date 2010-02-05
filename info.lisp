@@ -680,7 +680,7 @@
   (unless *loaded*
     (reload)))
 
-(defun ensure-smoke (&optional (name :qt))
+(defun ensure-smoke (name)
   (ensure-loaded)
   (let ((name (string-downcase name)))
     (unless (named-module-number name)

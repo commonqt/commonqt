@@ -42,7 +42,7 @@
 ;;; For example, "-display" "foo" will have been removed afterwards.
 
 (defun make-qapplication (&rest args)
-  (ensure-smoke)
+  (ensure-smoke :qtcore)
   (%make-qapplication (cons "argv0dummy" args)))
 
 (defun %make-qapplication (args &optional (guip t))
@@ -122,7 +122,8 @@
   ;;
   ;; On non-Windows, we don't have this problem, so do nothing.
   ;;
-  (ensure-smoke)
+  (ensure-smoke :qtcore)
+  (ensure-smoke :qtgui)
   (let ((v (windows-version)))
     (when (and v (< v +vista+))
       (#_QApplication::setStyle "Plastique"))))
