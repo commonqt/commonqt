@@ -3,9 +3,6 @@
 
 (in-package :qt-system)
 
-#+(and clozure windows)
-(pushnew :commonqt-use-stdcall *features*)
-
 
 ;;; .cpp
 
@@ -63,8 +60,8 @@
 
 (defsystem :qt
     :serial t
-    :components (#-(or mswindows windows) (makefile "commonqt.pro")
-                 #-(or mswindows windows) (cpp->so "commonqt")
+    :components (#-(or mswindows windows win32) (makefile "commonqt.pro")
+                 #-(or mswindows windows win32) (cpp->so "commonqt")
                  (:file "package")
                  (:file "ffi")
                  (:file "info")

@@ -3,6 +3,7 @@
 // See LICENSE for details.
 //
 #include <smoke.h>
+#include <qtcore_smoke.h>
 #include <Qt/qstring.h>
 #include <Qt/qstringlist.h>
 #include <Qt/qpointer.h>
@@ -10,13 +11,6 @@
 #include <QtCore/qobject.h>
 #include <QtGui/qapplication.h>
 #include "commonqt.h"
-
-// work around bugs in CCL cdecl callback support
-#ifdef COMMONQT_USE_STDCALL
-#define MAYBE_STDCALL __stdcall
-#else
-#define MAYBE_STDCALL
-#endif
 
 // #define DEBUG 1
 
@@ -26,9 +20,9 @@
 
 using namespace std;
 
-typedef void (MAYBE_STDCALL *t_deletion_callback)(void*, void*);
-typedef bool (MAYBE_STDCALL *t_callmethod_callback)(void*, short, void*, void*, bool);
-typedef void (MAYBE_STDCALL *t_child_callback)(void*, bool, void*);
+typedef void (*t_deletion_callback)(void*, void*);
+typedef bool (*t_callmethod_callback)(void*, short, void*, void*, bool);
+typedef void (*t_child_callback)(void*, bool, void*);
 
 class ThinBinding : public SmokeBinding
 {
@@ -242,8 +236,6 @@ sw_delete_qpointer(void* x)
 	QPointer<QObject>* ptr = (QPointer<QObject>*) x;
 	delete ptr;
 }
-
-extern Smoke *qtcore_Smoke;
 
 void
 sw_find_class(char *name, Smoke **smoke, short *index)

@@ -43,6 +43,7 @@
 
 (defun make-qapplication (&rest args)
   (ensure-smoke :qtcore)
+  (ensure-smoke :qtgui)
   (%make-qapplication (cons "argv0dummy" args)))
 
 (defun %make-qapplication (args &optional (guip t))

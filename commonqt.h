@@ -2,58 +2,64 @@
 extern "C" {
 #endif
 
-        typedef struct SmokeData {
-		const char *name;
+#ifdef WIN32
+#  define EXPORT __declspec(dllexport)
+#else
+#  define EXPORT
+#endif
 
-                void *classes;
-                short numClasses;
+typedef struct SmokeData {
+	const char *name;
 
-                void *methods;
-                short numMethods;
+	void *classes;
+	short numClasses;
 
-                void *methodMaps;
-                short numMethodMaps;
+	void *methods;
+	short numMethods;
 
-                void *methodNames;
-                short numMethodNames;
+	void *methodMaps;
+	short numMethodMaps;
 
-                void *types;
-                short numTypes;
+	void *methodNames;
+	short numMethodNames;
 
-                short *inheritanceList;
-                short *argumentList;
-                short *ambiguousMethodList;
-                void *castFn;
+	void *types;
+	short numTypes;
 
-		void *thin;
-		void *fat;
-        } SmokeData;
+	short *inheritanceList;
+	short *argumentList;
+	short *ambiguousMethodList;
+	void *castFn;
 
-        void sw_init();
-        void sw_smoke(Smoke *, SmokeData *data, void *, void *, void *);
-        void* sw_make_qstring(char *);
-        void sw_delete_qstring(void *);
-        void* sw_make_metaobject(void *, char *, int *);
-        void sw_delete(void *p);
-        void* sw_qstring_to_utf8(void* s);
+	void *thin;
+	void *fat;
+} SmokeData;
 
-	void sw_map_children(void *x, void *y);
+EXPORT void sw_init();
+EXPORT void sw_smoke(Smoke *, SmokeData *data, void *, void *, void *);
+EXPORT void* sw_make_qstring(char *);
+EXPORT void sw_delete_qstring(void *);
+EXPORT void* sw_make_metaobject(void *, char *, int *);
+EXPORT void sw_delete(void *p);
+EXPORT void* sw_qstring_to_utf8(void* s);
 
-	void* sw_make_qpointer(void* target);
-	bool sw_qpointer_is_null(void* x);
-	void sw_delete_qpointer(void* x);
+EXPORT void sw_map_children(void *x, void *y);
 
-	int sw_windows_version();
+EXPORT void* sw_make_qpointer(void* target);
+EXPORT bool sw_qpointer_is_null(void* x);
+EXPORT void sw_delete_qpointer(void* x);
 
-	void sw_find_class(char *, Smoke **, short *);
-	short sw_find_name(Smoke *, char *);
-	short sw_id_method(Smoke *, short, short);
-	short sw_id_type(Smoke *, char *);
-	short sw_id_class(Smoke *, char *, bool);
+EXPORT int sw_windows_version();
 
-	void* sw_make_qstringlist();
-	void sw_delete_qstringlist(void *);
-	void sw_qstringlist_append(void*, char*);
+EXPORT void sw_find_class(char *, Smoke **, short *);
+EXPORT short sw_find_name(Smoke *, char *);
+EXPORT short sw_id_method(Smoke *, short, short);
+EXPORT short sw_id_type(Smoke *, char *);
+EXPORT short sw_id_class(Smoke *, char *, bool);
+
+EXPORT void* sw_make_qstringlist();
+EXPORT void sw_delete_qstringlist(void *);
+EXPORT void sw_qstringlist_append(void*, char*);
 
 #ifdef __cplusplus
 }

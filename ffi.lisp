@@ -30,13 +30,19 @@
 #+sbcl (declaim (optimize (debug 2)))
 
 (defvar *loaded* nil)
+(defvar *library-loaded-p* nil)
 
 (defun load-libcommonqt ()
   (cffi:load-foreign-library
+   #-(or windows mswindows win32)
    (namestring (merge-pathnames "libcommonqt.so"
                                 (asdf::component-relative-pathname
+                                 (asdf:find-system :qt))))
+   #+(or windows mswindows win32)
+   (namestring (merge-pathnames "debug/commonqt.dll"
+                                (asdf::component-relative-pathname
                                  (asdf:find-system :qt)))))
-  (setf *loaded* t))
+  (setf *library-loaded-p* t))
 
 #-(or ccl
       (and sbcl

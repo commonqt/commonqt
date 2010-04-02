@@ -680,7 +680,9 @@
   ;; (setf *cached-objects* (make-hash-table))
   (setf *keep-alive* (make-hash-table))
   (setf *qobject-metaobject* nil)
-  (load-libcommonqt))
+  (unless *library-loaded-p*
+    (load-libcommonqt))
+  (setf *loaded* t))
 
 (defun ensure-loaded ()
   (unless *loaded*
@@ -692,7 +694,11 @@
     (unless (named-module-number name)
       (let ((idx *n-modules*))
         #+debug (assert (< idx (length *module-table*)))
-        (cffi:load-foreign-library (format nil "libsmoke~A.so" name))
+        (cffi:load-foreign-library
+        (format nil
+                #-(or mswindows windows win32) "libsmoke~A.so"
+                #+(or mswindows windows win32) "smoke~A.dll"
+                name))
         (let ((init (cffi:foreign-symbol-pointer
                      (format nil "init_~A_Smoke" name))))
           (assert init)
