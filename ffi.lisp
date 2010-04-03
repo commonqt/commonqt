@@ -194,7 +194,8 @@
   (parents :short)
   (classfn :pointer) ;; void (*classfn)(Index method, void *obj, Stack args)
   (enumfn :pointer)
-  (flags :short))
+  (flags :short)
+  (size :unsigned-int))
 
 (cffi:defcstruct |struct Type|
   (name :string)
