@@ -16,33 +16,26 @@
 
   <section>Dependencies (C++)</section>
   <p>
-    CommonQt needs the smoke library for Qt.  GNU make and
-    gcc are also required.
+    CommonQt needs:
   </p>
+  <ul>
+    <li>Qt libraries (tested with 4.5 and 4.6)</li>
+    <li>
+      The smoke library for Qt, provided by the KDE bindings project
+      (but KDE itself is not required).  Currently, kdebindings from svn
+      trunk, revision 1064293 is recommended.
+    </li>
+    <li>
+      GNU make and GCC (except on Windows).
+    </li>
+    <li>
+      Visual C++ (on Windows).
+    </li>
+  </ul>
   <p>
-    It was developed using the LGPLed smoke 2 from kdebindings svn and
-    Qt 4.5 and is available under a BSD-style license.  Qt >= 4.3 is
-    required for proper memory management.
-  </p>
-  <p>
-    You can also use its branch for smoke 1 support with the binaries
-    described below.  (In that case, make certain that you understand
-    the license of smoke 1.)
-  </p>
-  <p>
-    Debian users:
-  </p>
-  <example>aptitude install libsmokeqt4-dev libqt4-dev</example>
-  <p>
-    Gentoo users (might need use flags for Qt4):
-  </p>
-  <example>emerge kde-base/smoke</example>
-  <p>
-    You can check out the <tt>master</tt> branch from CommonQt git to
-    try it with
-    current <a href="http://techbase.kde.org/Development/Languages/Smoke">smoke
-    2</a> from kdebindings
-    <a href="http://websvn.kde.org/trunk/KDE/kdebindings/">svn</a>.
+    When downloading Qt windows binaries from Nokia, get the Qt 4.6.2
+    libraries built for Visual Studio 2008 Express Edition.  (Don't use
+    the binary for MinGW.)
   </p>
 
   <section>Dependencies (Lisp)</section>
@@ -50,10 +43,7 @@
     CommonQt needs
     <ul>
       <li><a href="http://common-lisp.net/project/cffi">CFFI</a></li>
-      <li>currents editor-hints, available from darcs (not svn!) using:<br/>
-	<tt>darcs get
-	  http://common-lisp.net/~trittweiler/darcs/editor-hints</tt>
-      </li>
+      <li><a href="http://common-lisp.net/project/named-readtables/">named-readtables</a></li>
       <li><a href="http://www.weitz.de/cl-ppcre/">CL-PPCRE</a></li>
       <li><a href="http://common-lisp.net/project/alexandria/">Alexandria</a></li>
       <li><a href="http://www.cliki.net/closer-mop">closer-mop</a></li>
@@ -63,7 +53,12 @@
     and their dependencies.
   </p>
   <p>
-    Tested with SBCL and CCL on Linux.
+    Also needed: A Lisp implementation.  Lately, SBCL and CCL have been
+    tested, but it has also run successfully on Allegro and LispWorks in
+    the past.
+  </p>
+  <p>
+    On Windows, it has been tested with Clozure CL 1.4.
   </p>
   <section>Installation</section>
   <p>
@@ -81,20 +76,34 @@
 
   <p>
     The ASDF system runs <tt>make</tt> for you automatically to build
-    the C++ wrapper library <tt>libcommonqt.so</tt>.
+    the C++ wrapper library <tt>libcommonqt.so</tt> (except on Windows).
   </p>
   <p>
-    Run <tt>make</tt> yourself for troubleshooting.
+    Run <tt>qmake</tt> followed by <tt>make</tt> yourself for
+    troubleshooting.
+  </p>
+  <p>
+    (On Windows, run <tt>qmake</tt> followed by <tt>vcbuild</tt>.)
   </p>
 
-  <section>Qt tutorial</section>
-  <p>
-    Lisp translations of the
-    <a href="http://doc.trolltech.com/4.3/tutorial.html">Qt tutorial</a>:
-    <ol>
-      <tutorials/>
-    </ol>
-  </p>
+  <section>Examples</section>
+  <ul>
+    <li>
+      Lisp translations of the
+      <a href="http://doc.trolltech.com/4.3/tutorial.html">Qt
+	tutorial</a>, step 14:
+      <a href="http://doc.trolltech.com/4.3/tutorial-t14.html">
+	C++ version</a>,
+      <a href="http://www.lichteblau.com/git/?p=commonqt.git;a=blob;f=tutorial/t14.lisp;hb=master">
+	Lisp version</a>
+    </li>
+    <li>
+      Trivial
+      <a href="http://www.lichteblau.com/git/?p=commonqt.git;a=blob;f=tutorial/conv.lisp;hb=master">
+	currency conversion dialog</a>
+      (a typical Mac GUI programming example, I'm told)
+    </li>
+  </ul>
 
   <section>Calling instance methods</section>
   <p>
@@ -122,13 +131,12 @@
 
   <section>Calling static methods</section>
   <p>
-    For static methods, pass the class name as a string in place of an
-    instance:
+    Static methods:
   </p>
   <p>
     Example:
   </p>
-  <example>(#_blue "Qt")</example>
+  <example>(#_Qt::blue)</example>
 
   <section>Instantiating Qt classes</section>
   <p>
@@ -390,134 +398,11 @@ Properties:
     its arguments.
   </p>
 
-  <section>ABORT restart</section>
-  <p>
-    During debugging, when an error happens in a Qt callback, never
-    unwind to an outer restart, because that crashes the application.
-    Instead use the ABORT restart provided by CommonQt for this purpose,
-    which aborts only the callback.
-  </p>
-
-  <section>Reference arguments</section>
-  <p>
-    References to primitive types are handled automatically using
-    multiple return values.
-  </p>
-  <p>
-    For example: (#_new QApplication argc argv) returns the QApplication
-    and an updated argc values as multiple return values instead of
-    modifying the argc argument.  (In the case of QApplication this
-    doesn't do much good, because it actually stuffs away the references
-    for the lifetime of the program somewhere, but other better will
-    hopefully be better behaved and access references only for their
-    dynamic extent.)
-  </p>
-  <p>
-    We deviate from the Ruby bindings in this, which have an int class
-    that is mutable.
-  </p>
-
-  <section>Enum values</section>
-  <p>
-    Like the ruby binding we have ENUM instances that record the enum
-    type's name in addition to the value for type sately.  Use
-    PRIMITIVE-VALUE to get the enum as an integer.
-  </p>
-
-  <section>Type disambiguation</section>
-  <p>
-    Types like int, uint, float, double are auto-boxed from and to Lisp
-    integers and rationals.
-  </p>
-  <p>
-    If you need to pass, say, a <tt>uint</tt> explicitly, you can make
-    an <tt>qt:uint</tt> wrapper object.
-  </p>
-
-  <section>Automatic deletion</section>
-  <p>
-    Objects created by Lisp code are deleted automatically in a
-    finalizer.
-  </p>
-  <p>
-    This implies that application programmers sometimes need to keep
-    references on the lisp side to any object that is still used from
-    C++ code.
-  </p>
-  <p>
-    As an exception, CommonQt keeps track of child widgets added to
-    their parent, and ensures that there is a strong reference to the
-    child keeping it alive while it is on the screen.
-  </p>
-  <p>
-    (fixme: There are one or two other special cases in addition to
-    child widgets in QtRuby.  Need to port them over.)
-  </p>
-
   <section>How about CLOS bindings?</section>
   <p>
-    Why a reader macro instead of Lisp functions?
-  </p>
-  <p>
-    CommonQt is currently a purely dynamic binding that does not
-    autogenerate any Lisp code at all.
-  </p>
-  <p>
-    The advantages of this approach are that it compiles and loads
-    quickly, consumes less memory and is easily extensible to additional
-    smoke libraries.
-  </p>
-  <p>
-    But a higher-level bindings with more CLOS integration would be
-    possible.
-  </p>
-  <p>
-    In fact, I've already tried it.  (Ask me for the code if you want to
-    look at it.)
-  </p>
-  <p>
-    SBCL needs 13 minutes to compile and load that trivial
-    auto-generated code.  And that's just for Qt itself, not including
-    the rest of KDE.
-  </p>
-  <p>
-    That's not pretty, and personally I've given up on it for now.  The
-    dynamic bindings work well enough for me.
-  </p>
-
-  <section>Bugs</section>
-  <p>
-    CommonQt probably still has many bugs.
-  </p>
-  <p>
-    In all likelihood we still leak memory in some places.
-  </p>
-
-  <section>Fixme: Type mappings</section>
-  <p>
-    The most common missing feature you'll encounter when using CommonQt
-    are mappings for the various C++ types used by Qt.
-  </p>
-  <p>
-    Smoke knows hundreds of non-QObject types that need to
-    be <i>marshalled</i> and <i>unmarshalled</i> from Lisp to C++ and
-    back.  For each type, CommonQt needs to pick and Lisp type to map to
-    and provide CFFI code to do so.
-  </p>
-  <p>
-    See commonqt/marshall.lisp and commonqt/unmarshall.lisp for
-    details.
-  </p>
-  <p>
-    Additional marshalling issues exist for signal and slot arguments
-    and values as well as property values, but these involve fewer types.
-  </p>
-
-  <section>To do: External classes</section>
-  <p>
-    The main branch in CommonQt uses smoke2, which can also interface to
-    various other Qt-related and KDE-related sets of classes, which
-    would be nice to support.  We currently ignore classes with the
-    external flag and link only to qt_Smoke.
+    CommonQt does not provide CLOS bindings.  There is a different
+    project
+    called <a href="http://tobias.rautenkranz.ch/lisp/cl-smoke/cl-smoke">cl-smoke</a>
+    which takes that route. 
   </p>
 </page>

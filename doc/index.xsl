@@ -63,7 +63,7 @@
 		  padding-bottom: 1em">
 	<xsl:for-each select="fun|macro">
 	  <a href="atdoc/pages/closure-html__{local-name()}__{string()}.html">
-	    <span style="color: #777777">chtml:</span>
+	    <span style="color: #007700">chtml:</span>
 	    <xsl:apply-templates/>
 	  </a>
 	  <br/>
@@ -101,7 +101,7 @@
     <div id="header">
       <div style="margin-left: 30px">
 	<b>
-	  <span style="color: #777777">
+	  <span style="color: #007700">
 	    <xsl:value-of select="/page/@title"/>
 	  </span>
 	</b>

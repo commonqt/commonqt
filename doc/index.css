@@ -1,7 +1,7 @@
 a {
   text-decoration: none;
   color: black;
-  border-bottom: 1px dotted #777777;
+  border-bottom: 1px dotted #007700;
 }
 
 a:hover {
@@ -29,7 +29,7 @@ p {
 }
 
 h1,h2,h3 {
-  color: #000000;
+  color: #007700;
   margin-top: 2em;
   margin-left: -30px;
   padding-bottom: 0;
@@ -117,8 +117,8 @@ div.sidebar {
 div.sidebar-title {
   font-weight: bold;
   color: #ffffff;
-  background-color: #777777;
-  border: solid #777777;
+  background-color: #007700;
+  border: solid #007700;
   border-top-width: 1px;
   border-bottom-width: 2px;
   border-left-width: 4px;
@@ -133,7 +133,7 @@ div.sidebar-title a {
 
 div.sidebar-main {
   background-color: #f7f7f7;
-  border: solid #777777;
+  border: solid #007700;
   border-top-width: 0px;
   border-bottom-width: 0px;
   border-left-width: 4px;
