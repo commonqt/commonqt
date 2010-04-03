@@ -272,3 +272,9 @@ sw_id_type(Smoke *smoke, char *name)
 {
 	return smoke->idType(name);
 }
+
+short
+sw_id_class(Smoke *smoke, char *name, bool external)
+{
+	return smoke->idClass(name, external).index;
+}

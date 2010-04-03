@@ -118,6 +118,11 @@
   (smoke :pointer)
   (name :string))
 
+(defcfun "sw_id_class" :short
+  (smoke :pointer)
+  (name :string)
+  (external :char))                     ;bool
+
 (cffi:defcstruct |struct SmokeData|
   (name :string)
   (classes :pointer)

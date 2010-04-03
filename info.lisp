@@ -152,7 +152,7 @@
   (let ((n (data-nclasses (data-ref <module>))))
     (iter (for i from 1 below n)
 	  (let ((<class> (bash i <module> +class+)))
-	    (unless (or allow-external (qclass-external-p <class>))
+	    (unless (and (qclass-external-p <class>) (not allow-external))
 	      (funcall fun <class>))))))
 
 (defun qclass-struct (<class>)
@@ -189,6 +189,12 @@
 	      (bash (cffi:mem-ref &index :short)
 		    (module-number smoke)
 		    +class+))))))))
+
+(defun find-qclass-in-module (<module> name &optional (allow-external t))
+  (let ((index (sw_id_class (elt *module-table* <module>)
+                            name
+                            (if allow-external 1 0))))
+    (and (plusp index) (bash index <module> +class+))))
 
 (defmacro deflistify (list-name map-name &rest args)
   `(defun ,list-name (,@args)

@@ -49,6 +49,7 @@ extern "C" {
 	short sw_find_name(Smoke *, char *);
 	short sw_id_method(Smoke *, short, short);
 	short sw_id_type(Smoke *, char *);
+	short sw_id_class(Smoke *, char *, bool);
 
 	void* sw_make_qstringlist();
 	void sw_delete_qstringlist(void *);
