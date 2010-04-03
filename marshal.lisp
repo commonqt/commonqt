@@ -30,11 +30,11 @@
 #+sbcl (declaim (optimize (debug 2)))
 (named-readtables:in-readtable :qt)
 
-(defun %cast (ptr from to)
+(defun %cast (obj from to)
   (cffi:foreign-funcall-pointer
-   (data-castfn (elt *module-data-table* 0))
+   (data-castfn (data-ref (ldb-module (qobject-class obj))))
    ()
-   :pointer ptr
+   :pointer (qobject-pointer obj)
    :short from
    :short to
    :pointer))
@@ -50,7 +50,7 @@
         ;; Need to cast the C++ object explicitly, because casting in
         ;; the presence of multiple inheritance isn't just cosmetics,
         ;; it does pointer arithmetic.
-        (%cast (qobject-pointer argument)
+        (%cast argument
                (unbash (qobject-class argument))
                (unbash (qtype-class type))))
   (marshal-next))
