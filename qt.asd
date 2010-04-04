@@ -66,6 +66,8 @@
                  (:file "ffi")
                  (:file "info")
                  (:file "reader")
+		 (:file "qlist")
+		 (:file "qvariant")
                  (:file "call")
                  (:file "marshal")
                  (:file "unmarshal")

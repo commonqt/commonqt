@@ -207,6 +207,7 @@
 (defmethod argument-munged-char ((object real)) #\$)
 (defmethod argument-munged-char ((object (eql t))) #\$)
 (defmethod argument-munged-char ((object null)) #\$)
+(defmethod argument-munged-char ((object qlist)) #\?)
 
 (defmethod can-marshal-p ((kind t) (name t) (slot t) (arg t) (type t))
   nil)

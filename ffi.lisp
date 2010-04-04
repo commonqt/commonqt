@@ -129,6 +129,18 @@
   (name :string)
   (external :char))                     ;bool
 
+(defcfun "sw_qlist_variant_new" :pointer)
+(defcfun "sw_qlist_variant_delete" :void (qlist :pointer))
+(defcfun "sw_qlist_variant_size" :int (qlist :pointer))
+(defcfun "sw_qlist_variant_at" :pointer (qlist :pointer) (index :int))
+(defcfun "sw_qlist_variant_append" :void (qlist :pointer) (var :pointer))
+
+(defcfun "sw_qlist_int_new" :pointer)
+(defcfun "sw_qlist_int_delete" :void (qlist :pointer))
+(defcfun "sw_qlist_int_size" :int (qlist :pointer))
+(defcfun "sw_qlist_int_at" :int (qlist :pointer) (index :int))
+(defcfun "sw_qlist_int_append" :void (qlist :pointer) (var :int))
+
 (cffi:defcstruct |struct SmokeData|
   (name :string)
   (classes :pointer)

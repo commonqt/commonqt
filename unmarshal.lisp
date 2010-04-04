@@ -219,8 +219,24 @@
                                  (stack-item-slot (eql 'ptr))
                                  type
                                  stack-item)
+  (declare (ignore type))
   (make-instance 'qthread
                  :pointer
                  (cffi:foreign-slot-value stack-item
                                           '|union StackItem|
                                           'ptr)))
+
+(macrolet ((% (key class)
+             `(defmethod unmarshal-using-type ((kind (eql :stack))
+                                               (name (eql ,key))
+                                               (stack-item-slot (eql 'ptr))
+                                               type
+                                               stack-item)
+                (declare (ignore type))
+                (make-instance ',class
+                               :pointer
+                               (cffi:foreign-slot-value stack-item
+                                                        '|union StackItem|
+                                                        stack-item-slot)))))
+  (% :|QList<QVariant>| qlist<qvariant>)
+  (% :|QList<int>| qlist<int>))

@@ -442,3 +442,17 @@
                                  (qtype-stack-item-slot type))
         (primitive-value argument))
   (marshal-next))
+
+(macrolet ((% (key class)
+             `(defmarshal ((eql :reference)
+                           (eql ,key)
+                           t)
+                  ((argument ,class)
+                   type
+                   stack-item)
+                (setf (cffi:foreign-slot-value stack-item
+                                               '|union StackItem|
+                                               (qtype-stack-item-slot type))
+                      (qlist-pointer argument))
+                (marshal-next))))
+  (% :|const QList<int>&| qlist<int>))
