@@ -9,9 +9,9 @@
   <p>
     Get it from git:
   </p>
-  <example>git clone git://repo.or.cz/commonqt.git</example>
+  <example>git clone git://gitorious.org/commonqt/commonqt.git</example>
   <p>
-    (<a href="http://repo.or.cz/w/commonqt.git">gitweb</a>)
+    (<a href="http://gitorious.org/commonqt/commonqt">gitorious page</a>)
   </p>
 
   <section>Dependencies (C++)</section>
