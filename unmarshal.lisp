@@ -157,6 +157,15 @@
         (qtype-interned-name type)))
 
 (defmethod unmarshal-using-type ((kind (eql :stack))
+                                 (name t)
+                                 (stack-item-slot (eql 'uint))
+                                 type
+                                 stack-item)
+  (cffi:foreign-slot-value stack-item
+                           '|union StackItem|
+                           'uint))
+
+(defmethod unmarshal-using-type ((kind (eql :stack))
                                  (name (eql :|double|))
                                  (stack-item-slot (eql 'double))
                                  type
