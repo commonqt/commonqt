@@ -71,7 +71,8 @@
            #:set-nice-theme
            #:rebirth
            #:with-object
-           #:with-objects))
+           #:with-objects
+           #:cancel-finalization))
 
 (defpackage :qt-user
   (:use :cl :qt)
