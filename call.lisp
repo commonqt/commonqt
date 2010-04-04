@@ -525,7 +525,9 @@
 		   (qclass-trampoline-fun (qmethod-class method))
 		   ()
 		   :short (qmethod-arg-for-classfn method)
-		   :pointer (%cast instance (qmethod-class method))
+		   :pointer (if (null-qobject-p instance)
+                                (cffi:null-pointer)
+                                (%cast instance (qmethod-class method)))
 		   :pointer stack
 		   :void)
 		  (list (and (not (qtype-void-p rtype))
