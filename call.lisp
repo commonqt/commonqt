@@ -538,9 +538,13 @@
 (defun note-deleted (object)
   (check-type object abstract-qobject)
   (unless (qobject-deleted object)
-    (tg:cancel-finalization object)
+    (cancel-finalization object)
     (remhash (cffi:pointer-address (qobject-pointer object)) *cached-objects*)
     (setf (qobject-deleted object) t)))
+
+(defun cancel-finalization (object)
+  (check-type object abstract-qobject)
+  (tg:cancel-finalization object))
 
 (defun delete-object (object)
   (cond
