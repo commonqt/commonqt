@@ -32,9 +32,12 @@
            #:qapropos
            #:qdescribe
            #:make-qapplication
-           #:call
+           #:interpret-call
+           #:interpret-call-without-override
+           #:optimized-call
            #:call-next-qmethod
-           #:new
+           #:interpret-new
+           #:optimized-new
            #:qt-class
            #:abstract-qobject
            #:null-qobject
@@ -64,7 +67,8 @@
            #:note-deleted
            #:note-child-added
            #:note-child-removed
-           #:delete-object
+           #:interpret-delete
+           #:optimized-delete
            #:enum=
            #:find-method-override
            #:windows-version
@@ -72,7 +76,9 @@
            #:rebirth
            #:with-object
            #:with-objects
-           #:cancel-finalization))
+           #:cancel-finalization
+           #:*report-memory-leaks*
+           #:new))
 
 (defpackage :qt-user
   (:use :cl :qt)

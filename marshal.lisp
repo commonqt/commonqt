@@ -30,429 +30,146 @@
 #+sbcl (declaim (optimize (debug 2)))
 (named-readtables:in-readtable :qt)
 
-(defun %cast (obj to-class)
-  (let* ((from-class (qobject-class obj))
-         (module (ldb-module from-class))
-         (to-class
-          (if (eql module (ldb-module to-class))
-              to-class
-              (find-qclass-in-module module (qclass-name to-class)))))
-    (cffi:foreign-funcall-pointer
-     (data-castfn (data-ref module))
-     ()
-     :pointer (qobject-pointer obj)
-     :short (unbash from-class)
-     :short (unbash to-class)
-     :pointer)))
+(defun resolve-cast (<from> <to>)
+  (let* ((module (ldb-module <from>))
+         (compatible-<to>
+          (if (eql module (ldb-module <to>))
+              <to>
+              (find-qclass-in-module module (qclass-name <to>)))))
+    (values (data-castfn (data-ref module))
+            compatible-<to>)))
 
-(defmarshal (t t (eql 'class))
-    ((argument abstract-qobject)
-     type
-     stack-item
-     :test #'qtypep)
-  (setf (cffi:foreign-slot-value stack-item
-                                 '|union StackItem|
-                                 (qtype-stack-item-slot type))
-        ;; Need to cast the C++ object explicitly, because casting in
-        ;; the presence of multiple inheritance isn't just cosmetics,
-        ;; it does pointer arithmetic.
-        (%cast argument (qtype-class type)))
-  (marshal-next))
+(defun perform-cast (obj castfn <from> <to>)
+  (cffi:foreign-funcall-pointer
+   castfn
+   ()
+   :pointer (qobject-pointer obj)
+   :short (unbash <from>)
+   :short (unbash <to>)
+   :pointer))
 
-(defmarshal ((eql :reference) (eql :|int&|) t)
-    ((argument $)
-     type
-     stack-item)
-  (cffi:with-foreign-object (reference :int)
-    (setf (cffi:mem-aref reference :int) (primitive-value argument))
-    (setf (cffi:foreign-slot-value stack-item
-                                   '|union StackItem|
-                                   (qtype-stack-item-slot type))
-          reference)
-    (splice-reference-result
-     (marshal-next)
-     (cffi:mem-aref reference :int))))
+#+(or)
+(defun %cast (obj <to>)
+;;;   (let* ((from-class (qobject-class obj))
+;;;          (module (ldb-module from-class))
+;;;          (to-class
+;;;           (if (eql module (ldb-module to-class))
+;;;               to-class
+;;;               (find-qclass-in-module module (qclass-name to-class)))))
+;;;     (cffi:foreign-funcall-pointer
+;;;      (data-castfn (data-ref module))
+;;;      ()
+;;;      :pointer (qobject-pointer obj)
+;;;      :short (unbash from-class)
+;;;      :short (unbash to-class)
+;;;      :pointer))
+  (let ((<from> (qobject-class obj)))
+    (multiple-value-bind (fn <cto>)
+        (resolve-cast <from> <to>)
+      (perform-cast obj fn <from> <cto>))))
 
-(defmarshal ((eql :reference) (eql :|int&|) t)
-    ((argument int&)
-     type
-     stack-item)
-  (setf (cffi:foreign-slot-value stack-item
-                                 '|union StackItem|
-                                 (qtype-stack-item-slot type))
-        (primitive-value argument))
-  (splice-reference-result
-   (marshal-next)
-   (cffi:mem-aref (primitive-value argument) :int)))
+(defun marshal (value type stack-item cont)
+  (funcall (marshaller value type) value stack-item cont))
 
-(defmarshal ((eql :reference) (eql :|const QString&|) (eql 'ptr))
-    ((argument qstring)
-     type
-     stack-item)
-  (let ((qstring (sw_make_qstring (primitive-value argument))))
-    (setf (cffi:foreign-slot-value stack-item
-                                   '|union StackItem|
-                                   (qtype-stack-item-slot type))
-          qstring)
+(defun marshaller (obj <type>)
+  (let* ((set-thunk
+          (macrolet
+              ((si (slot)
+                 `(cffi:foreign-slot-value si '|union StackItem| ',slot))
+               (dispatching ((getter slot) &body body)
+                 `(ecase ,slot
+                    ,@ (mapcar (lambda (slot)
+                                 `((,slot)
+                                   (macrolet ((,getter () `(si ,',slot)))
+                                     ,@body)))
+                               '(ptr bool char uchar short ushort int
+                                 uint long ulong float double enum class)))))
+            (let ((slot (qtype-stack-item-slot <type>)))
+              (case slot
+                (bool  (lambda (val si) (setf (si bool) (if val 1 0))))
+                (class (let ((<from> (qobject-class obj)))
+                         (multiple-value-bind (castfn <to>)
+                             (resolve-cast <from> (qtype-class <type>))
+                           (lambda (val si)
+                             (setf (si class)
+                                   (perform-cast val castfn <from> <to>))))))
+                (enum (etypecase obj
+                        (integer
+                         (lambda (val si) (setf (si enum) val)))
+                        (enum
+                         (lambda (val si) (setf (si enum) (primitive-value val))))))
+                (int (etypecase obj
+                       (integer
+                        (lambda (val si) (setf (si int) val)))
+                       (enum
+                        (lambda (val si) (setf (si int) (primitive-value val))))))
+                (uint (etypecase obj
+                        (integer
+                         (lambda (val si) (setf (si uint) val)))
+                        (enum
+                         (lambda (val si) (setf (si uint) (primitive-value val))))))
+                (float (lambda (val si) (setf (si float) (float val 1.0s0))))
+                (double (lambda (val si) (setf (si double) (float val 1.0d0))))
+                ;; that leaves:
+                ;;   ptr char uchar short ushort int uint long ulong
+                (t
+                 (dispatching (%si slot)
+                              (lambda (val si)
+                                (setf (%si) val))))))))
+         (primary-cons
+          (get (qtype-interned-name <type>) 'marshaller/primary))
+         (around-cons
+          (get (qtype-interned-name <type>) 'marshaller/around))
+         (primary-type (car primary-cons))
+         (primary-thunk (cdr primary-cons))
+         (around-type (car around-cons))
+         (around-thunk (cdr around-cons)))
+    (cond
+      ((and primary-thunk (typep obj primary-type))
+       (assert (null around-thunk))
+       (lambda (value stack-item cont)
+         (funcall set-thunk
+                  (funcall primary-thunk value)
+                  stack-item)
+         (funcall cont)))
+      ((and around-thunk (typep obj around-type))
+       (lambda (value stack-item cont)
+         (funcall around-thunk
+                  value
+                  (lambda (new-value)
+                    (funcall set-thunk new-value stack-item)
+                    (funcall cont)))))
+      (t
+       (lambda (value stack-item cont)
+         (funcall set-thunk value stack-item)
+         (funcall cont))))))
+
+(defmacro defmarshal ((var name &key around (type t)) &body body)
+  (if around
+      `(setf (get ',name 'marshaller/primary) nil
+             (get ',name 'marshaller/around)
+             (cons ',type (lambda (,var ,around) ,@body)))
+      `(setf (get ',name 'marshaller/primary)
+             (cons ',type (lambda (,var) ,@body))
+             (get ',name 'marshaller/around) nil)))
+
+(defmarshal (value :|const QString&| :around cont :type string)
+  (let ((qstring (sw_make_qstring value)))
     (unwind-protect
-         (marshal-next)
+         (funcall cont qstring)
       (sw_delete_qstring qstring))))
 
-(defmarshal ((eql :reference) (eql :|const QString&|) (eql 'ptr))
-    ((argument string)
-     type
-     stack-item)
-  (let ((qstring (sw_make_qstring argument)))
-    (setf (cffi:foreign-slot-value stack-item
-                                   '|union StackItem|
-                                   (qtype-stack-item-slot type))
-          qstring)
+(defmarshal (value :|const char*| :around cont :type string)
+  (let ((char* (cffi:foreign-string-alloc value)))
     (unwind-protect
-         (marshal-next)
-      (sw_delete_qstring qstring))))
+         (funcall cont char*)
+       (cffi:foreign-free char*))))
 
-(defmarshal ((eql :reference) (eql :|const QStringList&|) (eql 'ptr))
-	    ((argument qstringlist)
-	     type
-	     stack-item)
-  (setf (cffi:foreign-slot-value stack-item
-				 '|union StackItem|
-				 (qtype-stack-item-slot type))
-	(primitive-value argument))
-  (marshal-next))
-
-(defmarshal ((eql :pointer) (eql :|const char*|) (eql 'ptr))
-    ((argument string)
-     type
-     stack-item)
-  (let ((char* (cffi:foreign-string-alloc argument)))
-    (setf (cffi:foreign-slot-value stack-item '|union StackItem| 'ptr)
-          char*)
+(defmarshal (value :|unsigned char*| :around cont :type string)
+  (let ((char* (cffi:foreign-string-alloc value)))
     (unwind-protect
-         (marshal-next)
+         (funcall cont char*)
       (cffi:foreign-free char*))))
 
-(defmarshal ((eql :pointer)
-             t
-             (eql 'ptr))
-    ((argument ?)
-     type
-     stack-item)
-  (setf (cffi:foreign-slot-value stack-item
-                                 '|union StackItem|
-                                 (qtype-stack-item-slot type))
-        (primitive-value argument))
-  (marshal-next))
-
-(defmarshal ((eql :pointer)
-             t
-             (eql 'ptr))
-    ((argument $)
-     type
-     stack-item)
-  (setf (cffi:foreign-slot-value stack-item
-                                 '|union StackItem|
-                                 (qtype-stack-item-slot type))
-        (primitive-value argument))
-  (marshal-next))
-
-(defmarshal ((eql :stack)
-             (eql :|int|)
-             (eql 'int))
-    ((argument int)
-     type
-     stack-item)
-  (setf (cffi:foreign-slot-value stack-item '|union StackItem| 'int)
-        (primitive-value argument))
-  (marshal-next))
-
-(defmarshal ((eql :stack)
-             (eql :|int|)
-             (eql 'int))
-    ((argument integer)
-     type
-     stack-item
-     :test (lambda (arg *) (typep arg '(signed-byte 32))))
-  (setf (cffi:foreign-slot-value stack-item '|union StackItem| 'int)
-        argument)
-  (marshal-next))
-
-(defmarshal ((eql :stack)
-             (eql :|uint|)
-             (eql 'uint))
-    ((argument uint)
-     type
-     stack-item)
-  (setf (cffi:foreign-slot-value stack-item '|union StackItem| 'uint)
-        (primitive-value argument))
-  (marshal-next))
-
-(defmarshal ((eql :stack)
-             (eql :|qint64|)
-             (eql 'long))
-    ((argument integer)
-     type
-     stack-item
-     ;; XXX
-     ;; this is fishy: qint64 is obviously a 64-bit type, but it maps
-     ;; to a smoke stack slot of type long.  Let's carry on anyway,
-     ;; but check for 32 bits.
-     :test (lambda (arg *) (typep arg '(signed-byte 32))))
-  (setf (cffi:foreign-slot-value stack-item '|union StackItem| 'long)
-        argument)
-  (marshal-next))
-
-(defmarshal ((eql :stack)
-             (eql :|long long|)
-             (eql 'long))
-    ((argument integer)
-     type
-     stack-item
-     ;; XXX
-     ;; this is fishy: qint64 is obviously a 64-bit type, but it maps
-     ;; to a smoke stack slot of type long.  Let's carry on anyway,
-     ;; but check for 32 bits.
-     :test (lambda (arg *) (typep arg '(signed-byte 32))))
-  (setf (cffi:foreign-slot-value stack-item '|union StackItem| 'long)
-        argument)
-  (marshal-next))
-
-(defmarshal ((eql :stack)
-             (eql :|uint|)
-             (eql 'uint))
-    ((argument integer)
-     type
-     stack-item
-     :test (lambda (arg *) (typep arg '(unsigned-byte 32))))
-  (setf (cffi:foreign-slot-value stack-item '|union StackItem| 'uint)
-        argument)
-  (marshal-next))
-
-(defmarshal ((eql :stack)
-             (eql :|unsigned int|)
-             (eql 'uint))
-    ((argument integer)
-     type
-     stack-item
-     :test (lambda (arg *) (typep arg '(unsigned-byte 32))))
-  (setf (cffi:foreign-slot-value stack-item '|union StackItem| 'uint)
-        argument)
-  (marshal-next))
-
-(defmarshal ((eql :stack)
-             (eql :|unsigned short|)
-             (eql 'ushort))
-    ((argument integer)
-     type
-     stack-item
-     :test (lambda (arg *) (typep arg '(unsigned-byte 16))))
-  (setf (cffi:foreign-slot-value stack-item '|union StackItem| 'ushort)
-        argument)
-  (marshal-next))
-
-(defmarshal ((eql :stack)
-             (eql :|qreal|)
-             (eql 'float))
-    ((argument real)
-     type
-     stack-item)
-  (setf (cffi:foreign-slot-value stack-item '|union StackItem| 'float)
-        (float argument 1.0s0))
-  (marshal-next))
-
-(defmarshal ((eql :stack)
-             (eql :|qreal|)
-             (eql 'double))
-    ((argument real)
-     type
-     stack-item)
-  (setf (cffi:foreign-slot-value stack-item '|union StackItem| 'double)
-        (float argument 1.0d0))
-  (marshal-next))
-
-(defmarshal ((eql :stack)
-             (eql :|double|)
-             (eql 'double))
-    ((argument real)
-     type
-     stack-item)
-  (setf (cffi:foreign-slot-value stack-item '|union StackItem| 'double)
-        (float argument 1.0d0))
-  (marshal-next))
-
-(defmarshal ((eql :stack)
-             (eql :|int|)
-             (eql 'int))
-    ((argument enum)
-     type
-     stack-item)
-  (setf (cffi:foreign-slot-value stack-item '|union StackItem| 'int)
-        (primitive-value argument))
-  (marshal-next))
-
-(defmarshal ((eql :stack)
-             (eql :|bool|)
-             (eql 'bool))
-    ((argument bool)
-     type
-     stack-item)
-  (setf (cffi:foreign-slot-value stack-item '|union StackItem| 'bool)
-        (primitive-value argument))
-  (marshal-next))
-
-(defmarshal ((eql :stack)
-             (eql :|bool|)
-             (eql 'bool))
-    ((argument t)
-     type
-     stack-item
-     :test (lambda (arg *) (typep arg '(member t nil))))
-  (setf (cffi:foreign-slot-value stack-item '|union StackItem| 'bool)
-        (if argument 1 0))
-  (marshal-next))
-
-(defmarshal ((eql :stack)
-             t
-             (eql 'enum))
-    ((argument enum)
-     type
-     stack-item
-     :test (lambda (arg type)
-             (eq (enum-type-name arg) (qtype-interned-name type))))
-  (setf (cffi:foreign-slot-value stack-item '|union StackItem| 'enum)
-        (primitive-value argument))
-  (marshal-next))
-
-(defmarshal ((eql :stack)
-             t
-             (eql 'uint))
-    ((argument enum)
-     type
-     stack-item
-     :test (lambda (arg type)
-             t #+nil (eq (enum-type-name arg) (qtype-interned-name type))))
-  (setf (cffi:foreign-slot-value stack-item '|union StackItem| 'uint)
-        (primitive-value argument))
-  (marshal-next))
-
-(defmarshal ((eql :stack)
-             t
-             (eql 'enum))
-    ((argument integer)
-     type
-     stack-item
-     :test (lambda (arg *) (typep arg '(signed-byte 32))))
-  (setf (cffi:foreign-slot-value stack-item '|union StackItem| 'enum)
-        argument)
-  (marshal-next))
-
-(defmarshal ((eql :stack)
-             (eql :|Qt::Alignment|)
-             (eql 'uint))
-    ((argument integer)
-     type
-     stack-item)
-  (setf (cffi:foreign-slot-value stack-item '|union StackItem| 'uint)
-        argument)
-  (marshal-next))
-
-(defmarshal ((eql :stack)
-             (eql :|Qt::PenStyle|)
-             (eql 'enum))
-    ((argument enum)
-     type
-     stack-item
-     :test (lambda (arg *)
-             (or (eq (enum-type-name arg) :|Qt::GlobalColor|)
-                 (eq (enum-type-name arg) :|Qt::PenStyle|))))
-  (setf (cffi:foreign-slot-value stack-item '|union StackItem| 'uint)
-        (primitive-value argument))
-  (marshal-next))
-
-;;; fixme: enum type safety?
-
-;;; (defmarshal ((eql :stack)
-;;;              (eql :|QMetaObject::Call|)
-;;;              (eql 'enum))
-;;;     ((argument enum)
-;;;      type
-;;;      stack-item)
-;;;   (setf (cffi:foreign-slot-value stack-item '|union StackItem| 'enum)
-;;;         (primitive-value argument))
-;;;   (marshal-next))
-
-;;; (defmarshal ((eql :stack)
-;;;              (eql :|QLCDNumber::SegmentStyle|)
-;;;              (eql 'enum))
-;;;     ((argument enum)
-;;;      type
-;;;      stack-item)
-;;;   (setf (cffi:foreign-slot-value stack-item '|union StackItem| 'enum)
-;;;         (primitive-value argument))
-;;;   (marshal-next))
-
-;;; (defmarshal ((eql :stack)
-;;;              (eql |Qt::Orientation|)
-;;;              (eql 'enum))
-;;;     ((argument enum)
-;;;      type
-;;;      stack-item)
-;;;   (setf (cffi:foreign-slot-value stack-item '|union StackItem| 'enum)
-;;;         (primitive-value argument))
-;;;   (marshal-next))
-
-(defmarshal ((eql :pointer)
-             (eql :|char**|)
-             (eql 'ptr))
-    ((argument vector)
-     type
-     stack-item)
-  (loop
-     for item across argument
-     do (check-type item string))
-  (cffi:with-foreign-object (argv :pointer (length argument))
-    (string-vector-to-char**! argv argument)
-    (multiple-value-prog1
-        (marshal (char** argv)
-                 type
-                 stack-item
-                 (lambda () (marshal-next)))
-      (char**-to-string-vector! argument argv (length argument) t))))
-
-(defmarshal ((eql :pointer) (eql :|bool*|) t)
-    ((argument bool*)
-     type
-     stack-item)
-  (setf (cffi:foreign-slot-value stack-item
-                                 '|union StackItem|
-                                 (qtype-stack-item-slot type))
-        (primitive-value argument))
-  (splice-reference-result
-   (marshal-next)
-   (cffi:mem-aref (primitive-value argument) :int)))
-
-(defmarshal ((eql :stack)
-             t
-             (eql 'ptr))
-    ((argument quintptr)
-     type
-     stack-item)
-  (setf (cffi:foreign-slot-value stack-item
-                                 '|union StackItem|
-                                 (qtype-stack-item-slot type))
-        (primitive-value argument))
-  (marshal-next))
-
-(macrolet ((% (key class)
-             `(defmarshal ((eql :reference)
-                           (eql ,key)
-                           t)
-                  ((argument ,class)
-                   type
-                   stack-item)
-                (setf (cffi:foreign-slot-value stack-item
-                                               '|union StackItem|
-                                               (qtype-stack-item-slot type))
-                      (qlist-pointer argument))
-                (marshal-next))))
-  (% :|const QList<int>&| qlist<int>))
+(defmarshal (argument :|const QList<int>&| :type qlist<int>)
+  (qlist-pointer argument))

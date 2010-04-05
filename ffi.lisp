@@ -106,6 +106,26 @@
 (defcfun "sw_qstring_to_utf8" :pointer
   (obj :pointer))
 
+(defcfun "sw_qstring_to_utf16" :pointer
+  (obj :pointer))
+
+(defun qstring-pointer-to-lisp (raw-ptr)
+  (declare (optimize speed))
+  #+nil
+  ;; fixme: babel doesn't get endianness right in utf-16.
+  (cffi:foreign-string-to-lisp (sw_qstring_to_utf16 raw-ptr)
+                               :encoding :utf-16)
+  ;; handcode instead:
+  (let* ((data (sw_qstring_to_utf16 raw-ptr))
+         (nbytes (cffi::foreign-string-length data :encoding :utf-16))
+         (res (make-string (truncate nbytes 2))))
+    (iter (for i from 0 by 2 below nbytes)
+          (for j from 0)
+          (let ((code (cffi:mem-ref data :unsigned-short i)))
+            (until (zerop code))
+            (setf (char res j) (code-char code))))
+    res))
+
 (defcfun "sw_find_name" :short
   (smoke :pointer)
   (str :string))
@@ -161,8 +181,10 @@
   (fat :pointer))
 
 (macrolet ((% (fun slot)
-             `(defun ,fun (data)
-                (cffi:foreign-slot-value data '|struct SmokeData| ',slot))))
+             `(progn
+                (declaim (inline ,fun))
+                (defun ,fun (data)
+                  (cffi:foreign-slot-value data '|struct SmokeData| ',slot)))))
   (% data-name name)
   (% data-classes classes)
   (% data-nclasses nclasses)
@@ -226,27 +248,6 @@
   (flags :short))
 
 (defvar *callbacks* (make-hash-table :test 'equal))
-
-#+commonqt-use-stdcall
-(in-package :cffi-sys)
-#+commonqt-use-stdcall
-(format t "patching cffi for stdcall callbacks support~%")
-#+commonqt-use-stdcall
-(defmacro %defcallback (name rettype arg-names arg-types body
-                        &key calling-convention)
-  (let ((cb-name (intern-callback name)))
-    `(progn
-       (defcallback ,cb-name
-           (,@ (ecase calling-convention
-                 ((:cdecl nil) '())
-                 ((:stdcall) '(:discard-stack-args)))
-               ,@(mapcan (lambda (sym type)
-                           (list (convert-foreign-type type) sym))
-                         arg-names arg-types)
-               ,(convert-foreign-type rettype))
-         ,body)
-       (setf (gethash ',name *callbacks*) (symbol-value ',cb-name)))))
-#+commonqt-use-stdcall (in-package :qt)
 
 (defmacro defcallback (name ret (&rest args) &body body)
   `(cffi:defcallback (,name #+commonqt-use-stdcall :calling-convention

@@ -29,59 +29,102 @@
 (in-package :qt)
 #+sbcl (declaim (optimize (debug 2)))
 
-;; old syntax retained for compatibility
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (defun read-smoke-lambda/quotes (stream char n)
-    (declare (ignore n))
-    (check-type char (eql #\"))
-    (let* ((method-name (with-output-to-string (s)
-                          (loop
-                             for c = (read-char stream)
-                             until (eql c #\")
-                             do (write-char c s)))))
-      `(lambda (instance &rest args)
-         (apply #'call instance ,method-name args)))))
-
 (defvar *case-preserving-readtable*
   (let ((table (copy-readtable nil)))
     (setf (readtable-case table) :preserve)
     table))
 
-;; newer syntax
+
+;;; CALL
+
+(defvar *call-macros* (make-hash-table :test 'equal))
+
+(defun call-macro-expander (whole env)
+  (declare (ignore env))
+  (destructuring-bind (sym instance &rest args) whole
+    (let ((method-name (symbol-value sym)))
+      `(optimized-call t ,instance ,method-name ,@args))))
+
+(defun ensure-call-macro (name)
+  (or (gethash name *call-macros*)
+      (setf (gethash name *call-macros*)
+            (let ((sym (gensym name)))
+              (setf (symbol-value sym) name)
+              (setf (macro-function sym) #'call-macro-expander)
+              sym))))
+
+
+;;; STATIC CALL
+
+(defvar *static-call-macros* (make-hash-table :test 'equal))
+
+(defun static-call-macro-expander (whole env)
+  (declare (ignore env))
+  (destructuring-bind (sym &rest args) whole
+    (destructuring-bind (class-name method-name)
+        (symbol-value sym)
+      `(optimized-call t ,class-name ,method-name ,@args))))
+
+(defun ensure-static-call-macro (class-name method-name)
+  (let ((key (list class-name method-name)))
+    (or (gethash key *static-call-macros*)
+        (setf (gethash key *static-call-macros*)
+              (let ((sym (gensym
+                          (concatenate 'string class-name "::" method-name))))
+                (setf (symbol-value sym) key)
+                (setf (macro-function sym) #'static-call-macro-expander)
+                sym)))))
+
+;;; NEW
+
+(defvar *new-macros* (make-hash-table :test 'equal))
+
+(defun new-macro-expander (whole env)
+  (declare (ignore env))
+  (destructuring-bind (sym &rest args) whole
+    (let ((class-name (symbol-value sym)))
+      `(optimized-new ,class-name ,@args))))
+
+(defun ensure-new-macro (name)
+  (or (gethash name *new-macros*)
+      (setf (gethash name *new-macros*)
+            (let ((sym (gensym name)))
+              (setf (symbol-value sym) name)
+              (setf (macro-function sym) #'new-macro-expander)
+              sym))))
+
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (defun read-smoke-lambda/quoteless (stream char n &aux it)
+  (defun read-smoke-lambda (stream char n &aux it)
     (declare (ignore n))
     (check-type char (eql #\_))
     (let ((method-name
            (coerce (iter
-                    (let* ((char (peek-char nil stream))
-                           (code (char-code char)))
-                      (if (or (eql char #\_)
-                              (eql char #\:)
-                              (<= 65 code 90)
-                              (<= 97 code 122)
-                              (<= 48 code 57))
-                          (collect (read-char stream))
-                          (finish))))
+                     (let* ((char (peek-char nil stream))
+                            (code (char-code char)))
+                       (if (or (eql char #\_)
+                               (eql char #\:)
+                               (<= 65 code 90)
+                               (<= 97 code 122)
+                               (<= 48 code 57))
+                           (collect (read-char stream))
+                           (finish))))
                    'string)))
-      (cond                             ;it's magic!
+      (cond
+        ((equal method-name "delete")
+         'optimized-delete)
         ((equal method-name "new")
          (let ((class-name
                 (symbol-name
                  (let ((*readtable* *case-preserving-readtable*))
                    (read stream t nil t)))))
-           `(lambda (&rest args)
-              (apply #'new ,class-name args))))
+           (ensure-new-macro class-name)))
         ((setf it (search "::" method-name))
          (let ((class-name (subseq method-name 0 it))
                (method-name (subseq method-name (+ it 2))))
-           `(lambda (&rest args)
-              (apply #'call ,class-name ,method-name args))))
+           (ensure-static-call-macro class-name method-name)))
         (t
-         `(lambda (instance &rest args)
-            (apply #'call instance ,method-name args)))))))
+         (ensure-call-macro method-name))))))
 
 (named-readtables:defreadtable :qt
     (:merge :standard)
-  (:dispatch-macro-char #\# #\" 'read-smoke-lambda/quotes)
-  (:dispatch-macro-char #\# #\_ 'read-smoke-lambda/quoteless))
+  (:dispatch-macro-char #\# #\_ 'read-smoke-lambda))

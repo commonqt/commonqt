@@ -42,6 +42,7 @@ EXPORT void sw_delete_qstring(void *);
 EXPORT void* sw_make_metaobject(void *, char *, int *);
 EXPORT void sw_delete(void *p);
 EXPORT void* sw_qstring_to_utf8(void* s);
+EXPORT const void* sw_qstring_to_utf16(void*);
 
 EXPORT void sw_map_children(void *x, void *y);
 

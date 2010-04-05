@@ -159,7 +159,7 @@
          (emit-signal instance "canShoot(bool)" t))
         (t
          (let ((new (#_unite old new)))
-           (delete-object old)
+           (#_delete old)
            (setf old new)))))
     (#_update instance old)))
 
@@ -176,12 +176,12 @@
   (with-objects ((col (#_new QColor 250 250 200))
                  (pal (#_new QPalette col)))
     (#_setPalette instance pal))
-  (#_setAutoFillBackground instance (bool 1))
+  (#_setAutoFillBackground instance t)
   (new-target instance))
 
 (defun new-target (instance)
   (when (target instance)
-    (delete-object (target instance)))
+    (#_delete (target instance)))
   (setf (target instance)
         (#_new QPoint
                (+ 200 (random 190))
@@ -342,7 +342,7 @@
   (if parent
       (new instance parent)
       (new instance))
-  (with-objects ((font (#_new QFont (qstring "Times") 18 (#_Bold "QFont"))))
+  (with-objects ((font (#_new QFont "Times" 18 (#_Bold "QFont"))))
     (let ((quit (#_new QPushButton "&Quit"))
           (shoot (#_new QPushButton "&Shoot"))
           (new-game (#_new QPushButton "&New Game")))
@@ -428,7 +428,7 @@
               (grid (#_new QGridLayout)))
           (#_addWidget left-layout angle)
           (#_addWidget left-layout force)
-          
+
           (#_addWidget top-layout shoot)
           (#_addWidget top-layout hits)
           (#_addWidget top-layout hits-label)
@@ -436,7 +436,7 @@
           (#_addWidget top-layout shots-left-label)
           (#_addStretch top-layout 1)
           (#_addWidget top-layout new-game)
-          
+
           (#_addWidget grid quit 0 0)
           (#_addLayout grid top-layout 0 1)
           (#_addLayout grid left-layout 1 0)

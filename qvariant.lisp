@@ -8,7 +8,7 @@
 
 (defun qvariant (x &optional (type (type-for-qvariant x)))
   (ecase type
-    (:int (#_new QVariant (int x)))))
+    (:int (#_new QVariant x))))
 
 (defmacro dcase (form &body clauses)
   (let ((value (gensym)))

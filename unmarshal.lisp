@@ -30,222 +30,82 @@
 #+sbcl (declaim (optimize (debug 2)))
 (named-readtables:in-readtable :qt)
 
-(defmethod unmarshal-using-type ((kind (eql :pointer))
-                                 (name t)
-                                 (stack-item-slot (eql 'class))
-                                 type
-                                 stack-item)
-  (%qobject (qtype-class type)
-            (cffi:foreign-slot-value stack-item
-                                     '|union StackItem|
-                                     'class)))
+;;; (defun stack-item-accessor (slot)
+;;;   ;; returns a lambda that calls CFFI:FOREIGN-SLOT-VALUE, except that the
+;;;   ;; latter is slow when called with a non-constant slot name, so we
+;;;   ;; dispatch on the slot name to return a closure optimized for each case.
+;;;   (macrolet
+;;;       ((% ()
+;;;          `(ecase slot
+;;;             ,@ (mapcar (lambda (slot)
+;;;                          `((,slot)
+;;;                            (lambda (stack-item)
+;;;                              (cffi:foreign-slot-value stack-item
+;;;                                                       '|union StackItem|
+;;;                                                       ',slot))))
+;;;                        '(ptr bool char uchar short ushort int
+;;;                          uint long ulong float double enum class)))))
+;;;     (%)))
 
-(defmethod unmarshal-using-type ((kind (eql :reference))
-                                 (name t)
-                                 (stack-item-slot (eql 'class))
-                                 type
-                                 stack-item)
-  (%qobject (qtype-class type)
-            (cffi:foreign-slot-value stack-item
-                                     '|union StackItem|
-                                     'class)))
+(defmacro dispatching-on-stack-item ((getter slot) &body body)
+  ;; returns a lambda that calls CFFI:FOREIGN-SLOT-VALUE, except that the
+  ;; latter is slow when called with a non-constant slot name, so we
+  ;; dispatch on the slot name to return a closure optimized for each case.
+  `(ecase ,slot
+     ,@ (mapcar (lambda (slot)
+                  `((,slot)
+                    (macrolet
+                        ((,getter (stack-item)
+                           `(cffi:foreign-slot-value ,stack-item
+                                                     '|union StackItem|
+                                                     ',',slot)))
+                      ,@body)))
+                '(ptr bool char uchar short ushort int
+                  uint long ulong float double enum class))))
 
-(defmethod unmarshal-using-type ((kind (eql :stack))
-                                 (name t)
-                                 (stack-item-slot (eql 'class))
-                                 type
-                                 stack-item)
-  (%qobject (qtype-class type)
-            (cffi:foreign-slot-value stack-item
-                                     '|union StackItem|
-                                     'class)))
+(defun unmarshal-using-type (type stack-item)
+  (funcall (unmarshaller type) stack-item))
 
-(defmethod unmarshal-using-type ((kind (eql :pointer))
-                                 (name (eql :|const char*|))
-                                 (stack-item-slot (eql 'ptr))
-                                 type
-                                 stack-item)
-  (cffi:foreign-string-to-lisp
-   (cffi:foreign-slot-value stack-item
-                            '|union StackItem|
-                            'ptr)))
+(defun unmarshaller (type)
+  (if (qtype-void-p type)
+      (constantly nil)
+      (let ((thunk (unmarshaller-2 type)))
+        (dispatching-on-stack-item (get-value (qtype-stack-item-slot type))
+          (lambda (stack-item)
+            (funcall thunk (get-value stack-item)))))))
 
-(defmethod unmarshal-using-type ((kind (eql :pointer))
-                                 (name (eql :|char*|))
-                                 (stack-item-slot (eql 'ptr))
-                                 type
-                                 stack-item)
-  (cffi:foreign-string-to-lisp
-   (cffi:foreign-slot-value stack-item
-                            '|union StackItem|
-                            'ptr)))
+(defun unmarshaller-2 (type)
+  (case (qtype-stack-item-slot type)
+    (class (lambda (value) (%qobject (qtype-class type) value)))
+    (enum  (lambda (value) (enum value (qtype-interned-name type))))
+    (t     (or (get (qtype-interned-name type) 'unmarshaller)
+               #'identity))))
 
-(defmethod unmarshal-using-type ((kind (eql :pointer))
-                                 (name (eql :|void**|))
-                                 (stack-item-slot (eql 'ptr))
-                                 type
-                                 stack-item)
-  (void** (cffi:foreign-slot-value stack-item '|union StackItem| 'ptr)))
+(defmacro def-unmarshal ((var name) &body body)
+  `(setf (get ',name 'unmarshaller)
+         (lambda (,var)
+           ,@body)))
 
-(defmethod unmarshal-using-type ((kind (eql :stack))
-                                 (name (eql :|int|))
-                                 (stack-item-slot (eql 'int))
-                                 type
-                                 stack-item)
-  ;; was: (int ...)
-  (cffi:foreign-slot-value stack-item
-                                '|union StackItem|
-                                'int))
+(def-unmarshal (value :|const char*|)
+  (cffi:foreign-string-to-lisp value))
 
-(defmethod unmarshal-using-type ((kind (eql :stack))
-                                 (name (eql :|ushort|))
-                                 (stack-item-slot (eql 'ushort))
-                                 type
-                                 stack-item)
-  (cffi:foreign-slot-value stack-item
-                           '|union StackItem|
-                           'ushort))
+(def-unmarshal (value :|char*|)
+  (cffi:foreign-string-to-lisp value))
 
-(defmethod unmarshal-using-type ((kind (eql :stack))
-                                 (name (eql :|unsigned short|))
-                                 (stack-item-slot (eql 'ushort))
-                                 type
-                                 stack-item)
-  (cffi:foreign-slot-value stack-item
-                           '|union StackItem|
-                           'ushort))
+(def-unmarshal (value :|void**|)
+  value)
 
-(defmethod unmarshal-using-type ((kind (eql :stack))
-                                 (name (eql :|qint64|))
-                                 (stack-item-slot (eql 'long))
-                                 type
-                                 stack-item)
-  ;; FIXME: 32 / 64 bit mismatch.  Same issue as in marshal.lisp.
-  (cffi:foreign-slot-value stack-item
-                                '|union StackItem|
-                                'long))
+(def-unmarshal (value :|bool|)
+  (logbitp 0 value))
 
-(defmethod unmarshal-using-type ((kind (eql :stack))
-				 (name (eql :|long long|))
-				 (stack-item-slot (eql 'long))
-				 type
-				 stack-item)
-  ;; FIXME: 32 / 64 bit mismatch.  Same issue as in marshal.lisp.
-  (cffi:foreign-slot-value stack-item
-			   '|union StackItem|
-			   'long))
+(def-unmarshal (value :|QString|)
+  (qstring-pointer-to-lisp value))
 
-(defmethod unmarshal-using-type ((kind (eql :stack))
-                                 (name (eql :|unsigned int|))
-                                 (stack-item-slot (eql 'uint))
-                                 type
-                                 stack-item)
-  ;; was: (int ...)
-  (cffi:foreign-slot-value stack-item
-                                '|union StackItem|
-                                'uint))
+(def-unmarshal (value :|QThread*|)
+  (make-instance 'qthread :pointer value))
 
-(defmethod unmarshal-using-type ((kind (eql :stack))
-                                 (name (eql :|Qt::KeyboardModifiers|))
-                                 (stack-item-slot (eql 'uint))
-                                 type
-                                 stack-item)
-  ;; was: (int ...)
-  (enum (cffi:foreign-slot-value stack-item
-                                 '|union StackItem|
-                                 'uint)
-        (qtype-interned-name type)))
+(def-unmarshal (value :|QList<QVariant>|)
+  (make-instance 'qlist<qvariant> :pointer value))
 
-(defmethod unmarshal-using-type ((kind (eql :stack))
-                                 (name t)
-                                 (stack-item-slot (eql 'uint))
-                                 type
-                                 stack-item)
-  (cffi:foreign-slot-value stack-item
-                           '|union StackItem|
-                           'uint))
-
-(defmethod unmarshal-using-type ((kind (eql :stack))
-                                 (name (eql :|double|))
-                                 (stack-item-slot (eql 'double))
-                                 type
-                                 stack-item)
-  (cffi:foreign-slot-value stack-item
-                                '|union StackItem|
-                                'double))
-
-(defmethod unmarshal-using-type ((kind (eql :stack))
-                                 (name (eql :|float|))
-                                 (stack-item-slot (eql 'float))
-                                 type
-                                 stack-item)
-  (cffi:foreign-slot-value stack-item
-                                '|union StackItem|
-                                'float))
-
-(defmethod unmarshal-using-type ((kind (eql :stack))
-                                 (name (eql :|bool|))
-                                 (stack-item-slot (eql 'bool))
-                                 type
-                                 stack-item)
-  (logbitp 0 (cffi:foreign-slot-value stack-item
-                                      '|union StackItem|
-                                      'int)))
-
-(defmethod unmarshal-using-type ((kind (eql :stack))
-                                 name
-                                 (stack-item-slot (eql 'enum))
-                                 type
-                                 stack-item)
-  (enum (cffi:foreign-slot-value stack-item
-                                '|union StackItem|
-                                'enum)
-        (qtype-interned-name type)))
-
-(defmethod unmarshal-using-type ((kind (eql :stack))
-                                 (name (eql :|QString|))
-                                 (stack-item-slot (eql 'ptr))
-                                 type
-                                 stack-item)
-  ;; fixme: memory leak
-  (call (%qobject (find-qclass "QByteArray")
-                  (sw_qstring_to_utf8
-                   (cffi:foreign-slot-value stack-item
-                                            '|union StackItem|
-                                            'ptr)))
-        "data"))
-
-(defclass qthread ()
-  ((pointer :initarg :pointer
-            :accessor qthread-pointer)))
-
-(defmethod print-object ((instance qthread) stream)
-  (print-unreadable-object (instance stream :type t :identity nil)
-    (format stream "~X" (cffi:pointer-address (qthread-pointer instance)))))
-
-(defmethod unmarshal-using-type ((kind (eql :pointer))
-                                 (name (eql :|QThread*|))
-                                 (stack-item-slot (eql 'ptr))
-                                 type
-                                 stack-item)
-  (declare (ignore type))
-  (make-instance 'qthread
-                 :pointer
-                 (cffi:foreign-slot-value stack-item
-                                          '|union StackItem|
-                                          'ptr)))
-
-(macrolet ((% (key class)
-             `(defmethod unmarshal-using-type ((kind (eql :stack))
-                                               (name (eql ,key))
-                                               (stack-item-slot (eql 'ptr))
-                                               type
-                                               stack-item)
-                (declare (ignore type))
-                (make-instance ',class
-                               :pointer
-                               (cffi:foreign-slot-value stack-item
-                                                        '|union StackItem|
-                                                        stack-item-slot)))))
-  (% :|QList<QVariant>| qlist<qvariant>)
-  (% :|QList<int>| qlist<int>))
+(def-unmarshal (value :|QList<int>|)
+  (make-instance 'qlist<int> :pointer value))

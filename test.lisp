@@ -52,17 +52,18 @@
   (mapc (lambda (arg) (check-type arg string)) args)
   (let* ((args (coerce args 'simple-vector))
          (argv
-          ;; Memory leak: This array not be freed earlier than the
+          ;; Memory leak: This array must not be freed earlier than the
           ;; QApplication.  Let's just leak it.
           (string-vector-to-char** args))
-         (argc-ptr
+         (&argc
           ;; Apparently this, too, needs to have extent for more than the ctor.
           (cffi:foreign-alloc :int)))
-    (setf (cffi:mem-aref argc-ptr :int) (length args))
-    (multiple-value-bind (qapplication updated-argc)
-        (if guip
-            (#_new QApplication (int& argc-ptr) (char** argv))
-            (#_new QCoreApplication (int& argc-ptr) (char** argv)))
+    (setf (cffi:mem-aref &argc :int) (length args))
+    (let* ((qapplication
+            (if guip
+                (#_new QApplication &argc argv)
+                (#_new QCoreApplication &argc argv)))
+           (updated-argc (cffi:mem-aref &argc :int)))
       (values qapplication
               (char**-to-string-vector argv updated-argc nil)))))
 
@@ -79,10 +80,10 @@
     (format t "~10T~A~%" (#_superClass mo))
     (format t "  inherited methods:~%")
     (dotimes (i offset)
-      (format t "~10T~A~%" (#_signature (#_method mo (int i)))))
+      (format t "~10T~A~%" (#_signature (#_method mo i))))
     (format t "  direct methods:~%")
     (loop for i from offset below (primitive-value (#_methodCount mo)) do
-      (format t "~10T~A~%" (#_signature (#_method mo (int i)))))))
+      (format t "~10T~A~%" (#_signature (#_method mo i))))))
 
 (defun describe-metamethods (object)
   (format t "Metaobject for ~A:~%" object)
@@ -128,3 +129,33 @@
   (let ((v (windows-version)))
     (when (and v (< v +vista+))
       (#_QApplication::setStyle "Plastique"))))
+
+(defmacro with-int& ((var value) &body body)
+  `(invoke-with-int& (lambda (,var) ,@body) ,value))
+
+(defun invoke-with-int& (fun value)
+  (cffi:with-foreign-object (reference :int)
+    (setf (cffi:mem-aref reference :int) value)
+    (funcall fun reference)
+    (cffi:mem-aref reference :int)))
+
+(defmacro with-&bool ((var value) &body body)
+  `(invoke-with-&bool (lambda (,var) ,@body) ,value))
+
+(defun invoke-with-&bool (fun value)
+  (cffi:with-foreign-object (reference :int)
+    (setf (cffi:mem-aref reference :int) (if value 1 0))
+    (funcall fun reference)
+    (logtest 1 (cffi:mem-aref reference :int))))
+
+(defmacro with-char** ((var string-list) &body body)
+  `(invoke-with-char** (lambda (,var) ,@body) ,string-list))
+
+(defun invoke-with-char** (fun data)
+  (loop
+     for item across data
+     do (check-type item string))
+  (cffi:with-foreign-object (argv :pointer (length data))
+    (string-vector-to-char**! argv data)
+    (funcall fun argv)
+    (char**-to-string-vector! data argv (length data) t)))

@@ -30,6 +30,92 @@
 #+sbcl (declaim (optimize (debug 2)))
 (named-readtables:in-readtable :qt)
 
+(defun interpret-delete (object)
+  (cond
+    ((typep object 'null-qobject)
+     (error "cannot delete null object: ~A" object))
+    ((qobject-deleted object)
+     (warn "not deleting dead object: ~A" object))
+    (t
+     (optimized-call nil object (resolve-delete object))
+     (note-deleted object))))
+
+#+nil
+(defun resolve-delete (object)
+  (let ((dtor (format nil "~~~A" (qclass-name (qobject-class object)))))
+    (lambda (object)
+      (cond
+        ((typep object 'null-qobject)
+         (error "cannot delete null object: ~A" object))
+        ((qobject-deleted object)
+         (warn "not deleting dead object: ~A" object))
+        (t
+         (optimized-call nil object dtor)
+         (note-deleted object))))))
+
+(defun resolve-delete (object)
+  ;; (format *trace-output* "cache miss for #_delete ~A~%" object)
+  (format nil "~~~A" (qclass-name (qobject-class object))))
+
+(defmacro optimized-delete (object)
+  `(let ((object ,object))
+     (cached-values-bind (dtor)
+         (resolve-delete object)
+       (provided (qobject-class object) :hash t)
+       (cond
+         ((typep object 'null-qobject)
+          (error "cannot delete null object: ~A" object))
+         ((qobject-deleted object)
+          (warn "not deleting dead object: ~A" object))
+         (t
+          (optimized-call nil object dtor)
+          (note-deleted object))))))
+
+(defun postmortem (ptr class description qobjectp dynamicp)
+  (declare (ignore ptr class))
+  (format t "Finalizer called for ~A (~{~A~^, ~}), possible memory leak.~%"
+          description
+          (append (when dynamicp '("Lisp"))
+                  (when qobjectp '("QObject"))))
+  (force-output)
+  #+(or)
+  (let* ((object (%qobject class ptr))
+         (parent (and qobjectp (#_parent object))))
+    (cond
+      ((or (not qobjectp)
+           (and parent (null-qobject-p parent)))
+       (format t "deleting ~A (~A)~%" object qobjectp)
+       (force-output)
+       (handler-case
+           (if qobjectp
+               (#_deleteLater object)
+               (call object (format nil "~~~A" (qclass-name class))))
+         (error (c)
+           (format t "Error in finalizer: ~A, for object: ~A~%"
+                   c description))))
+      (dynamicp
+       (warn "Bug in CommonQt?  previously dynamic object ~A still has parent ~A, but has been GCed"
+             object parent))
+      (t
+       (warn "Bug in CommonQt?  ~A still has parent ~A; not deleting"
+             object parent)))))
+
+(defun cache! (object)
+  (assert (null (pointer->cached-object (qobject-pointer object))))
+  (setf (pointer->cached-object (qobject-pointer object)) object)
+  (when (and *report-memory-leaks*
+             (or (not (qtypep object (find-qclass "QObject")))
+                 (typep (#_parent object) 'null-qobject)))
+    (tg:finalize object
+		 (let* ((ptr (qobject-pointer object))
+			(class (qobject-class object))
+			(str (princ-to-string object))
+			(qobjectp (qsubclassp class (find-qclass "QObject")))
+			(dynamicp (typep object 'dynamic-object)))
+		   (lambda ()
+		     (postmortem ptr class str qobjectp dynamicp)))))
+  object)
+
 (defclass dynamic-member ()
   ((name :initarg :name
          :accessor dynamic-member-name)
@@ -89,6 +175,8 @@
    (qmetaobject :initform nil)
    (smoke-generation :initform nil
                      :accessor class-smoke-generation)
+   (generation :initform nil
+               :accessor class-generation)
    (member-table :accessor class-member-table)
    (overrides :accessor class-overrides)))
 
@@ -238,13 +326,15 @@
 (defun %qobject-metaobject ()
   (or *qobject-metaobject*
       (setf *qobject-metaobject*
-            (let ((qobj (new (find-qclass "QObject"))))
-              (prog1 (#_metaObject qobj)
-                #+nil(delete-object qobj))))))
+            (let ((qobj (optimized-new (find-qclass "QObject"))))
+              (prog1
+                  (#_metaObject qobj)
+                (#_delete qobj))))))
 
 (defun ensure-qt-class-caches (qt-class)
   (check-type qt-class qt-class)
-  (with-slots (effective-class qmetaobject smoke-generation) qt-class
+  (with-slots (effective-class qmetaobject smoke-generation generation)
+      qt-class
     (unless (and qmetaobject
 		 effective-class
 		 (eq smoke-generation *cached-objects*))
@@ -277,33 +367,31 @@
                                        (class-signals qt-class))
                                (mapcar #'convert-dynamic-member
                                        (class-slots qt-class)))))
+      ;; invalidate call site caches
+      (setf generation (gensym))
       ;; mark as fresh
       (setf (class-smoke-generation qt-class) *cached-objects*))))
 
 (defun convert-dynamic-member (member)
   (make-slot-or-signal (dynamic-member-name member)))
 
-(defun class-effective-class (qt-class)
+(defun class-effective-class (qt-class &optional (errorp t))
   (ensure-qt-class-caches qt-class)
-  (slot-value qt-class 'effective-class))
+  (or (slot-value qt-class 'effective-class)
+      (when errorp
+        (error "effective-class not cached?"))))
 
 (defun class-qmetaobject (qt-class)
   (ensure-qt-class-caches qt-class)
   (slot-value qt-class 'qmetaobject))
 
-(defmethod find-method-override ((object abstract-qobject) (method t))
-  nil)
+(defun find-method-override (object method)
+  (if (typep object 'dynamic-object)
+      (find-method-override-using-class (class-of object) method)
+      nil))
 
-(defmethod find-method-override ((object qobject) (method t))
-  (when (alexandria:starts-with #\~ (qmethod-name method))
-;;;     (format t "dtor called on ~A~%" object)
-;;;     (force-output)
-    (note-deleted object)
-    nil))
-
-(defmethod find-method-override ((object dynamic-object) method)
-  (or (gethash (qmethod-name method) (class-overrides (class-of object)))
-      (call-next-method)))
+(defun find-method-override-using-class (class method)
+  (gethash (qmethod-name method) (class-overrides class)))
 
 (defvar *next-qmethod-trampoline* nil)
 (defvar *next-qmethod* nil)
@@ -318,7 +406,7 @@
       (error "get-next-qmethod used outside of overriding method")))
 
 (defun override (fun object <method> args)
-  (let* ((method-name 
+  (let* ((method-name
 	  ;; dispatch on the method name rather than method index,
 	  ;; because the index sometimes points to a superclass method
 	  ;; rather than the specific class we want.  Don't know why.
@@ -328,7 +416,7 @@
 	 (*next-qmethod* method-name)
 	 (*next-qmethod-trampoline*
 	  (lambda (new-args)
-	    (apply #'call-without-override 
+	    (apply #'interpret-call-without-override
 		   object
 		   method-name
 		   (or new-args args)))))
@@ -342,8 +430,7 @@
     (cond
       ((or (minusp new-id)
            (not (eql (primitive-value call)
-                     (primitive-value (#_InvokeMetaMethod
-                                       (find-qclass "QMetaObject"))))))
+                     (primitive-value (#_QMetaObject::InvokeMetaMethod)))))
        id)
       (t
        (let ((member
@@ -354,13 +441,12 @@
                          object
                          id
                          stack)
-            (int -1))
+            -1)
            (slot-member
-            (check-type stack void**)
             (apply (dynamic-member-function member)
                    object
-                   (unmarshal-slot-args member (primitive-value stack)))
-            (int -1))))))))
+                   (unmarshal-slot-args member stack))
+            -1)))))))
 
 (defun guess-stack-item-slot (x)
   (case x
@@ -376,7 +462,7 @@
       (setf cached-arg-types
             (mapcar (lambda (name)
 		      (or (find-qtype name)
-			  (error "no smoke type found for dynamic member arg type ~A.  Giving up." 
+			  (error "no smoke type found for dynamic member arg type ~A.  Giving up."
 				 name)))
                     (cl-ppcre:split
                      ","
@@ -387,21 +473,9 @@
   (iter (for type in (ensure-dynamic-member-types member))
         (for i from 1)
         (collect (if (eq (qtype-interned-name type) ':|QString|)
-                     (call (%qobject (find-qclass "QByteArray")
-                                     (sw_qstring_to_utf8
-                                      (cffi:mem-aref argv :pointer i)))
-                           "data")
+                     (qstring-pointer-to-lisp
+                      (cffi:mem-aref argv :pointer i))
                      (unmarshal type (cffi:mem-aref argv :pointer i))))))
-
-(defmethod new ((class qt-class) &rest args)
-  (apply #'new
-         (make-instance class :pointer :unborn)
-         args))
-
-(defmethod new ((class symbol) &rest args)
-  (apply #'make-instance
-         (find-class class)
-         (when args (list :qt-ctor-args args))))
 
 (defclass class-info ()
   ((key :initarg :key
@@ -423,8 +497,7 @@
   (make-instance 'class-info :key key :value value))
 
 (defun make-slot-or-signal (str)
-  (let ((str (#_data
-              (#_normalizedSignature (find-qclass "QMetaObject") str))))
+  (let ((str (#_data (#_QMetaObject::normalizedSignature str))))
     (cl-ppcre:register-groups-bind (a b c d)
         ("^(([\\w,<>:]*)\\s+)?([^\\s]*)\\((.*)\\)" str)
       (declare (ignore a))
@@ -522,7 +595,7 @@
     (apply #'values
            (call-with-signal-marshalling
             (lambda (stack)
-              (list (#_activate meta object id (void** stack))))
+              (list (#_activate meta object id stack)))
             (ensure-dynamic-member-types
              (get-qt-class-member (class-of object) (- id offset)))
             args))))

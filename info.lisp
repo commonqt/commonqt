@@ -27,15 +27,33 @@
 ;;; SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 (in-package :qt)
-#+sbcl (declaim (optimize (debug 2)))
+
+#+(and sbcl qt::debug)       (declaim (optimize (debug 2)))
+#+(and sbcl (not qt::debug)) (declaim (optimize speed (safety 0) (debug 0)))
+
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defconstant +index-bits+  16)
+  (defconstant +module-bits+  4)
+  (defconstant +kind-bits+    2))
+
+(deftype index         () `(unsigned-byte ,+index-bits+))
+(deftype module-number () `(unsigned-byte ,+module-bits+))
+(deftype kind          () `(unsigned-byte ,+kind-bits+))
+
+(deftype tagged ()
+  `(unsigned-byte ,(+ +index-bits+ +module-bits+ +kind-bits+)))
+
+(deftype module-iterator () '(integer -1 #.(expt 2 +module-bits+)))
+(deftype index-iterator  () '(integer -1 #.(expt 2 +index-bits+)))
+
+(deftype ambiguous-method-index () `(signed-byte ,(1+ +index-bits+)))
 
 ;;;;
 ;;;; Module
 ;;;;
 
-(defconstant +module-bits+ 4)
-
 (defvar *n-modules* 0)
+(declaim (type module-iterator *n-modules*))
 
 (defvar *module-table*
   (make-array (ash 1 +module-bits+) :initial-element nil))
@@ -43,10 +61,14 @@
 (defvar *module-data-table*
   (make-array (ash 1 +module-bits+) :initial-element nil))
 
-#-debug (declaim (inline module-ref))
+(declaim (type (simple-array t (#.(expt 2 +module-bits+)))
+               *module-table*
+               *module-data-table*))
+
+(declaim (inline module-ref))
 (defun module-ref (i) (svref *module-table* i))
 
-#-debug (declaim (inline data-ref))
+(declaim (inline data-ref))
 (defun data-ref (i) (svref *module-data-table* i))
 
 ;;;;
@@ -83,52 +105,62 @@
 ;;;;     this isn't really a limitation.  If we ever need more than 16
 ;;;;     modules, we can increase +module-bits+ a little.
 
-(defconstant +kind-bits+ 2)
-
 (defconstant +class+ 0)
 (defconstant +method+ 1)
 (defconstant +methodmap+ 2)
 (defconstant +type+ 3)
 
+(declaim (inline module-number))
 (defun module-number (smoke)
   (position smoke
             *module-table*
             :test #'cffi:pointer-eq
             :end *n-modules*))
 
-(defun named-module-number (name)
-  (position name
-            *module-data-table*
-            :key (lambda (data)
-                   (and data (data-name data)))
-            :test #'string=))
+(locally
+    ;; not commonly used, so turn of those compiler notes:
+    (declare (optimize safety (speed 1) (debug 2)))
+  (defun named-module-number (name)
+    (position name
+              *module-data-table*
+              :key (lambda (data)
+                     (and data (data-name data)))
+              :test #'string=)))
 
-#-debug (declaim (inline bash))
+#-qt::debug (declaim (inline bash))
 (defun bash (idx module-number kind)
+  (declare (type index idx))
+  (declare (type module-number module-number))
+  (declare (type kind kind))
   (logior kind
           (ash (logior module-number
                        (ash idx +module-bits+))
                +kind-bits+)))
 
-#-debug (declaim (inline ldb-module))
+#-qt::debug (declaim (inline ldb-module))
 (defun ldb-module (x)
+  (declare (type tagged x))
   (ldb (byte +module-bits+ +kind-bits+) x))
 
-#-debug (declaim (inline ldb-kind))
+#-qt::debug (declaim (inline ldb-kind))
 (defun ldb-kind (x)
+  (declare (type tagged x))
   (ldb (byte +kind-bits+ 0) x))
 
-#-debug (declaim (inline unbash))
+#-qt::debug (declaim (inline unbash))
 (defun unbash (x)
+  (declare (type tagged x))
   (values (ldb (byte 16 (+ +module-bits+ +kind-bits+)) x)
           (ldb-module x)
           (ldb (byte +kind-bits+ 0) x)))
 
-#-debug (declaim (inline unbash*))
+#-qt::debug (declaim (inline unbash*))
 (defun unbash* (x expected-kind)
+  (declare (type tagged x)
+           #-qt::debug (ignore expected-kind))
   (multiple-value-bind (idx <module> kind)
       (unbash x)
-    #+debug (assert (eql kind expected-kind))
+    #+qt::debug (assert (eql kind expected-kind))
     (values idx <module> kind)))
 
 
@@ -146,19 +178,23 @@
 
 (defun map-classes (fun &optional allow-external)
   (iter (for <module> below *n-modules*)
+        (declare (type module-iterator <module>))
         (map-classes-in-module fun <module> allow-external)))
 
 (defun map-classes-in-module (fun <module> &optional allow-external)
   (let ((n (data-nclasses (data-ref <module>))))
     (iter (for i from 1 below n)
+          (declare (type index-iterator i))
 	  (let ((<class> (bash i <module> +class+)))
 	    (unless (and (qclass-external-p <class>) (not allow-external))
 	      (funcall fun <class>))))))
 
+(declaim (inline qclass-struct))
 (defun qclass-struct (<class>)
+  (declare (type tagged <class>))
   (multiple-value-bind (idx <module>)
       (unbash* <class> +class+)
-    #+debug (assert (<= 0 idx (data-nclasses (data-ref <module>))))
+    #+qt::debug (assert (<= 0 idx (data-nclasses (data-ref <module>))))
     (cffi:mem-aref (data-classes (data-ref <module>))
                    '|struct Class|
                    idx)))
@@ -175,35 +211,36 @@
       (find-qclass (qclass-name <class>))
       <class>))
 
-(defun find-qclass (name)
+(defun find-qclass (name &optional (errorp t))
   (etypecase name
     (integer
      (assert (eql (ldb-kind name) +class+))
      name)
     (string
-      (cffi:with-foreign-object (&smoke :pointer)
-        (cffi:with-foreign-object (&index :short)
-          (sw_find_class name &smoke &index)
-	  (let ((smoke (cffi:mem-ref &smoke :pointer)))
-	    (unless (cffi:null-pointer-p smoke)
-	      (bash (cffi:mem-ref &index :short)
-		    (module-number smoke)
-		    +class+))))))))
+     (or (cffi:with-foreign-object (&smoke :pointer)
+           (cffi:with-foreign-object (&index :short)
+             (sw_find_class name &smoke &index)
+             (let ((smoke (cffi:mem-ref &smoke :pointer)))
+               (unless (cffi:null-pointer-p smoke)
+                 (bash (cffi:mem-ref &index :short)
+                       (module-number smoke)
+                       +class+)))))
+         (when errorp
+           (error "class not found: ~A" name))))))
 
 (defun find-qclass-in-module (<module> name &optional (allow-external t))
-  (let ((index (sw_id_class (elt *module-table* <module>)
-                            name
-                            (if allow-external 1 0))))
+  (declare (type module-number <module>))
+  (let ((index (the index-iterator
+                 (sw_id_class (elt *module-table* <module>)
+                              name
+                              (if allow-external 1 0)))))
     (and (plusp index) (bash index <module> +class+))))
 
 (defmacro deflistify (list-name map-name &rest args)
   `(defun ,list-name (,@args)
      (iter
-      (repeat 1)
-      (,map-name (lambda (x) (collect x)) ,@args))))
-
-(deflistify list-qclass-superclasses map-qclass-superclasses
-  <class>)
+       (,map-name (lambda (x) (collect x)) ,@args)
+       (finish))))
 
 (defun format-reference (stream arg foo bar)
   (declare (ignore foo bar))
@@ -211,19 +248,26 @@
       (unbash arg)
     (format stream "~D <~D,~D,~D>" arg id <module> kind)))
 
+(declaim (inline map-qclass-superclasses))
 (defun map-qclass-superclasses (fun <class>)
   (let* ((<module> (ldb-module <class>))
-         (parents (cffi:foreign-slot-value (qclass-struct <class>)
-                                           '|struct Class|
-                                           'parents))
+         (parents (the index-iterator
+                    (cffi:foreign-slot-value (qclass-struct <class>)
+                                             '|struct Class|
+                                             'parents)))
          (inheritancelist (data-inheritancelist (data-ref <module>))))
     (iter (for i from parents)
-          (let ((classid (cffi:mem-aref inheritancelist :short i)))
+          (declare (type index-iterator i))
+          (let ((classid (the index-iterator
+                           (cffi:mem-aref inheritancelist :short i))))
             (while (plusp classid))
 	    (funcall fun (or (resolve-external-qclass
 			      (bash classid <module> +class+))
 			     (error "failed to resolve superclass: ~/qt:format-reference/"
 				    (bash classid <module> +class+))))))))
+
+(deflistify list-qclass-superclasses map-qclass-superclasses
+  <class>)
 
 (defun qclass-flags (<class>)
   (cffi:foreign-slot-value (qclass-struct <class>) '|struct Class| 'flags))
@@ -244,46 +288,15 @@
     (when (qclass-undefined-p <class>) (push :undefined x))
     x))
 
+(declaim (inline qclass-trampoline-fun))
 (defun qclass-trampoline-fun (<class>)
+  (declare (type tagged <class>))
   (cffi:foreign-slot-value (qclass-struct <class>) '|struct Class| 'classfn))
 
+(declaim (inline qclass-enum-fun))
 (defun qclass-enum-fun (<class>)
+  (declare (type tagged <class>))
   (cffi:foreign-slot-value (qclass-struct <class>) '|struct Class| 'enumfn))
-
-(defun %find-any-methodmap-for-class (<class>)
-  ;; Note: The way the comparison is currently written depends on <class>
-  ;; order being the same as index order within the same module.
-  (let* ((<module> (ldb-module <class>))
-         (from 1)
-         (to (data-nmethodmaps (data-ref <module>))))
-    (iter (while (<= from to))
-          (let* ((current-index
-                  (truncate (+ from to) 2))
-                 (current-<methodmap>
-                  (bash current-index <module> +methodmap+))
-                 (current-<class>
-                  (methodmap-class current-<methodmap>)))
-            (cond
-              ((eql current-<class> <class>)
-               (return current-<methodmap>))
-              ((> current-<class> <class>)
-               (setf to (1- current-index)))
-              (t
-               (setf from (1+ current-index))))))))
-
-(defun map-class-methodmaps (fun <class>)
-  (let ((any (%find-any-methodmap-for-class <class>)))
-    (when any
-      (multiple-value-bind (first-idx <module>)
-			   (unbash any)
-	(macrolet 
-	    ((% (from offset)
-	       `(iter (for idx ,from (+ first-idx ,offset))
-		      (let ((<methodmap> (bash idx <module> +methodmap+)))
-			(while (eql <class> (methodmap-class <methodmap>)))
-			(funcall fun <methodmap>)))))
-	  (% from 0)
-	  (% downfrom -1))))))
 
 
 ;;;;
@@ -293,11 +306,13 @@
 (defun methodmap-struct (<methodmap>)
   (multiple-value-bind (idx <module>)
       (unbash* <methodmap> +methodmap+)
-    #+debug (assert (<= 0 idx (data-nmethodmaps (data-ref <module>))))
+    #+qt::debug (assert (<= 0 idx (data-nmethodmaps (data-ref <module>))))
     (cffi:mem-aref (data-methodmaps (data-ref <module>))
                    '|struct MethodMap|
                    idx)))
 
+(declaim (ftype (function (tagged) tagged) methodmap-class))
+(declaim (inline methodmap-class))
 (defun methodmap-class (<methodmap>)
   (bash (cffi:foreign-slot-value (methodmap-struct <methodmap>)
                                  '|struct MethodMap|
@@ -305,41 +320,56 @@
         (ldb-module <methodmap>)
         +class+))
 
-(deflistify list-methodmap-methods map-methodmap-methods
-  <methodmap>)
-
+(declaim (inline map-methodmap-methods))
 (defun map-methodmap-methods (fun <methodmap>)
+  (declare (type tagged <methodmap>))
   (let ((<module> (ldb-module <methodmap>))
         (methodid (cffi:foreign-slot-value (methodmap-struct <methodmap>)
                                            '|struct MethodMap|
                                            'methodid)))
+    (declare (type ambiguous-method-index methodid))
     (if (plusp methodid)
         (funcall fun (bash methodid <module> +method+))
         (let ((ambiguous-methods
                (data-ambiguousMethodList (data-ref <module>))))
           (iter (for i from (- methodid))
+                (declare (type index i))
                 (let ((id (cffi:mem-aref ambiguous-methods :short i)))
                   (while (plusp id))
                   (funcall fun (bash id <module> +method+))))))))
 
+(deflistify list-methodmap-methods map-methodmap-methods
+  <methodmap>)
+
 (defun name-ref (<module> idx)
+  (declare (type module-number <module>))
+  (declare (type index idx))
   (cffi:mem-aref (data-methodnames (data-ref <module>))
                  :string
                  idx))
 
+(declaim (inline methodmap-name-index))
+(defun methodmap-name-index (<methodmap>)
+  (declare (type tagged <methodmap>))
+  (cffi:foreign-slot-value (methodmap-struct <methodmap>)
+                           '|struct MethodMap|
+                           'name))
+
+(declaim (inline methodmap-name))
 (defun methodmap-name (<methodmap>)
+  (declare (type tagged <methodmap>))
   (name-ref (ldb-module <methodmap>)
-            (cffi:foreign-slot-value (methodmap-struct <methodmap>)
-                                     '|struct MethodMap|
-                                     'name)))
+            (the index (methodmap-name-index <methodmap>))))
 
 (defun find-methodmap (<class> name)
   (multiple-value-bind (classid <module>)
       (unbash* <class> +class+)
-    (let ((smoke (module-ref <module>)))
-      (bash (sw_id_method smoke classid (%find-name smoke name))
-	    <module>
-	    +methodmap+))))
+    (let* ((smoke (module-ref <module>))
+           (index
+            (the index (sw_id_method smoke classid (%find-name smoke name)))))
+      (if (zerop index)
+          nil
+          (bash index <module> +methodmap+)))))
 
 
 ;;;;
@@ -348,33 +378,45 @@
 
 (defun map-methods (fun)
   (iter (for <module> below *n-modules*)
+        (declare (type module-iterator <module>))
         (map-methods-in-module fun <module>)))
 
 (defun map-methods-in-module (fun <module>)
   (let ((n (data-nmethods (data-ref <module>))))
     (iter (for i from 0 below n)
+          (declare (type index-iterator i))
           (funcall fun (bash i <module> +method+)))))
 
+(declaim (inline qmethod-struct))
 (defun qmethod-struct (<method>)
   (multiple-value-bind (idx <module>)
       (unbash* <method> +method+)
-    #+debug (assert (<= 0 idx (data-nmethods (data-ref <module>))))
+    #+qt::debug (assert (<= 0 idx (data-nmethods (data-ref <module>))))
     (cffi:mem-aref (data-methods (data-ref <module>))
                    '|struct Method|
                    idx)))
 
+(declaim (inline qmethod-class))
 (defun qmethod-class (<method>)
+  (declare (type tagged <method>))
   (bash (cffi:foreign-slot-value (qmethod-struct <method>)
                                  '|struct Method|
                                  'classid)
         (ldb-module <method>)
         +class+))
 
+(declaim (inline qmethod-name-index))
+(defun qmethod-name-index (<method>)
+  (declare (type tagged <method>))
+  (cffi:foreign-slot-value (qmethod-struct <method>)
+                           '|struct Method|
+                           'name))
+
+(declaim (inline qmethod-name))
 (defun qmethod-name (<method>)
-  (name-ref (nth-value 1 (unbash <method>))
-            (cffi:foreign-slot-value (qmethod-struct <method>)
-                                     '|struct Method|
-                                     'name)))
+  (declare (type tagged <method>))
+  (name-ref (ldb-module <method>)
+            (the index (qmethod-name-index <method>))))
 
 (defun qmethod-flags (<method>)
   (cffi:foreign-slot-value (qmethod-struct <method>) '|struct Method| 'flags))
@@ -410,17 +452,22 @@
 	(ldb-module <method>)
 	+type+))
 
+(declaim (inline map-qmethod-argument-types))
 (defun map-qmethod-argument-types (fun <method>)
   (let* ((<module> (ldb-module <method>))
          (argumentlist (data-argumentlist (data-ref <module>))))
     (cffi:with-foreign-slots
         ((args numargs) (qmethod-struct <method>) |struct Method|)
-      (iter (for i from args)
-            (repeat numargs)
-            (funcall fun
-                     (bash (cffi:mem-aref argumentlist :short i)
-                           <module>
-                           +type+))))))
+      (declare (type index-iterator args numargs))
+      (if (plusp numargs)
+          (iter (for i from args)
+                (declare (type index i))
+                (repeat numargs)
+                (funcall fun
+                         (bash (cffi:mem-aref argumentlist :short i)
+                               <module>
+                               +type+)))
+          nil))))
 
 (deflistify list-qmethod-argument-types map-qmethod-argument-types
   <method>)
@@ -442,20 +489,25 @@
 (defun map-types (fun)
   (map-types-in-module fun 0))
 
-(defun map-types-in-module (fun <module> &optional allow-external)
+(defun map-types-in-module (fun <module>)
   (let ((n (data-ntypes (data-ref <module>))))
     (iter (for i from 1 below n)
+          (declare (type index i))
 	  (funcall fun (bash i <module> +type+)))))
 
+(declaim (inline qtype-struct))
 (defun qtype-struct (<type>)
+  (declare (type tagged <type>))
   (multiple-value-bind (idx <module>)
       (unbash* <type> +type+)
-    #+debug (assert (<= 0 idx (data-ntypes (data-ref <module>))))
+    #+qt::debug (assert (<= 0 idx (data-ntypes (data-ref <module>))))
     (cffi:mem-aref (data-types (data-ref <module>))
                    '|struct Type|
                    idx)))
 
+(declaim (inline qtype-class))
 (defun qtype-class (<type>)
+  (declare (type tagged <type>))
   (resolve-external-qclass
    (bash (cffi:foreign-slot-value (qtype-struct <type>)
 				  '|struct Type|
@@ -463,7 +515,9 @@
 	 (ldb-module <type>)
 	 +class+)))
 
+(declaim (inline qtype-name))
 (defun qtype-name (<type>)
+  (declare (type tagged <type>))
   (cffi:foreign-slot-value (qtype-struct <type>) '|struct Type| 'name))
 
 (defun qtype-interned-name (<type>)
@@ -488,7 +542,132 @@
 
 (defun find-qtype (name &optional (<module> 0))
   (let ((index (sw_id_type (elt *module-table* <module>) name)))
+    (declare (type index-iterator index))
     (and (plusp index) (bash index <module> +type+))))
+
+
+;;;;
+;;;; Classes (cont. from above, now that inlined function are there)
+;;;;
+
+(defun %find-any-methodmap-for-class (<class>)
+  (declare (type tagged <class>))
+  ;; Note: The way the comparison is currently written depends on <class>
+  ;; order being the same as index order within the same module.
+  (let* ((<module> (ldb-module <class>))
+         (from 1)
+         (to (data-nmethodmaps (data-ref <module>))))
+    (declare (type index-iterator from to))
+    (iter (while (<= from to))
+          (let* ((current-index
+                  (truncate (+ from to) 2))
+                 (current-<methodmap>
+                  (bash current-index <module> +methodmap+))
+                 (current-<class>
+                  (methodmap-class current-<methodmap>)))
+            (cond
+              ((eql current-<class> <class>)
+               (return current-<methodmap>))
+              ((> current-<class> <class>)
+               (setf to (1- current-index)))
+              (t
+               (setf from (1+ current-index))))))))
+
+(declaim (inline map-class-methodmaps))
+(defun map-class-methodmaps (fun <class>)
+  (let ((any (%find-any-methodmap-for-class <class>)))
+    (when any
+      (multiple-value-bind (first-idx <module>)
+			   (unbash any)
+	(macrolet
+	    ((% (from offset)
+	       `(iter (for idx ,from (+ first-idx ,offset))
+                      (declare (type index-iterator idx))
+		      (let ((<methodmap> (bash idx <module> +methodmap+)))
+			(while (eql <class> (methodmap-class <methodmap>)))
+			(funcall fun <methodmap>)))))
+	  (% from 0)
+	  (% downfrom -1))))))
+
+(deflistify list-qclass-methodmaps map-class-methodmaps
+  <class>)
+
+(defun %find-name-index-range (<module> method-name)
+  (let* ((str-length (length method-name))
+         (from (the index (%find-name (module-ref <module>) method-name)))
+         (to (data-nmethodnames (data-ref <module>))))
+    (declare (type index-iterator to))
+    (when (plusp from)
+      (values from
+              (iter (for current-index from (1+ from) below to)
+                    (let* ((current-name (name-ref <module> current-index))
+                           (mismatch (mismatch current-name method-name)))
+                      (while (and (eql mismatch str-length)
+                                  (find (char current-name str-length) "?#$")))
+                      (finally (return (1- current-index)))))))))
+
+(defun %find-any-methodmap-for-class-and-name-range (<class> min max)
+  (declare (type tagged <class>))
+  (let* ((<module> (ldb-module <class>))
+         (from 1)
+         (to (data-nmethodmaps (data-ref <module>))))
+    (declare (type index-iterator from to))
+    (iter (while (<= from to))
+          (let* ((current-index
+                  (truncate (+ from to) 2))
+                 (current-<methodmap>
+                  (bash current-index <module> +methodmap+))
+                 (current-<class>
+                  (methodmap-class current-<methodmap>))
+                 (current-name-index
+                  (methodmap-name-index current-<methodmap>)))
+            (cond
+              ((eql current-<class> <class>)
+               (cond
+                 ((<= min current-name-index max)
+                  (return current-<methodmap>))
+                 ((> current-name-index max)
+                  (setf to (1- current-index)))
+                 (t
+                  (setf from (1+ current-index)))))
+              ((> current-<class> <class>)
+               (setf to (1- current-index)))
+              (t
+               (setf from (1+ current-index))))))))
+
+(defun map-class-methodmaps-named (fun <class> method-name)
+  (declare (type tagged <class>))
+  (multiple-value-bind (min max)
+      (%find-name-index-range (ldb-module <class>) method-name)
+    (when min
+      (let ((any (%find-any-methodmap-for-class-and-name-range
+                  <class> min max)))
+        (when any
+          (multiple-value-bind (first-idx <module>)
+              (unbash any)
+            (macrolet
+                ((% (from offset)
+                   `(iter (for idx ,from (+ first-idx ,offset))
+                          (declare (type index-iterator idx))
+                          (let ((<methodmap> (bash idx <module> +methodmap+)))
+                            (while (and (eql <class> (methodmap-class <methodmap>))
+                                        (<= min
+                                            (methodmap-name-index <methodmap>)
+                                            max)))
+                            (funcall fun <methodmap>)))))
+              (% from 0)
+              (% downfrom -1))))))))
+
+(declaim (inline map-class-methodmaps))
+(defun map-class-methods-named (fun <class> name)
+  (map-class-methodmaps-named
+   (lambda (<methodmap>)
+     (map-methodmap-methods fun <methodmap>))
+   <class> name))
+
+(deflistify list-class-methods-named map-class-methods-named
+  <class>
+  name)
 
 
 ;;;;
@@ -531,9 +710,6 @@
          (push method result))))
     result))
 
-(deflistify list-qclass-methodmaps map-class-methodmaps
-  <class>)
-
 (defun describe-methodmap (<methodmap>)
   (format t "~/qt:format-reference/ is a MethodMap~%~%" <methodmap>)
   (format t "    name: ~A~%" (methodmap-name <methodmap>))
@@ -544,7 +720,7 @@
 
 (defun describe-qtype (<type>)
   (format t "~/qt:format-reference/ is a type~%~%" <type>)
-  (format t "    name: ~A~%" (qtype-name <methodmap>))
+  (format t "    name: ~A~%" (qtype-name <type>))
   ;; ...
   )
 
@@ -693,7 +869,8 @@
   (let ((name (string-downcase name)))
     (unless (named-module-number name)
       (let ((idx *n-modules*))
-        #+debug (assert (< idx (length *module-table*)))
+        (unless (< idx (length *module-table*))
+          (error "sorry, +module-bits+ exceeded"))
         (cffi:load-foreign-library
         (format nil
                 #-(or mswindows windows win32) "libsmoke~A.so"

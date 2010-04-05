@@ -161,6 +161,13 @@ sw_qstring_to_utf8(void* s)
         return new QByteArray(str->toUtf8());
 }
 
+const void*
+sw_qstring_to_utf16(void* s)
+{
+        QString* str = static_cast<QString*>(s);
+	return str->utf16();
+}
+
 void
 sw_delete_qstring(void *q)
 {
