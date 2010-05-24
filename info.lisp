@@ -842,7 +842,8 @@
 ;;;; Startup stuff
 
 
-(defvar *cached-objects*)
+(defvar *weakly-cached-objects*)
+(defvar *strongly-cached-objects*)
 (defvar *keep-alive*)
 (defvar *qobject-metaobject* nil)
 (defvar *smoke-instance-list* (list nil nil))
@@ -852,8 +853,8 @@
   (setf *n-modules* 0)
   (fill *module-table* nil)
   (fill *module-data-table* nil)
-  (setf *cached-objects* (tg:make-weak-hash-table :weakness :value))
-  ;; (setf *cached-objects* (make-hash-table))
+  (setf *weakly-cached-objects* (tg:make-weak-hash-table :weakness :value))
+  (setf *strongly-cached-objects* (make-hash-table))
   (setf *keep-alive* (make-hash-table))
   (setf *qobject-metaobject* nil)
   (unless *library-loaded-p*

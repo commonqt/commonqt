@@ -100,9 +100,16 @@
        (warn "Bug in CommonQt?  ~A still has parent ~A; not deleting"
              object parent)))))
 
+(defclass dynamic-object (qobject)
+  ())
+
 (defun cache! (object)
-  (assert (null (pointer->cached-object (qobject-pointer object))))
-  (setf (pointer->cached-object (qobject-pointer object)) object)
+  (let ((ptr (qobject-pointer object)))
+    (assert (null (pointer->cached-object ptr)))
+    (setf (pointer->cached-object ptr) object)
+    (when (typep object 'dynamic-object)
+      (setf (gethash (cffi:pointer-address ptr) *strongly-cached-objects*)
+            object)))
   (when (and *report-memory-leaks*
              (or (not (qtypep object (find-qclass "QObject")))
                  (typep (#_parent object) 'null-qobject)))
@@ -128,9 +135,6 @@
 (defclass slot-member (dynamic-member)
   ((function :initarg :function
              :accessor dynamic-member-function)))
-
-(defclass dynamic-object (qobject)
-  ())
 
 (defmethod print-object ((instance dynamic-object) stream)
   (print-unreadable-object (instance stream :type t :identity nil)
@@ -337,7 +341,7 @@
       qt-class
     (unless (and qmetaobject
 		 effective-class
-		 (eq smoke-generation *cached-objects*))
+		 (eq smoke-generation *weakly-cached-objects*))
       ;; clear everything out to ensure a clean state in case of errors
       ;; in the following forms
       (setf effective-class nil)
@@ -370,7 +374,7 @@
       ;; invalidate call site caches
       (setf generation (gensym))
       ;; mark as fresh
-      (setf (class-smoke-generation qt-class) *cached-objects*))))
+      (setf (class-smoke-generation qt-class) *weakly-cached-objects*))))
 
 (defun convert-dynamic-member (member)
   (make-slot-or-signal (dynamic-member-name member)))

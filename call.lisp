@@ -31,10 +31,10 @@
 (named-readtables:in-readtable :qt)
 
 (defun pointer->cached-object (ptr)
-  (gethash (cffi:pointer-address ptr) *cached-objects*))
+  (gethash (cffi:pointer-address ptr) *weakly-cached-objects*))
 
 (defun (setf pointer->cached-object) (newval ptr)
-  (setf (gethash (cffi:pointer-address ptr) *cached-objects*)
+  (setf (gethash (cffi:pointer-address ptr) *weakly-cached-objects*)
         newval))
 
 (defun %deletion-callback (obj)
@@ -711,7 +711,9 @@
   (check-type object abstract-qobject)
   (unless (qobject-deleted object)
     (cancel-finalization object)
-    (remhash (cffi:pointer-address (qobject-pointer object)) *cached-objects*)
+    (let ((addr (cffi:pointer-address (qobject-pointer object))))
+      (remhash addr *weakly-cached-objects*)
+      (remhash addr *strongly-cached-objects*))
     (setf (qobject-deleted object) t)))
 
 (defun cancel-finalization (object)
