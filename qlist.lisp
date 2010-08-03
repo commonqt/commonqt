@@ -64,3 +64,12 @@
 (defmethod delete-qlist ((qlist qlist<int>))
   (sw_qlist_int_delete (qlist-pointer qlist)))
 
+(defclass qlist<QListWidgetItem> (qlist)
+  ())
+
+(defmethod qlist-size ((qlist qlist<QListWidgetItem>))
+  (sw_qlist_void_size (qlist-pointer qlist)))
+
+(defmethod qlist-at ((qlist qlist<QListWidgetItem>) index)
+  (%qobject (find-qclass "QListWidgetItem")
+            (sw_qlist_void_at (qlist-pointer qlist) index)))

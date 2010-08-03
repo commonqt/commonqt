@@ -151,7 +151,9 @@ sw_windows_version()
 void*
 sw_make_qstring(char *str)
 {
-        return new QString(str);
+        QString* qstr = new QString();
+        *qstr = QString::fromUtf8(str);
+        return qstr;
 }
 
 void*
@@ -349,4 +351,40 @@ sw_qlist_int_append(void *ptr, int what)
 {
 	QList<int>* qlist = static_cast<QList<int>*>(ptr);
 	qlist->append(what);
+}
+
+// void
+void*
+sw_qlist_void_new()
+{
+	return new QList<void*>;
+}
+
+int
+sw_qlist_void_size(void *ptr)
+{
+	QList<void*>* qlist = static_cast<QList<void*>*>(ptr);
+	return qlist->size();
+}
+
+void
+sw_qlist_void_delete(void *ptr)
+{
+	QList<void*>* qlist = static_cast<QList<void*>*>(ptr);
+	delete qlist;
+}
+
+const void*
+sw_qlist_void_at(void *ptr, int index)
+{
+	QList<void*>* qlist = static_cast<QList<void*>*>(ptr);
+	return qlist->at(index);
+}
+
+void
+sw_qlist_void_append(void *ptr, void *whatptr)
+{
+	QList<void*>* qlist = static_cast<QList<void*>*>(ptr);
+	
+	qlist->append(whatptr);
 }

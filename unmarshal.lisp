@@ -109,3 +109,6 @@
 
 (def-unmarshal (value :|QList<int>|)
   (make-instance 'qlist<int> :pointer value))
+
+(def-unmarshal (value :|QList<QListWidgetItem*>|)
+  (make-instance 'qlist<QListWidgetItem> :pointer value))

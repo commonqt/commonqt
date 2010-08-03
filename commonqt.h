@@ -74,6 +74,13 @@ EXPORT void sw_qlist_int_delete(void*);
 EXPORT int sw_qlist_int_at(void*, int);
 EXPORT void sw_qlist_int_append(void*, int);
 
+EXPORT void* sw_qlist_void_new(void);
+EXPORT int sw_qlist_void_size(void*);
+EXPORT void sw_qlist_void_delete(void*);
+EXPORT const void* sw_qlist_void_at(void*, int);
+EXPORT void sw_qlist_void_append(void*, void*);
+
+  
 #ifdef __cplusplus
 }
 #endif
