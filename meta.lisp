@@ -476,10 +476,17 @@
 (defun unmarshal-slot-args (member argv)
   (iter (for type in (ensure-dynamic-member-types member))
         (for i from 1)
-        (collect (if (eq (qtype-interned-name type) ':|QString|)
-                     (qstring-pointer-to-lisp
-                      (cffi:mem-aref argv :pointer i))
-                     (unmarshal type (cffi:mem-aref argv :pointer i))))))
+        (collect (cond ((eq (qtype-interned-name type) ':|QString|)
+                        (qstring-pointer-to-lisp
+                         (cffi:mem-aref argv :pointer i)))
+                       ((and
+                         (eq (qtype-kind type) :stack)
+                         (eq (qtype-stack-item-slot type) 'class))
+                        (unmarshal type (cffi:inc-pointer argv
+                                                          (* i
+                                                             (cffi:foreign-type-size :pointer)))))
+                       (t
+                        (unmarshal type (cffi:mem-aref argv :pointer i)))))))
 
 (defclass class-info ()
   ((key :initarg :key
