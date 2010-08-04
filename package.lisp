@@ -78,7 +78,8 @@
            #:with-objects
            #:cancel-finalization
            #:*report-memory-leaks*
-           #:new))
+           #:new
+           #:enum-or))
 
 (defpackage :qt-user
   (:use :cl :qt)
