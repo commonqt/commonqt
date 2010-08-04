@@ -185,6 +185,9 @@
   (and (eq (enum-type-name a) (enum-type-name b))
        (eql (primitive-value a) (primitive-value b))))
 
+(defun enum-or (&rest enums)
+  (reduce #'logior enums :key #'primitive-value))
+
 (defclass qthread ()
   ((pointer :initarg :pointer
             :accessor qthread-pointer)))
