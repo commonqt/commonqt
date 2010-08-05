@@ -540,11 +540,10 @@
 (defun qtype-constp (<type>)
   (logtest #x40 (qtype-flags <type>)))
 
-(defun find-qtype (name &optional (<module> 0))
-  (let ((index (sw_id_type (elt *module-table* <module>) name)))
-    (declare (type index-iterator index))
-    (and (plusp index) (bash index <module> +type+))))
-
+(defun find-qtype (name &optional <module>)
+  (loop for i from (or <module> 0) to (or <module> *n-modules*)
+        for index = (sw_id_type (elt *module-table* i) name)
+        when (plusp index) return (bash index i +type+)))
 
 ;;;;
 ;;;; Classes (cont. from above, now that inlined function are there)
