@@ -33,7 +33,7 @@ public:
         t_callmethod_callback callmethod_callback;
 	t_child_callback child_callback;
 
-        void deleted(Smoke::Index classId, void* obj) {
+        void deleted(Smoke::Index, void* obj) {
                 deletion_callback(smoke, obj);
         }
 
@@ -74,7 +74,7 @@ public:
         t_callmethod_callback callmethod_callback;
 	t_child_callback child_callback;
 
-        void deleted(Smoke::Index classId, void* obj) {
+        void deleted(Smoke::Index, void* obj) {
                 deletion_callback(smoke, obj);
         }
 
@@ -148,12 +148,18 @@ sw_windows_version()
 #endif
 }
 
+// void*
+// sw_make_qstring(char *str)
+// {
+//         QString* qstr = new QString();
+//         *qstr = QString::fromUtf8(str);
+//         return qstr;
+// }
+
 void*
 sw_make_qstring(char *str)
 {
-        QString* qstr = new QString();
-        *qstr = QString::fromUtf8(str);
-        return qstr;
+        return new QString(QString::fromUtf8(str));
 }
 
 void*
