@@ -73,7 +73,7 @@
         (qobject (values (#_name property) property))
         (string (values property (or (find property
                                            (object-properties object)
-                                           :key #_name
+                                           :key (lambda (x) (#_name x))
                                            :test #'equal)
                                      (error "no such property ~A on ~A"
                                             property object)))))
@@ -111,7 +111,7 @@
               (format t "<unbound>~%")))))))
 
 (defun describe-qclass-properties (class inherited)
-  (when (qclass-find-applicable-method class "staticMetaObject" nil)
+  (when (qclass-find-applicable-method class "staticMetaObject" nil nil)
     (let* ((meta (#_staticMetaObject class))
            (super (#_superClass meta)))
       (format t "~%Properties:~%")

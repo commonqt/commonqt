@@ -264,6 +264,7 @@
     :void
     ((smoke :pointer)
      (obj :pointer))
+  (declare (ignore smoke))
   ;; Just dispatch to an ordinary function for debugging purposes.
   ;; Redefinition of a callback wouldn't affect the existing C++ code,
   ;; redefinition of the function does.
@@ -286,6 +287,7 @@
     ((smoke :pointer)
      (added :char)                      ;bool
      (obj :pointer))
+  (declare (ignore smoke))
   ;; Just dispatch to an ordinary function for debugging purposes.
   ;; Redefinition of a callback wouldn't affect the existing C++ code,
   ;; redefinition of the function does.

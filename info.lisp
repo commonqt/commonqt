@@ -29,7 +29,7 @@
 (in-package :qt)
 
 #+(and sbcl qt::debug)       (declaim (optimize (debug 2)))
-#+(and sbcl (not qt::debug)) (declaim (optimize speed (safety 0) (debug 0)))
+#+(and sbcl (not qt::debug)) (declaim (optimize speed))
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defconstant +index-bits+  16)
@@ -231,7 +231,7 @@
 (defun find-qclass-in-module (<module> name &optional (allow-external t))
   (declare (type module-number <module>))
   (let ((index (the index-iterator
-                 (sw_id_class (elt *module-table* <module>)
+                 (sw_id_class (module-ref <module>)
                               name
                               (if allow-external 1 0)))))
     (and (plusp index) (bash index <module> +class+))))
@@ -542,7 +542,7 @@
 
 (defun find-qtype (name &optional <module>)
   (loop for i from (or <module> 0) to (or <module> *n-modules*)
-        for index = (sw_id_type (elt *module-table* i) name)
+        for index = (sw_id_type (module-ref i) name)
         when (plusp index) return (bash index i +type+)))
 
 ;;;;
