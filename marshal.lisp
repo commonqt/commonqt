@@ -87,12 +87,16 @@
             (let ((slot (qtype-stack-item-slot <type>)))
               (case slot
                 (bool  (lambda (val si) (setf (si bool) (if val 1 0))))
-                (class (let ((<from> (qobject-class obj)))
-                         (multiple-value-bind (castfn <to>)
-                             (resolve-cast <from> (qtype-class <type>))
+                (class (if (typep obj 'qobject)
+                           (let ((<from> (qobject-class obj)))
+                             (multiple-value-bind (castfn <to>)
+                                 (resolve-cast <from> (qtype-class <type>))
+                               (lambda (val si)
+                                 (setf (si class)
+                                       (perform-cast val castfn <from> <to>)))))
                            (lambda (val si)
                              (setf (si class)
-                                   (perform-cast val castfn <from> <to>))))))
+                                   (qobject-pointer val)))))
                 (enum (etypecase obj
                         (integer
                          (lambda (val si) (setf (si enum) val)))
@@ -173,3 +177,9 @@
 
 (defmarshal (argument :|const QList<int>&| :type qlist<int>)
   (qlist-pointer argument))
+
+(defmarshal (value :|QVariant|)
+  (typecase value
+    (string (#_new QVariant :|const QString&| value))
+    (integer (#_new QVariant :|int| value))
+    (t value)))

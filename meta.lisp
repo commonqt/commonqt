@@ -105,7 +105,7 @@
 
 (defun cache! (object)
   (let ((ptr (qobject-pointer object)))
-    (assert (null (pointer->cached-object ptr)))
+   ; (assert (null (pointer->cached-object ptr)))
     (setf (pointer->cached-object ptr) object)
     (when (typep object 'dynamic-object)
       (setf (gethash (cffi:pointer-address ptr) *strongly-cached-objects*)
