@@ -67,10 +67,6 @@
 
 (defcfun "sw_windows_version" :int)
 
-(defcfun "sw_map_children" :void
-  (obj :pointer)
-  (cb :pointer))
-
 (defcfun "sw_make_qpointer" :pointer
   (target :pointer))
 

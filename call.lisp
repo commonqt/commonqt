@@ -80,18 +80,6 @@
     (abort ()
       :report (lambda (stream) (write-string "Abort smoke callback" stream)))))
 
-(defun map-qobject-children (fn x)
-  (let ((*ptr-callback*
-         (lambda (ptr)
-           (funcall fn (%qobject (find-qclass "QObject") ptr)))))
-    (sw_map_children (qobject-pointer x) (cffi:callback ptr-callback))))
-
-(defun map-qobject-hierarchy (fn x)
-  (funcall fn x)
-  (map-qobject-children (lambda (y)
-                          (map-qobject-hierarchy fn y))
-                        x))
-
 (defclass abstract-qobject ()
   ((class :initarg :class
           :accessor qobject-class)))

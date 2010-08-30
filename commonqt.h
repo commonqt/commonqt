@@ -44,8 +44,6 @@ EXPORT void sw_delete(void *p);
 EXPORT void* sw_qstring_to_utf8(void* s);
 EXPORT const void* sw_qstring_to_utf16(void*);
 
-EXPORT void sw_map_children(void *x, void *y);
-
 EXPORT void* sw_make_qpointer(void* target);
 EXPORT bool sw_qpointer_is_null(void* x);
 EXPORT void sw_delete_qpointer(void* x);
