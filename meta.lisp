@@ -599,7 +599,8 @@
 
 (defun emit-signal (object name &rest args)
   (let* ((meta (class-qmetaobject (class-of object)))
-         (id (#_indexOfSignal meta name))
+         (id (#_indexOfSignal meta
+                              (#_data (#_QMetaObject::normalizedSignature name))))
          (offset (#_methodOffset meta)))
     (unless (>= id 0)
       (error "no such signal ~A on ~A" name object))
