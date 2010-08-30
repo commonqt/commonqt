@@ -340,9 +340,6 @@
                    (funcall fun stack))))
       (iterate 1 types args))))
 
-(defun qpointer-target-already-deleted-p (qp)
-  (logbitp 0 (sw_qpointer_is_null qp)))
-
 (defun null-qobject-p (object)
   (typep object 'null-qobject))
 

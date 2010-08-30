@@ -221,26 +221,6 @@ sw_delete(void *p)
 
 typedef void (*t_ptr_callback)(void *);
 
-void*
-sw_make_qpointer(void* target)
-{
-        return new QPointer<QObject>((QObject*) target);
-}
-
-bool
-sw_qpointer_is_null(void* x)
-{
-	QPointer<QObject>* ptr = (QPointer<QObject>*) x;
-	return ptr->isNull();
-}
-
-void
-sw_delete_qpointer(void* x)
-{
-	QPointer<QObject>* ptr = (QPointer<QObject>*) x;
-	delete ptr;
-}
-
 void
 sw_find_class(char *name, Smoke **smoke, short *index)
 {

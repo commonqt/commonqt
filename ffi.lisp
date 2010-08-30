@@ -67,15 +67,6 @@
 
 (defcfun "sw_windows_version" :int)
 
-(defcfun "sw_make_qpointer" :pointer
-  (target :pointer))
-
-(defcfun "sw_qpointer_is_null" :char
-  (qp :pointer))
-
-(defcfun "sw_delete_qpointer" :void
-  (qp :pointer))
-
 (defcfun "sw_make_qstring" :pointer
   (str :string))
 
