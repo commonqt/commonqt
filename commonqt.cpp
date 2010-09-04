@@ -363,3 +363,9 @@ sw_qlist_void_append(void *ptr, void *whatptr)
 	
 	qlist->append(whatptr);
 }
+
+const void* sw_qlist_scalar_at(void *ptr, int index)
+{
+	QList<int>* qlist = static_cast<QList<int>*>(ptr);
+	return &qlist->at(index);
+}

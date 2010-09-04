@@ -179,7 +179,4 @@
   (qlist-pointer argument))
 
 (defmarshal (value :|QVariant|)
-  (typecase value
-    (string (#_new QVariant :|const QString&| value))
-    (integer (#_new QVariant :|int| value))
-    (t value)))
+  (qvariant value))

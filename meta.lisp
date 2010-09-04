@@ -599,15 +599,13 @@
 
 (defun emit-signal (object name &rest args)
   (let* ((meta (class-qmetaobject (class-of object)))
-         (id (#_indexOfSignal meta
-                              (#_data (#_QMetaObject::normalizedSignature name))))
-         (offset (#_methodOffset meta)))
+         (signature (#_data (#_QMetaObject::normalizedSignature name)))
+         (id (#_indexOfSignal meta signature)))
     (unless (>= id 0)
       (error "no such signal ~A on ~A" name object))
-    (apply #'values
-           (call-with-signal-marshalling
-            (lambda (stack)
-              (list (#_activate meta object id stack)))
-            (ensure-dynamic-member-types
-             (get-qt-class-member (class-of object) (- id offset)))
-            args))))
+    (call-with-signal-marshalling
+     (lambda (stack)
+       (list (#_activate meta object id stack)))
+     (mapcar #'find-qtype
+             (#_parameterTypes (#_method meta id)))
+     args)))

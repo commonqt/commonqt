@@ -153,6 +153,7 @@
 (defcfun "sw_qlist_void_size" :int (qlist :pointer))
 (defcfun "sw_qlist_void_at" :pointer (qlist :pointer) (index :int))
 (defcfun "sw_qlist_void_append" :void (qlist :pointer) (var :pointer))
+(defcfun "sw_qlist_scalar_at" :pointer (qlist :pointer) (index :int))
 
 (cffi:defcstruct |struct SmokeData|
   (name :string)

@@ -72,43 +72,52 @@
       (let ((thunk (unmarshaller-2 type)))
         (dispatching-on-stack-item (get-value (qtype-stack-item-slot type))
           (lambda (stack-item)
-            (funcall thunk (get-value stack-item)))))))
+            (funcall thunk (get-value stack-item) type))))))
 
 (defun unmarshaller-2 (type)
-  (case (qtype-stack-item-slot type)
-    (class (lambda (value) (%qobject (qtype-class type) value)))
-    (enum  (lambda (value) (enum value (qtype-interned-name type))))
-    (t     (or (get (qtype-interned-name type) 'unmarshaller)
-               #'identity))))
+  (or (get (qtype-interned-name type) 'unmarshaller)
+      (case (qtype-stack-item-slot type)
+        (class (lambda (value type) (%qobject (qtype-class type) value)))
+        (enum  (lambda (value type) (enum value (qtype-interned-name type))))
+        (t     (lambda (value type) value)))))
 
-(defmacro def-unmarshal ((var name) &body body)
+(defmacro def-unmarshal ((var name type) &body body)
   `(setf (get ',name 'unmarshaller)
-         (lambda (,var)
+         (lambda (,var ,type)
+           (declare (ignorable ,type))
            ,@body)))
 
-(def-unmarshal (value :|const char*|)
+(def-unmarshal (value :|const char*| type)
   (cffi:foreign-string-to-lisp value))
 
-(def-unmarshal (value :|char*|)
+(def-unmarshal (value :|char*| type)
   (cffi:foreign-string-to-lisp value))
 
-(def-unmarshal (value :|void**|)
+(def-unmarshal (value :|void**| type)
   value)
 
-(def-unmarshal (value :|bool|)
+(def-unmarshal (value :|bool| type)
   (logbitp 0 value))
 
-(def-unmarshal (value :|QString|)
+(def-unmarshal (value :|QString| type)
   (qstring-pointer-to-lisp value))
 
-(def-unmarshal (value :|QThread*|)
+(def-unmarshal (value :|QThread*| type)
   (make-instance 'qthread :pointer value))
 
-(def-unmarshal (value :|QList<QVariant>|)
+(def-unmarshal (value :|QList<QVariant>| type)
   (make-instance 'qlist<qvariant> :pointer value))
 
-(def-unmarshal (value :|QList<int>|)
+(def-unmarshal (value :|QList<int>| type)
   (make-instance 'qlist<int> :pointer value))
 
-(def-unmarshal (value :|QList<QListWidgetItem*>|)
+(def-unmarshal (value :|QList<QListWidgetItem*>| type)
   (make-instance 'qlist<QListWidgetItem> :pointer value))
+
+(def-unmarshal (value :|QList<QByteArray>| type)
+  (loop for i below (sw_qlist_void_size value)
+        collect (#_data (%qobject (find-qclass "QByteArray")
+                                  (sw_qlist_scalar_at value i)))))
+
+(def-unmarshal (value :|QVariant| type)
+  (unvariant value type))

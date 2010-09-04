@@ -73,6 +73,7 @@ EXPORT int sw_qlist_void_size(void*);
 EXPORT void sw_qlist_void_delete(void*);
 EXPORT const void* sw_qlist_void_at(void*, int);
 EXPORT void sw_qlist_void_append(void*, void*);
+EXPORT const void* sw_qlist_scalar_at(void*, int);
 
   
 #ifdef __cplusplus
