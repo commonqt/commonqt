@@ -541,7 +541,7 @@
   (logtest #x40 (qtype-flags <type>)))
 
 (defun find-qtype (name &optional <module>)
-  (loop for i from (or <module> 0) to (or <module> *n-modules*)
+  (loop for i from (or <module> 0) to (or <module> (1- *n-modules*))
         for index = (sw_id_type (module-ref i) name)
         when (plusp index) return (bash index i +type+)))
 
