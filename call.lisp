@@ -326,20 +326,6 @@
 (defun unmarshal (type stack-item)
   (unmarshal-using-type type stack-item))
 
-(defun call-with-marshalling (fun types args)
-  (cffi:with-foreign-object (stack '|union StackItem| (1+ (length args)))
-    (labels ((iterate (i rest-types rest-args)
-               (if rest-args
-                   (marshal (car rest-args)
-                            (car rest-types)
-                            (cffi:mem-aref stack '|union StackItem| i)
-                            (lambda ()
-                              (iterate (1+ i)
-                                       (cdr rest-types)
-                                       (cdr rest-args))))
-                   (funcall fun stack))))
-      (iterate 1 types args))))
-
 (defun null-qobject-p (object)
   (typep object 'null-qobject))
 
