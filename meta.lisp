@@ -578,34 +578,41 @@
                                      dataptr))))))
 
 (defun call-with-signal-marshalling (fun types args)
-  (cffi:with-foreign-object (argv '|union StackItem| (1+ (length args)))
-    (cffi:with-foreign-object (stack '|union StackItem| (1+ (length args)))
-      (iter (for i from 1 to (length args))
-            (setf (cffi:mem-aref argv :pointer i)
-                  (cffi:mem-aref stack '|union StackItem| i)))
-      (labels ((iterate (i rest-types rest-args)
-                 (cond
-                   (rest-args
-                    (marshal (car rest-args)
-                             (car rest-types)
-                             (cffi:mem-aref stack '|union StackItem| i)
-                             (lambda ()
-                               (iterate (1+ i)
-                                        (cdr rest-types)
-                                        (cdr rest-args)))))
-                   (t
-                    (funcall fun argv)))))
-        (iterate 1 types args)))))
+  (let ((arg-count (length args)))
+    (cffi:with-foreign-object (argv :pointer (1+ arg-count))
+      (cffi:with-foreign-object (stack '|union StackItem| arg-count)
+        (labels ((iterate (i rest-types rest-args)
+                          (cond
+                            (rest-args
+                             (marshal (car rest-args)
+                                      (car rest-types)
+                                      (cffi:mem-aref stack '|union StackItem| i)
+                                      (lambda ()
+                                        (iterate (1+ i)
+                                                 (cdr rest-types)
+                                                 (cdr rest-args)))))
+                            (t
+                             (loop for i below arg-count
+                                   do
+                                   (setf (cffi:mem-aref argv :pointer (1+ i))
+                                         (cffi:mem-aref (cffi:mem-aref stack '|union StackItem| i)
+                                                        :pointer)))
+                             (funcall fun argv)))))
+          (iterate 0 types args))))))
 
 (defun emit-signal (object name &rest args)
   (let* ((meta (class-qmetaobject (class-of object)))
          (signature (#_data (#_QMetaObject::normalizedSignature name)))
-         (id (#_indexOfSignal meta signature)))
-    (unless (>= id 0)
-      (error "no such signal ~A on ~A" name object))
+         (index (#_indexOfSignal meta signature))
+         (types (mapcar #'find-qtype
+                             (#_parameterTypes (#_method meta index)))))
+    (loop while (> (#_methodOffset meta) index)
+          do (setf meta (#_superClass meta)))
+    (when (/= (length args)
+              (length types))
+      (error "Invalid number of arguments for signal ~a: ~a" signature (length args)))
     (call-with-signal-marshalling
      (lambda (stack)
-       (list (#_activate meta object id stack)))
-     (mapcar #'find-qtype
-             (#_parameterTypes (#_method meta id)))
+       (list (interpret-call meta "activate" object index stack)))
+     types
      args)))
