@@ -584,19 +584,21 @@
         (labels ((iterate (i rest-types rest-args)
                           (cond
                             (rest-args
-                             (marshal (car rest-args)
-                                      (car rest-types)
-                                      (cffi:mem-aref stack '|union StackItem| i)
-                                      (lambda ()
-                                        (iterate (1+ i)
-                                                 (cdr rest-types)
-                                                 (cdr rest-args)))))
+                             (let* ((stack-item (cffi:mem-aref stack '|union StackItem| i))
+                                    (arg (car rest-args))
+                                    (type (car rest-types))
+                                    (slot-type (qtype-stack-item-slot type)))
+                               (marshal arg type stack-item
+                                        (lambda ()
+                                          (setf (cffi:mem-aref argv :pointer (1+ i))
+                                                (if (or (eql slot-type 'ptr)
+                                                        (eql slot-type 'class))
+                                                    (cffi:mem-aref stack-item :pointer)
+                                                    stack-item))
+                                          (iterate (1+ i)
+                                                   (cdr rest-types)
+                                                   (cdr rest-args))))))
                             (t
-                             (loop for i below arg-count
-                                   do
-                                   (setf (cffi:mem-aref argv :pointer (1+ i))
-                                         (cffi:mem-aref (cffi:mem-aref stack '|union StackItem| i)
-                                                        :pointer)))
                              (funcall fun argv)))))
           (iterate 0 types args))))))
 
@@ -605,14 +607,12 @@
          (signature (#_data (#_QMetaObject::normalizedSignature name)))
          (index (#_indexOfSignal meta signature))
          (types (mapcar #'find-qtype
-                             (#_parameterTypes (#_method meta index)))))
-    (loop while (> (#_methodOffset meta) index)
-          do (setf meta (#_superClass meta)))
+                        (#_parameterTypes (#_method meta index)))))
     (when (/= (length args)
               (length types))
       (error "Invalid number of arguments for signal ~a: ~a" signature (length args)))
     (call-with-signal-marshalling
      (lambda (stack)
-       (list (interpret-call meta "activate" object index stack)))
+       (list (#_QMetaObject::activate object index stack)))
      types
      args)))
