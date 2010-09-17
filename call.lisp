@@ -553,7 +553,7 @@
             (when (and allow-override-p (typep instance 'dynamic-object))
               (find-method-override instance method)))
            (arglist-marshaller
-            (arglist-marshaller args (print (list-qmethod-argument-types method))))
+            (arglist-marshaller args (list-qmethod-argument-types method)))
            (trampfun
             (qclass-trampoline-fun (qmethod-class method)))
            (arg-for-trampfun
