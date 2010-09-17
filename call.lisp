@@ -188,10 +188,13 @@
   (cffi-sys:pointer-eq (qobject-pointer x) (qobject-pointer y)))
 
 (defun %qobject (class ptr)
-  (or (pointer->cached-object ptr)
-      (if (cffi:null-pointer-p ptr)
-          (make-instance 'null-qobject :class class)
-          (make-instance 'qobject :class class :pointer ptr))))
+  (let ((cached (pointer->cached-object ptr)))
+    (if (and cached
+             (= (qobject-class cached) class))
+        cached
+        (if (cffi:null-pointer-p ptr)
+            (make-instance 'null-qobject :class class)
+            (make-instance 'qobject :class class :pointer ptr)))))
 
 (flet ((note-lisp-type-for-stack-slot (slot type)
          (setf (get slot 'lisp-type-for-stack-slot) type)))
@@ -550,7 +553,7 @@
             (when (and allow-override-p (typep instance 'dynamic-object))
               (find-method-override instance method)))
            (arglist-marshaller
-            (arglist-marshaller args (list-qmethod-argument-types method)))
+            (arglist-marshaller args (print (list-qmethod-argument-types method))))
            (trampfun
             (qclass-trampoline-fun (qmethod-class method)))
            (arg-for-trampfun
