@@ -149,13 +149,16 @@
          (funcall cont))))))
 
 (defmacro defmarshal ((var name &key around (type t)) &body body)
-  (if around
-      `(setf (get ',name 'marshaller/primary) nil
-             (get ',name 'marshaller/around)
-             (cons ',type (lambda (,var ,around) ,@body)))
-      `(setf (get ',name 'marshaller/primary)
-             (cons ',type (lambda (,var) ,@body))
-             (get ',name 'marshaller/around) nil)))
+  (let ((function-name (intern (format nil "~a-~a" name 'marshaller))))
+   (if around
+       `(setf (get ',name 'marshaller/primary) nil
+              (get ',name 'marshaller/around)
+              (cons ',type (fdefinition
+                            (defun ,function-name (,var ,around) ,@body))))
+       `(setf (get ',name 'marshaller/primary)
+              (cons ',type (fdefinition
+                            (defun ,function-name (,var) ,@body)))
+              (get ',name 'marshaller/around) nil))))
 
 (defmarshal (value :|const QString&| :around cont :type string)
   (let ((qstring (sw_make_qstring value)))
@@ -167,7 +170,7 @@
   (let ((char* (cffi:foreign-string-alloc value)))
     (unwind-protect
          (funcall cont char*)
-       (cffi:foreign-free char*))))
+      (cffi:foreign-free char*))))
 
 (defmarshal (value :|unsigned char*| :around cont :type string)
   (let ((char* (cffi:foreign-string-alloc value)))
@@ -179,4 +182,7 @@
   (qlist-pointer argument))
 
 (defmarshal (value :|QVariant|)
+  (qvariant value))
+
+(defmarshal (value :|const QVariant&|)
   (qvariant value))
