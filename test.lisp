@@ -44,7 +44,11 @@
 (defun make-qapplication (&rest args)
   (ensure-smoke :qtcore)
   (ensure-smoke :qtgui)
-  (%make-qapplication (cons "argv0dummy" args)))
+  (let ((instance (#_QCoreApplication::instance)))
+    (cond ((not (null-qobject-p instance))
+           (warn "QCoreApplication is already instantiated.")
+           instance)
+          (t (%make-qapplication (cons "argv0dummy" args))))))
 
 (defun %make-qapplication (args &optional (guip t))
   (unless args
