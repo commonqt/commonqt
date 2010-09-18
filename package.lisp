@@ -41,6 +41,7 @@
            #:qt-class
            #:abstract-qobject
            #:null-qobject
+           #:null-qobject-p
            #:qobject
            #:qsignal
            #:qslot
