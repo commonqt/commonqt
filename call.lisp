@@ -174,7 +174,8 @@
        (eql (primitive-value a) (primitive-value b))))
 
 (defun enum-or (&rest enums)
-  (reduce #'logior enums :key #'primitive-value))
+  (reduce #'logior enums
+          :key (lambda (x) (if (integerp x) x (primitive-value x)))))
 
 (defclass qthread ()
   ((pointer :initarg :pointer
