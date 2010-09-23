@@ -56,18 +56,6 @@ EXPORT void* sw_make_qstringlist();
 EXPORT void sw_delete_qstringlist(void *);
 EXPORT void sw_qstringlist_append(void*, char*);
 
-EXPORT void* sw_qlist_variant_new(void);
-EXPORT int sw_qlist_variant_size(void*);
-EXPORT void sw_qlist_variant_delete(void*);
-EXPORT const void* sw_qlist_variant_at(void*, int);
-EXPORT void sw_qlist_variant_append(void*, void*);
-
-EXPORT void* sw_qlist_int_new(void);
-EXPORT int sw_qlist_int_size(void*);
-EXPORT void sw_qlist_int_delete(void*);
-EXPORT int sw_qlist_int_at(void*, int);
-EXPORT void sw_qlist_int_append(void*, int);
-
 EXPORT void* sw_qlist_void_new(void);
 EXPORT int sw_qlist_void_size(void*);
 EXPORT void sw_qlist_void_delete(void*);
@@ -75,7 +63,6 @@ EXPORT const void* sw_qlist_void_at(void*, int);
 EXPORT void sw_qlist_void_append(void*, void*);
 EXPORT const void* sw_qlist_scalar_at(void*, int);
 
-  
 #ifdef __cplusplus
 }
 #endif

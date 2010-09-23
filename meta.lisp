@@ -508,7 +508,7 @@
   (make-instance 'class-info :key key :value value))
 
 (defun make-slot-or-signal (str)
-  (let ((str (#_data (#_QMetaObject::normalizedSignature str))))
+  (let ((str (#_QMetaObject::normalizedSignature str)))
     (cl-ppcre:register-groups-bind (a b c d)
         ("^(([\\w,<>:]*)\\s+)?([^\\s]*)\\((.*)\\)" str)
       (declare (ignore a))
@@ -604,7 +604,7 @@
 
 (defun emit-signal (object name &rest args)
   (let* ((meta (class-qmetaobject (class-of object)))
-         (signature (#_data (#_QMetaObject::normalizedSignature name)))
+         (signature (#_QMetaObject::normalizedSignature name))
          (index (#_indexOfSignal meta signature))
          (types (mapcar #'find-qtype
                         (#_parameterTypes (#_method meta index)))))

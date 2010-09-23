@@ -75,49 +75,68 @@
             (funcall thunk (get-value stack-item) type))))))
 
 (defun unmarshaller-2 (type)
-  (or (get (qtype-interned-name type) 'unmarshaller)
-      (case (qtype-stack-item-slot type)
-        (class (lambda (value type) (%qobject (qtype-class type) value)))
-        (enum  (lambda (value type) (enum value (qtype-interned-name type))))
-        (t     (lambda (value type) value)))))
+  (let ((name (qtype-name type)))
+    (or (get-static-unmarshaller name)
+        (case (qtype-stack-item-slot type)
+          (class (lambda (value type) (%qobject (qtype-class type) value)))
+          (enum  (lambda (value type) (enum value (qtype-interned-name type))))
+          (t    (or (get-dynamic-unmarshaller name)
+                    (lambda (value type)
+                      (declare (ignore type))
+                      value)))))))
+
+(defvar *static-unmarshallers* (make-hash-table :test #'equal))
+
+(defun get-static-unmarshaller (name)
+  (gethash name *static-unmarshallers*))
 
 (defmacro def-unmarshal ((var name type) &body body)
-  `(setf (get ',name 'unmarshaller)
-         (lambda (,var ,type)
-           (declare (ignorable ,type))
-           ,@body)))
+  `(setf (gethash ,name *static-unmarshallers*)
+         (fdefinition
+          (defun ,(intern (format nil "~a-~a" name 'unmarshaller))
+              (,var ,type)
+            (declare (ignorable ,type))
+            ,@body))))
 
-(def-unmarshal (value :|const char*| type)
+(def-unmarshal (value "const char*" type)
   (cffi:foreign-string-to-lisp value))
 
-(def-unmarshal (value :|char*| type)
+(def-unmarshal (value "char*" type)
   (cffi:foreign-string-to-lisp value))
 
-(def-unmarshal (value :|void**| type)
+(def-unmarshal (value "void**" type)
   value)
 
-(def-unmarshal (value :|bool| type)
+(def-unmarshal (value "bool" type)
   (logbitp 0 value))
 
-(def-unmarshal (value :|QString| type)
+(def-unmarshal (value "QString" type)
   (qstring-pointer-to-lisp value))
 
-(def-unmarshal (value :|QThread*| type)
+(def-unmarshal (value "QThread*" type)
   (make-instance 'qthread :pointer value))
 
-(def-unmarshal (value :|QList<QVariant>| type)
-  (make-instance 'qlist<qvariant> :pointer value))
-
-(def-unmarshal (value :|QList<int>| type)
-  (make-instance 'qlist<int> :pointer value))
-
-(def-unmarshal (value :|QList<QListWidgetItem*>| type)
-  (make-instance 'qlist<QListWidgetItem> :pointer value))
-
-(def-unmarshal (value :|QList<QByteArray>| type)
-  (loop for i below (sw_qlist_void_size value)
-        collect (#_data (%qobject (find-qclass "QByteArray")
-                                  (sw_qlist_scalar_at value i)))))
-
-(def-unmarshal (value :|QVariant| type)
+(def-unmarshal (value "QVariant" type)
   (unvariant value type))
+
+(def-unmarshal (value "QByteArray" type)
+  (#_data (%qobject (find-qclass "QByteArray") value)))
+
+(defvar *dynamic-unmarshallers* nil)
+
+(defun get-dynamic-unmarshaller (name)
+  (loop for (foo (test unmarshaller-maker)) on *dynamic-unmarshallers* by #'cddr
+        when (funcall test name)
+        return
+        (let ((marshaller (funcall unmarshaller-maker name)))
+          (setf (gethash name *static-unmarshallers*)
+                marshaller))))
+
+(defun set-dynamic-unmarshal (name test maker)
+  (setf (getf *dynamic-unmarshallers* name)
+        (list test maker)))
+
+(set-dynamic-unmarshal
+ 'qlist
+ (lambda (name) (alexandria:starts-with-subseq "QList<" name))
+ 'unmarshal-qlist)

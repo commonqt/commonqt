@@ -3,7 +3,7 @@
 // See LICENSE for details.
 //
 #include <smoke.h>
-#include <qtcore_smoke.h>
+#include <smoke/qtcore_smoke.h>
 #include <Qt/qstring.h>
 #include <Qt/qstringlist.h>
 #include <Qt/qpointer.h>
@@ -255,80 +255,8 @@ sw_id_class(Smoke *smoke, char *name, bool external)
 	return smoke->idClass(name, external).index;
 }
 
-// fixme: cl-smoke has nice macros wrapping qlist access.
-// Should reuse those instead of hand-coding here.
-void*
-sw_qlist_variant_new()
-{
-	return new QList<QVariant>;
-}
+// QList marshalling
 
-int
-sw_qlist_variant_size(void *ptr)
-{
-	QList<QVariant>* qlist = static_cast<QList<QVariant>*>(ptr);
-	return qlist->size();
-}
-
-void
-sw_qlist_variant_delete(void *ptr)
-{
-	QList<QVariant>* qlist = static_cast<QList<QVariant>*>(ptr);
-	delete qlist;
-}
-
-const void*
-sw_qlist_variant_at(void *ptr, int index)
-{
-	QList<QVariant>* qlist = static_cast<QList<QVariant>*>(ptr);
-	return new QVariant(qlist->at(index));
-}
-
-void
-sw_qlist_variant_append(void *ptr, void *whatptr)
-{
-	QList<QVariant>* qlist = static_cast<QList<QVariant>*>(ptr);
-	QVariant* what = static_cast<QVariant*>(whatptr);
-	
-	qlist->append(*what);
-}
-
-// int
-void*
-sw_qlist_int_new()
-{
-	return new QList<int>;
-}
-
-int
-sw_qlist_int_size(void *ptr)
-{
-	QList<int>* qlist = static_cast<QList<int>*>(ptr);
-	return qlist->size();
-}
-
-void
-sw_qlist_int_delete(void *ptr)
-{
-	QList<int>* qlist = static_cast<QList<int>*>(ptr);
-	delete qlist;
-}
-
-int
-sw_qlist_int_at(void *ptr, int index)
-{
-	QList<int>* qlist = static_cast<QList<int>*>(ptr);
-	return qlist->at(index);
-}
-
-void
-sw_qlist_int_append(void *ptr, int what)
-{
-	QList<int>* qlist = static_cast<QList<int>*>(ptr);
-	qlist->append(what);
-}
-
-// void
 void*
 sw_qlist_void_new()
 {
