@@ -211,6 +211,18 @@
       (find-qclass (qclass-name <class>))
       <class>))
 
+(defun instance-qclass (ptr &optional (errorp t))
+  (or (cffi:with-foreign-object (&smoke :pointer)
+        (cffi:with-foreign-object (&index :short)
+          (sw_id_instance_class ptr &smoke &index)
+          (let ((smoke (cffi:mem-ref &smoke :pointer)))
+            (unless (cffi:null-pointer-p smoke)
+              (bash (cffi:mem-ref &index :short)
+                    (module-number smoke)
+                    +class+)))))
+      (when errorp
+        (error "class not found for ~S" ptr))))
+
 (defun find-qclass (name &optional (errorp t))
   (etypecase name
     (integer

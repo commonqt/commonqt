@@ -230,6 +230,14 @@ sw_find_class(char *name, Smoke **smoke, short *index)
 }
 
 short
+sw_id_instance_class(void *ptr, Smoke **smoke, short *index)
+{
+	Smoke::ModuleIndex mi = qtcore_Smoke->findClass(((QObject*)ptr)->metaObject()->className());
+	*smoke = mi.smoke;
+	*index = mi.index;
+}
+
+short
 sw_find_name(Smoke *smoke, char *name)
 {
 	Smoke::ModuleIndex mi = smoke->idMethodName(name);

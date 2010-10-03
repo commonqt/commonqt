@@ -136,6 +136,11 @@
   (name :string)
   (external :char))                     ;bool
 
+(defcfun "sw_id_instance_class" :short
+  (instance :pointer)
+  (smoke** :pointer)
+  (index** :pointer))
+
 (defcfun "sw_qlist_void_new" :pointer)
 (defcfun "sw_qlist_void_delete" :void (qlist :pointer))
 (defcfun "sw_qlist_void_size" :int (qlist :pointer))

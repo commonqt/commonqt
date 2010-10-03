@@ -191,11 +191,14 @@
 (defun %qobject (class ptr)
   (let ((cached (pointer->cached-object ptr)))
     (if (and cached
-             (= (qobject-class cached) class))
+             (qsubclassp (qobject-class cached) class))
         cached
         (if (cffi:null-pointer-p ptr)
             (make-instance 'null-qobject :class class)
-            (make-instance 'qobject :class class :pointer ptr)))))
+            (let ((actual-class (or (when (qsubclassp class (find-qclass "QObject"))
+                                      (instance-qclass ptr))
+                                    class)))
+              (make-instance 'qobject :class actual-class :pointer ptr))))))
 
 (flet ((note-lisp-type-for-stack-slot (slot type)
          (setf (get slot 'lisp-type-for-stack-slot) type)))
