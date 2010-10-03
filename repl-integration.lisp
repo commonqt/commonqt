@@ -69,8 +69,10 @@
 
 ;; print settings sometimes becomes skewed in the new thread
 
-(defparameter *print-vars*
-  '(*print-array* *print-base* *print-radix*
+(defparameter *globals*
+  '(*debug-io* *query-io* *terminal-io* *standard-output*
+    *standard-input* *error-output* *trace-output*
+    *print-array* *print-base* *print-radix*
     *print-case* *print-circle* *print-escape*
     *print-gensym* *print-level* *print-length*
     *print-lines* *print-miser-width* *print-pretty*
@@ -78,13 +80,15 @@
 
 (defun start-gui-thread (&optional (install-repl-hook t))
   (unless (boundp '*gui-thread*)
+    (ensure-smoke :qtcore)
+    (ensure-smoke :qtgui)
     (setf *notifier* (make-instance 'repl-notifier)
           *gui-thread*
-          (let ((print-settings (mapcar #'symbol-value *print-vars*)))
+          (let ((global-values (mapcar #'symbol-value *globals*)))
             (bt:make-thread
              #'(lambda ()
-                 (loop for var in *print-vars*
-                       for value in print-settings
+                 (loop for var in *globals*
+                       for value in global-values
                        do (setf (symbol-value var) value))
                  (setf *qapp* (make-qapplication)
                        *executer* (make-instance 'repl-executer
