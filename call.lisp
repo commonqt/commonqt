@@ -196,7 +196,7 @@
         (if (cffi:null-pointer-p ptr)
             (make-instance 'null-qobject :class class)
             (let ((actual-class (or (when (qsubclassp class (find-qclass "QObject"))
-                                      (instance-qclass ptr))
+                                      (instance-qclass ptr nil))
                                     class)))
               (make-instance 'qobject :class actual-class :pointer ptr))))))
 
