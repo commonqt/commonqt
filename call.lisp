@@ -419,6 +419,16 @@
                method-index
                binding)))))
 
+(defun set-object-binding (classfn object binding)
+  (cffi:with-foreign-object (stack '|union StackItem| 2)
+    (setf (cffi:foreign-slot-value
+           (cffi:mem-aref stack '|union StackItem| 1)
+           '|union StackItem|
+           'ptr)
+          binding)
+    ;; Method index 0 sets the binding
+    (call-class-fun classfn 0 object stack)))
+
 (defun %%new (instance
               args
               arglist-marshaller
@@ -430,14 +440,7 @@
           (lambda (stack)
             (let ((new-object
                    (cffi:foreign-slot-value stack '|union StackItem| 'ptr)))
-              (cffi:with-foreign-object (stack2 '|union StackItem| 2)
-                (setf (cffi:foreign-slot-value
-                       (cffi:mem-aref stack2 '|union StackItem| 1)
-                       '|union StackItem|
-                       'ptr)
-                      binding)
-                ;; Method index 0 sets the binding
-                (call-class-fun classfn 0 new-object stack2))
+              (set-object-binding classfn new-object binding)
               (setf (qobject-pointer instance) new-object))))
   (cache! instance))
 
