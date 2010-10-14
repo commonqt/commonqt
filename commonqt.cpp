@@ -24,10 +24,10 @@ typedef void (*t_deletion_callback)(void*, void*);
 typedef bool (*t_callmethod_callback)(void*, short, void*, void*, bool);
 typedef void (*t_child_callback)(void*, bool, void*);
 
-class ThinBinding : public SmokeBinding
+class Binding : public SmokeBinding
 {
 public:
-        ThinBinding(Smoke* s) : SmokeBinding(s) {}
+        Binding(Smoke* s) : SmokeBinding(s) {}
 
         t_deletion_callback deletion_callback;
         t_callmethod_callback callmethod_callback;
@@ -37,12 +37,23 @@ public:
                 deletion_callback(smoke, obj);
         }
 
+        char* className(Smoke::Index classId) {
+                return (char*) smoke->classes[classId].className;
+        }
+};
+
+class ThinBinding : public Binding
+{
+public:
+        ThinBinding(Smoke* s) : Binding(s) {}
+
         bool callMethod(Smoke::Index method, void* obj,
                 Smoke::Stack args, bool isAbstract)
         {
 		Smoke::Method* m = &smoke->methods[method];
 		const char* name = smoke->methodNames[m->name];
 		Smoke::Class* c = &smoke->classes[m->classId];
+
 		if (*name == '~')
 			callmethod_callback(smoke, method, obj, args, isAbstract);
 		else if (!strcmp(name, "notify")
@@ -59,33 +70,17 @@ public:
 		}
 		return false;
 	}
-
-        char* className(Smoke::Index classId) {
-                return (char*) smoke->classes[classId].className;
-        }
 };
 
-class FatBinding : public SmokeBinding
+class FatBinding : public Binding
 {
 public:
-	FatBinding(Smoke* s) : SmokeBinding(s) {}
-
-        t_deletion_callback deletion_callback;
-        t_callmethod_callback callmethod_callback;
-	t_child_callback child_callback;
-
-        void deleted(Smoke::Index, void* obj) {
-                deletion_callback(smoke, obj);
-        }
+        FatBinding(Smoke* s) : Binding(s) {}
 
         bool callMethod(Smoke::Index method, void* obj,
                 Smoke::Stack args, bool isAbstract)
         {
                 return callmethod_callback(smoke, method, obj, args, isAbstract);
-        }
-
-        char* className(Smoke::Index classId) {
-                return (char*) smoke->classes[classId].className;
         }
 };
 
