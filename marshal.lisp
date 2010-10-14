@@ -153,11 +153,9 @@
    (if around
        `(setf (get ',name 'marshaller/primary) nil
               (get ',name 'marshaller/around)
-              (cons ',type (fdefinition
-                            (defun ,function-name (,var ,around) ,@body))))
+              (cons ',type (named-lambda ,function-name (,var ,around) ,@body)))
        `(setf (get ',name 'marshaller/primary)
-              (cons ',type (fdefinition
-                            (defun ,function-name (,var) ,@body)))
+              (cons ',type (named-lambda ,function-name (,var) ,@body))
               (get ',name 'marshaller/around) nil))))
 
 (defmarshal (value :|const QString&| :around cont :type string)

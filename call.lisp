@@ -411,7 +411,7 @@
           (binding (binding-for-ctor method instance))
           (arglist-marshaller
            (arglist-marshaller args (list-qmethod-argument-types method))))
-      (lambda (instance args)
+      (named-lambda new-continuation (instance args)
         (%%new instance
                args
                arglist-marshaller
@@ -534,7 +534,7 @@
 (defun arglist-marshaller (for-values argtypes)
   (let ((thunk (argstep-marshaller for-values argtypes 1))
         (n (1+ (length argtypes))))
-    (lambda (arglist final-cont)
+    (named-lambda arglist-marshaller (arglist final-cont)
       (cffi:with-foreign-object (stack '|union StackItem| n)
         (funcall thunk stack arglist final-cont)))))
 
@@ -549,7 +549,7 @@
       (error "No applicable method ~A found on ~A with arguments ~A"
              name instance args))
     (let* ((precompiled-override
-            (when (and allow-override-p (typep instance 'dynamic-object))
+            (when allow-override-p
               (find-method-override instance method)))
            (arglist-marshaller
             (arglist-marshaller args (list-qmethod-argument-types method)))

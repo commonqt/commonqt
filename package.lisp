@@ -80,7 +80,8 @@
            #:cancel-finalization
            #:*report-memory-leaks*
            #:new
-           #:enum-or))
+           #:enum-or)
+  (:import-from alexandria named-lambda))
 
 (defpackage :qt-user
   (:use :cl :qt)
