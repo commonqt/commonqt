@@ -406,8 +406,8 @@
       (error "No applicable constructor ~A found for arguments ~A"
              (qclass-name class) args))
     (assert (eq class (qtype-class (qmethod-return-type method))))
-    (let ((trampfun (qclass-trampoline-fun (qmethod-class method)))
-          (arg-for-trampfun (qmethod-arg-for-classfn method))
+    (let ((classfn (qclass-trampoline-fun (qmethod-class method)))
+          (method-index (qmethod-classfn-index method))
           (binding (binding-for-ctor method instance))
           (arglist-marshaller
            (arglist-marshaller args (list-qmethod-argument-types method))))
@@ -415,18 +415,18 @@
         (%%new instance
                args
                arglist-marshaller
-               trampfun
-               arg-for-trampfun
+               classfn
+               method-index
                binding)))))
 
 (defun %%new (instance
               args
               arglist-marshaller
-              trampfun
-              arg-for-trampfun
+              classfn
+              method-index
               binding)
   (%%call (cffi:null-pointer)
-          args arglist-marshaller trampfun arg-for-trampfun
+          args arglist-marshaller classfn method-index
           (lambda (stack)
             (let ((new-object
                    (cffi:foreign-slot-value stack '|union StackItem| 'ptr)))
@@ -436,7 +436,8 @@
                        '|union StackItem|
                        'ptr)
                       binding)
-                (call-class-fun trampfun 0 new-object stack2))
+                ;; Method index 0 sets the binding
+                (call-class-fun classfn 0 new-object stack2))
               (setf (qobject-pointer instance) new-object))))
   (cache! instance))
 
@@ -480,11 +481,11 @@
     (t `(full-resolve-ctor-this ,instance))))
 
 (declaim (inline call-class-fun))
-(defun call-class-fun (function method object stack)
+(defun call-class-fun (function method-index object stack)
   (cffi:foreign-funcall-pointer
    function
    ()
-   :short method
+   :short method-index
    :pointer object
    :pointer stack
    :void))
@@ -493,13 +494,13 @@
 (defun %%call (casted-instance-pointer
                args
                arglist-marshaller
-               trampfun
-               arg-for-trampfun
+               classfn
+               method-index
                return-value-function)
   (funcall arglist-marshaller
            args
            (lambda (stack)
-             (call-class-fun trampfun arg-for-trampfun casted-instance-pointer
+             (call-class-fun classfn method-index casted-instance-pointer
                              stack)
              (funcall return-value-function stack))))
 
@@ -549,10 +550,10 @@
               (find-method-override instance method)))
            (arglist-marshaller
             (arglist-marshaller args (list-qmethod-argument-types method)))
-           (trampfun
+           (classfn
             (qclass-trampoline-fun (qmethod-class method)))
-           (arg-for-trampfun
-            (qmethod-arg-for-classfn method))
+           (method-index
+            (qmethod-classfn-index method))
            (rtype
             (qmethod-return-type method))
            (return-value-function
@@ -567,8 +568,8 @@
            (%%call (CFFI:NULL-POINTER)
                    args
                    arglist-marshaller
-                   trampfun
-                   arg-for-trampfun
+                   classfn
+                   method-index
                    return-value-function)))
         (t
          (let ((<from> (qobject-class instance)))
@@ -588,8 +589,8 @@
                       (%%call (PERFORM-CAST ACTUAL-INSTANCE CASTFN <FROM> <TO>)
                               args
                               arglist-marshaller
-                              trampfun
-                              arg-for-trampfun
+                              classfn
+                              method-index
                               return-value-function))))
                (t
                 (if precompiled-override
@@ -602,8 +603,8 @@
                       (%%call (PERFORM-CAST ACTUAL-INSTANCE CASTFN <FROM> <TO>)
                               args
                               arglist-marshaller
-                              trampfun
-                              arg-for-trampfun
+                              classfn
+                              method-index
                               return-value-function))))))))))))
 
 (defun %interpret-call (allow-override-p instance method args)

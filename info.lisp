@@ -484,7 +484,7 @@
 (deflistify list-qmethod-argument-types map-qmethod-argument-types
   <method>)
 
-(defun qmethod-arg-for-classfn (<method>)
+(defun qmethod-classfn-index (<method>)
   (cffi:foreign-slot-value (qmethod-struct <method>)
                            '|struct Method|
                            'methodForClassFun))
