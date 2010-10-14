@@ -425,34 +425,26 @@
               trampfun
               arg-for-trampfun
               binding)
-  (funcall arglist-marshaller
-           args
-           (lambda (stack)
-             (cffi:foreign-funcall-pointer
-              trampfun
-              ()
-              :short arg-for-trampfun
-              :pointer (cffi:null-pointer)
-              :pointer stack
-              :void)
-             (let ((new-object
-                    (cffi:foreign-slot-value stack '|union StackItem| 'ptr)))
-               (cffi:with-foreign-object (stack2 '|union StackItem| 2)
-                 (setf (cffi:foreign-slot-value
-                        (cffi:mem-aref stack2 '|union StackItem| 1)
-                        '|union StackItem|
-                        'ptr)
-                       binding)
-                 (cffi:foreign-funcall-pointer
-                  trampfun
-                  ()
-                  :short 0
-                  :pointer new-object
-                  :pointer stack2
-                  :void))
-               (setf (qobject-pointer instance) new-object))
-             (cache! instance)
-             instance)))
+  (%%call (cffi:null-pointer)
+          args arglist-marshaller trampfun arg-for-trampfun
+          (lambda (stack)
+            (let ((new-object
+                   (cffi:foreign-slot-value stack '|union StackItem| 'ptr)))
+              (cffi:with-foreign-object (stack2 '|union StackItem| 2)
+                (setf (cffi:foreign-slot-value
+                       (cffi:mem-aref stack2 '|union StackItem| 1)
+                       '|union StackItem|
+                       'ptr)
+                      binding)
+                (cffi:foreign-funcall-pointer
+                 trampfun
+                 ()
+                 :short 0
+                 :pointer new-object
+                 :pointer stack2
+                 :void))
+              (setf (qobject-pointer instance) new-object))))
+  (cache! instance))
 
 (defun interpret-call (instance method &rest args)
   (%interpret-call t instance method args))
