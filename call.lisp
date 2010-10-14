@@ -436,13 +436,7 @@
                        '|union StackItem|
                        'ptr)
                       binding)
-                (cffi:foreign-funcall-pointer
-                 trampfun
-                 ()
-                 :short 0
-                 :pointer new-object
-                 :pointer stack2
-                 :void))
+                (call-class-fun trampfun 0 new-object stack2))
               (setf (qobject-pointer instance) new-object))))
   (cache! instance))
 
@@ -485,6 +479,16 @@
                             :pointer :unborn))
     (t `(full-resolve-ctor-this ,instance))))
 
+(declaim (inline call-class-fun))
+(defun call-class-fun (function method object stack)
+  (cffi:foreign-funcall-pointer
+   function
+   ()
+   :short method
+   :pointer object
+   :pointer stack
+   :void))
+
 (declaim (inline %%call))
 (defun %%call (casted-instance-pointer
                args
@@ -495,13 +499,8 @@
   (funcall arglist-marshaller
            args
            (lambda (stack)
-             (cffi:foreign-funcall-pointer
-              trampfun
-              ()
-              :short arg-for-trampfun
-              :pointer casted-instance-pointer
-              :pointer stack
-              :void)
+             (call-class-fun trampfun arg-for-trampfun casted-instance-pointer
+                             stack)
              (funcall return-value-function stack))))
 
 (declaim (inline %%call/override))
