@@ -388,10 +388,10 @@
                   (values (qobject-class instance) :instance)))
              (cached-values-bind (fun)
                  (resolve-new instance args types)
-               (provided instance-qclass :hash t)
-               (provided instance-extra-sig)
-               ,@(iter (for sig in sigsyms)
-                       (collect `(provided ,sig :hash sxhash)))
+                 ((instance-qclass :hash t)
+                  (instance-extra-sig)
+                  ,@(loop for sig in sigsyms
+                          collect `(,sig :hash sxhash)))
                (funcall fun instance args))))))))
 
 (defun resolve-new (instance args &optional fix-types)
@@ -568,7 +568,7 @@
          (assert (not precompiled-override))
          (lambda (<class> args)
            (declare (ignore <class>))
-           (%%call (CFFI:NULL-POINTER)
+           (%%call (cffi:null-pointer)
                    args
                    arglist-marshaller
                    classfn
@@ -582,14 +582,14 @@
                ((alexandria:starts-with #\~ (qmethod-name method))
                 (if precompiled-override
                     (lambda (actual-instance args)
-                      (NOTE-DELETED ACTUAL-INSTANCE)
+                      (note-deleted actual-instance)
                       (%%call/override precompiled-override
-                                       ACTUAL-INSTANCE
+                                       actual-instance
                                        method
                                        args))
                     (lambda (actual-instance args)
-                      (NOTE-DELETED ACTUAL-INSTANCE)
-                      (%%call (PERFORM-CAST ACTUAL-INSTANCE CASTFN <FROM> <TO>)
+                      (note-deleted actual-instance)
+                      (%%call (perform-cast actual-instance castfn <from> <to>)
                               args
                               arglist-marshaller
                               classfn
@@ -599,11 +599,11 @@
                 (if precompiled-override
                     (lambda (actual-instance args)
                       (%%call/override precompiled-override
-                                       ACTUAL-INSTANCE
+                                       actual-instance
                                        method
                                        args))
                     (lambda (actual-instance args)
-                      (%%call (PERFORM-CAST ACTUAL-INSTANCE CASTFN <FROM> <TO>)
+                      (%%call (perform-cast actual-instance castfn <from> <to>)
                               args
                               arglist-marshaller
                               classfn
@@ -676,11 +676,11 @@
                   (values (qobject-class instance) :instance)))
              (cached-values-bind (fun)
                  (resolve-call allow-override-p instance method args types)
-               (provided instance-qclass :hash t)
-               (provided instance-extra-sig)
-               (provided method)
-               ,@(iter (for sig in sigsyms)
-                       (collect `(provided ,sig :hash sxhash)))
+                 ((instance-qclass :hash t)
+                  (instance-extra-sig)
+                  (method)
+                  ,@(loop for sig in sigsyms
+                          collect `(,sig :hash sxhash)))
                (funcall fun instance args))))))))
 
 (defun note-deleted (object)

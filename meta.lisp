@@ -59,9 +59,8 @@
 
 (defmacro optimized-delete (object)
   `(let ((object ,object))
-     (cached-values-bind (dtor)
-         (resolve-delete object)
-       (provided (qobject-class object) :hash t)
+     (cached-values-bind (dtor) (resolve-delete object)
+         (((qobject-class object) :hash t))
        (cond
          ((typep object 'null-qobject)
           (error "cannot delete null object: ~A" object))
