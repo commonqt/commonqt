@@ -122,6 +122,64 @@
     :args args
     :resolver `(resolve-new instance args types)))
 
+(defun resolve-call (allow-override-p instance method args &optional fix-types)
+  ;; (format *trace-output* "cache miss for ~A::~A~%" instance method)
+  (let ((name method)
+        (method (etypecase method
+		  (integer method)
+		  (string (find-applicable-method
+                           instance method args fix-types)))))
+    (unless method
+      (error "No applicable method ~A found on ~A with arguments ~A"
+             name instance args))
+    (let* ((precompiled-override
+            (when allow-override-p
+              (find-method-override instance method)))
+           (arglist-marshaller
+            (arglist-marshaller args (list-qmethod-argument-types method)))
+           (classfn
+            (qclass-trampoline-fun (qmethod-class method)))
+           (method-index
+            (qmethod-classfn-index method))
+           (rtype
+            (qmethod-return-type method))
+           (return-value-function
+            (unmarshaller rtype)))
+      (cond
+        ((integerp instance)
+         (unless (qmethod-static-p method)
+           (error "not a static method"))
+         (assert (not precompiled-override))
+         (lambda (<class> args)
+           (declare (ignore <class>))
+           (%%call (cffi:null-pointer)
+                   args
+                   arglist-marshaller
+                   classfn
+                   method-index
+                   return-value-function)))
+        (t
+         (let ((<from> (qobject-class instance)))
+           (multiple-value-bind (castfn <to>)
+               (resolve-cast <from> (qmethod-class method))
+             (let ((cont
+                    (if precompiled-override
+                        (lambda (actual-instance args)
+                          (override precompiled-override
+                                    actual-instance method args))
+                        (lambda (actual-instance args)
+                          (%%call (perform-cast actual-instance castfn <from> <to>)
+                                  args
+                                  arglist-marshaller
+                                  classfn
+                                  method-index
+                                  return-value-function)))))
+               (if (alexandria:starts-with #\~ (qmethod-name method))
+                   (lambda (actual-instance args)
+                     (note-deleted actual-instance)
+                     (funcall cont actual-instance args))
+                   cont)))))))))
+
 (defun resolve-new (instance args &optional fix-types)
   ;; (format *trace-output* "cache miss for #_new ~A~%" instance)
   (let* ((class (qobject-class instance))
@@ -235,10 +293,6 @@
                              stack)
              (funcall return-value-function stack))))
 
-(declaim (inline %%call/override))
-(defun %%call/override (precompiled-override instance method args)
-  (override precompiled-override instance method args))
-
 (defun argstep-marshaller (for-values argtypes i)
   (if argtypes
       (let ((marshal-thunk (marshaller (car for-values)
@@ -265,80 +319,6 @@
     (named-lambda arglist-marshaller (arglist final-cont)
       (cffi:with-foreign-object (stack '|union StackItem| n)
         (funcall thunk stack arglist final-cont)))))
-
-(defun resolve-call (allow-override-p instance method args &optional fix-types)
-  ;; (format *trace-output* "cache miss for ~A::~A~%" instance method)
-  (let ((name method)
-        (method (etypecase method
-		  (integer method)
-		  (string (find-applicable-method
-                           instance method args fix-types)))))
-    (unless method
-      (error "No applicable method ~A found on ~A with arguments ~A"
-             name instance args))
-    (let* ((precompiled-override
-            (when allow-override-p
-              (find-method-override instance method)))
-           (arglist-marshaller
-            (arglist-marshaller args (list-qmethod-argument-types method)))
-           (classfn
-            (qclass-trampoline-fun (qmethod-class method)))
-           (method-index
-            (qmethod-classfn-index method))
-           (rtype
-            (qmethod-return-type method))
-           (return-value-function
-            (unmarshaller rtype)))
-      (cond
-        ((integerp instance)
-         (unless (qmethod-static-p method)
-           (error "not a static method"))
-         (assert (not precompiled-override))
-         (lambda (<class> args)
-           (declare (ignore <class>))
-           (%%call (cffi:null-pointer)
-                   args
-                   arglist-marshaller
-                   classfn
-                   method-index
-                   return-value-function)))
-        (t
-         (let ((<from> (qobject-class instance)))
-           (multiple-value-bind (castfn <to>)
-               (resolve-cast <from> (qmethod-class method))
-             (cond
-               ((alexandria:starts-with #\~ (qmethod-name method))
-                (if precompiled-override
-                    (lambda (actual-instance args)
-                      (note-deleted actual-instance)
-                      (%%call/override precompiled-override
-                                       actual-instance
-                                       method
-                                       args))
-                    (lambda (actual-instance args)
-                      (note-deleted actual-instance)
-                      (%%call (perform-cast actual-instance castfn <from> <to>)
-                              args
-                              arglist-marshaller
-                              classfn
-                              method-index
-                              return-value-function))))
-               (t
-                (if precompiled-override
-                    (lambda (actual-instance args)
-                      (%%call/override precompiled-override
-                                       actual-instance
-                                       method
-                                       args))
-                    (lambda (actual-instance args)
-                      (%%call (perform-cast actual-instance castfn <from> <to>)
-                              args
-                              arglist-marshaller
-                              classfn
-                              method-index
-                              return-value-function))))))))))))
-
-
 
 (defun %interpret-call (allow-override-p instance method args)
   (let ((instance (full-resolve-this instance)))
