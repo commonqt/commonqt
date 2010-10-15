@@ -69,6 +69,7 @@
 		 (:file "qlist") 
                  (:file "marshal")
                  (:file "unmarshal")
+                 (:file "classess")
                  (:file "primitive-call")
                  (:file "info")
                  (:file "call")

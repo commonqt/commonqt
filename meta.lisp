@@ -98,9 +98,6 @@
        (warn "Bug in CommonQt?  ~A still has parent ~A; not deleting"
              object parent)))))
 
-(defclass dynamic-object (qobject)
-  ())
-
 (defvar *report-memory-leaks* nil)
 
 (defun cache! (object)

@@ -79,13 +79,11 @@
           (finally
            (return (values types clean-forms))))))
 
-(defmacro optimized-call (allow-override-p instance method &rest args)
-  (multiple-value-bind (fix-types args)
-      (parse-optimized-call-args args)
+(defun make-optimized (instance method &key instance-resolver args resolver)
+  (multiple-value-bind (fix-types args) (parse-optimized-call-args args)
     (let ((argsyms (make-symbols 'arg (length args)))
           (sigsyms (make-symbols 'sig (length args))))
-      `(let ((allow-override-p ,allow-override-p)
-             (instance ,(compile-time-resolve-this instance))
+      `(let ((instance ,(funcall instance-resolver instance))
              (method ,method)
              (types ',fix-types)
              ,@(iter (for arg in args)
@@ -104,8 +102,7 @@
                           (class-generation (class-of instance))))
                  (t
                   (values (qobject-class instance) :instance)))
-             (cached-values-bind (fun)
-                 (resolve-call allow-override-p instance method args types)
+             (cached-values-bind (fun) ,resolver
                  ((instance-qclass :hash t)
                   (instance-extra-sig)
                   (method)
@@ -113,36 +110,17 @@
                           collect `(,sig :hash sxhash)))
                (funcall fun instance args))))))))
 
+(defmacro optimized-call (allow-override-p instance method &rest args)
+  (make-optimized instance method
+    :instance-resolver #'compile-time-resolve-this
+    :args args
+    :resolver `(resolve-call ,allow-override-p instance method args types)))
+
 (defmacro optimized-new (class-or-instance &rest args)
-  (multiple-value-bind (fix-types args)
-      (parse-optimized-call-args args)
-    (let ((argsyms (make-symbols 'arg (length args)))
-          (sigsyms (make-symbols 'sig (length args))))
-      `(let ((instance ,(compile-time-resolve-ctor-this class-or-instance))
-             (types ',fix-types)
-             ,@(iter (for arg in args)
-                     (for sym in argsyms)
-                     (collect `(,sym ,arg))))
-         (let ((args (list ,@argsyms))
-               ,@(iter (for sig in sigsyms)
-                       (for arg in argsyms)
-                       (collect `(,sig (signature-type ,arg)))))
-           (multiple-value-bind (instance-qclass instance-extra-sig)
-               (typecase instance
-                 (integer
-                  (values instance :static))
-                 (dynamic-object
-                  (values (qobject-class instance)
-                          (class-generation (class-of instance))))
-                 (t
-                  (values (qobject-class instance) :instance)))
-             (cached-values-bind (fun)
-                 (resolve-new instance args types)
-                 ((instance-qclass :hash t)
-                  (instance-extra-sig)
-                  ,@(loop for sig in sigsyms
-                          collect `(,sig :hash sxhash)))
-               (funcall fun instance args))))))))
+  (make-optimized class-or-instance nil
+    :instance-resolver #'compile-time-resolve-ctor-this
+    :args args
+    :resolver `(resolve-new instance args types)))
 
 (defun resolve-new (instance args &optional fix-types)
   ;; (format *trace-output* "cache miss for #_new ~A~%" instance)
