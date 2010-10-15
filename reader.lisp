@@ -27,7 +27,6 @@
 ;;; SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 (in-package :qt)
-#+sbcl (declaim (optimize (debug 2)))
 
 (defvar *case-preserving-readtable*
   (let ((table (copy-readtable nil)))

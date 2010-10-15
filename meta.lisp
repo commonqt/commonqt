@@ -27,7 +27,6 @@
 ;;; SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 (in-package :qt)
-#+sbcl (declaim (optimize (debug 2)))
 (named-readtables:in-readtable :qt)
 
 (defun interpret-delete (object)
@@ -101,6 +100,8 @@
 
 (defclass dynamic-object (qobject)
   ())
+
+(defvar *report-memory-leaks* nil)
 
 (defun cache! (object)
   (let ((ptr (qobject-pointer object)))

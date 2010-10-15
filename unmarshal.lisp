@@ -27,7 +27,6 @@
 ;;; SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 (in-package :qt)
-#+sbcl (declaim (optimize (debug 2)))
 (named-readtables:in-readtable :qt)
 
 ;;; (defun stack-item-accessor (slot)
@@ -120,12 +119,12 @@
   (unvariant value type))
 
 (def-unmarshal (value "QByteArray" type)
-  (#_data (%qobject (find-qclass "QByteArray") value)))
+  (interpret-call (%qobject (find-qclass "QByteArray") value) "data"))
 
 (defvar *dynamic-unmarshallers* nil)
 
 (defun get-dynamic-unmarshaller (name)
-  (loop for (foo (test unmarshaller-maker)) on *dynamic-unmarshallers* by #'cddr
+  (loop for (nil (test unmarshaller-maker)) on *dynamic-unmarshallers* by #'cddr
         when (funcall test name)
         return
         (let ((marshaller (funcall unmarshaller-maker name)))

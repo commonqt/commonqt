@@ -1,7 +1,11 @@
 (in-package :qt)
-#+sbcl (declaim (optimize (debug 2)))
 (named-readtables:in-readtable :qt)
 
+(defmarshal (value :|QVariant|)
+  (qvariant value))
+
+(defmarshal (value :|const QVariant&|)
+  (qvariant value))
 
 (defun qvariant (value)
   (etypecase value

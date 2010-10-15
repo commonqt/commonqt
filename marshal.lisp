@@ -27,7 +27,6 @@
 ;;; SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 (in-package :qt)
-#+sbcl (declaim (optimize (debug 2)))
 (named-readtables:in-readtable :qt)
 
 (defun resolve-cast (<from> <to>)
@@ -176,11 +175,6 @@
          (funcall cont char*)
       (cffi:foreign-free char*))))
 
-(defmarshal (argument :|const QList<int>&| :type qlist<int>)
-  (qlist-pointer argument))
+;; (defmarshal (argument :|const QList<int>&| :type qlist<int>)
+;;   (qlist-pointer argument))
 
-(defmarshal (value :|QVariant|)
-  (qvariant value))
-
-(defmarshal (value :|const QVariant&|)
-  (qvariant value))

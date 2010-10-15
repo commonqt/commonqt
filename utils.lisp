@@ -28,7 +28,6 @@
 ;;; SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 (in-package :qt)
-#+sbcl (declaim (optimize (debug 2)))
 
 ;; Cache the result of COMPILATION-BODY as long as KEYS still match.
 ;; This is thread-safe because the cache is replaced atomically.  We will
@@ -122,7 +121,8 @@
 			      &body body)
   "Bind variables in VARS to values of VALUE-FORM
 caching the result based on the values specified in CACHE-VALUES
-in the form ((value &key (test 'equal) hash)*). HASH may be:
+in the form ((value &key (test 'equal) hash)*).
+HASH may be:
 T, in which case the value of a variable must be an integer,
 function of one argument producing an integer, e.g. SXHASH.
 NIL, meaning the value will not be used in hashing."

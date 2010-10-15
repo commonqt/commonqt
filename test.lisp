@@ -27,8 +27,6 @@
 ;;; SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 (in-package :qt)
-#+sbcl (declaim (optimize (debug 2)))
-
 (named-readtables:in-readtable :qt)
 
 ;;; Create a QApplication from command line arguments.

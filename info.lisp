@@ -28,9 +28,6 @@
 
 (in-package :qt)
 
-#+(and sbcl qt::debug)       (declaim (optimize (debug 2)))
-#+(and sbcl (not qt::debug)) (declaim (optimize speed))
-
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defconstant +index-bits+  16)
   (defconstant +module-bits+  4)
@@ -117,15 +114,12 @@
             :test #'cffi:pointer-eq
             :end *n-modules*))
 
-(locally
-    ;; not commonly used, so turn of those compiler notes:
-    (declare (optimize safety (speed 1) (debug 2)))
-  (defun named-module-number (name)
-    (position name
-              *module-data-table*
-              :key (lambda (data)
-                     (and data (data-name data)))
-              :test #'string=)))
+(defun named-module-number (name)
+  (position name
+            *module-data-table*
+            :key (lambda (data)
+                   (and data (data-name data)))
+            :test #'string=))
 
 #-qt::debug (declaim (inline bash))
 (defun bash (idx module-number kind)
