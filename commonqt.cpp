@@ -37,16 +37,6 @@ public:
                 deletion_callback(smoke, obj);
         }
 
-        char* className(Smoke::Index classId) {
-                return (char*) smoke->classes[classId].className;
-        }
-};
-
-class ThinBinding : public Binding
-{
-public:
-        ThinBinding(Smoke* s) : Binding(s) {}
-
         bool callMethod(Smoke::Index method, void* obj,
                 Smoke::Stack args, bool isAbstract)
         {
@@ -70,12 +60,16 @@ public:
 		}
 		return false;
 	}
+
+        char* className(Smoke::Index classId) {
+                return (char*) smoke->classes[classId].className;
+        }
 };
 
-class FatBinding : public Binding
+class DynamicBinding : public Binding
 {
 public:
-        FatBinding(Smoke* s) : Binding(s) {}
+        DynamicBinding(Smoke* s) : Binding(s) {}
 
         bool callMethod(Smoke::Index method, void* obj,
                 Smoke::Stack args, bool isAbstract)
@@ -91,8 +85,8 @@ sw_smoke(Smoke* smoke,
 	 void* method_callback,
 	 void* child_callback)
 {
-        ThinBinding* thinBinding = new ThinBinding(smoke);
-        FatBinding* fatBinding = new FatBinding(smoke);
+        Binding* binding = new Binding(smoke);
+        DynamicBinding* dynamicBinding = new DynamicBinding(smoke);
 
 	data->name = smoke->moduleName();
 
@@ -116,21 +110,21 @@ sw_smoke(Smoke* smoke,
         data->ambiguousMethodList = smoke->ambiguousMethodList;
         data->castFn = (void *) smoke->castFn;
 
-	fatBinding->deletion_callback
+	dynamicBinding->deletion_callback
 		= (t_deletion_callback) deletion_callback;
 
-        fatBinding->callmethod_callback
+        dynamicBinding->callmethod_callback
                 = (t_callmethod_callback) method_callback;
 
-	fatBinding->child_callback
+	dynamicBinding->child_callback
 		= (t_child_callback) child_callback;
 
-	thinBinding->deletion_callback = fatBinding->deletion_callback;
-	thinBinding->callmethod_callback = fatBinding->callmethod_callback;
-	thinBinding->child_callback = fatBinding->child_callback;
+	binding->deletion_callback = dynamicBinding->deletion_callback;
+	binding->callmethod_callback = dynamicBinding->callmethod_callback;
+	binding->child_callback = dynamicBinding->child_callback;
 
-        data->thin = thinBinding;
-        data->fat = fatBinding;
+        data->thin = binding;
+        data->fat = dynamicBinding;
 }
 
 int
