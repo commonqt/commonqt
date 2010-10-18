@@ -104,10 +104,14 @@
                                (eql char #\:)
                                (<= 65 code 90)
                                (<= 97 code 122)
-                               (<= 48 code 57))
+                               (<= 48 code 57)
+                               (<= 60 code 62)) ; < = >
                            (collect (read-char stream))
                            (finish))))
                    'string)))
+      (if (ppcre:scan "^[<=>]+$" method-name)
+          (setf method-name
+                (concatenate 'string "operator" method-name)))
       (cond
         ((equal method-name "delete")
          'optimized-delete)
