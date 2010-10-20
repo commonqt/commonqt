@@ -89,6 +89,8 @@
 (defun null-qobject (class)
   (make-instance 'null-qobject :class (find-qclass class)))
 
+(defgeneric qobject-pointer (qobject))
+
 (defmethod qobject-pointer ((object null-qobject))
   (cffi:null-pointer))
 
