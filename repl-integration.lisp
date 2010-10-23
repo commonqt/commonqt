@@ -76,7 +76,8 @@
     *print-case* *print-circle* *print-escape*
     *print-gensym* *print-level* *print-length*
     *print-lines* *print-miser-width* *print-pretty*
-    *print-readably* *print-right-margin*))
+    *print-readably* *print-right-margin*
+    *package*))
 
 (defun start-gui-thread (&optional (install-repl-hook t))
   (unless (boundp '*gui-thread*)
