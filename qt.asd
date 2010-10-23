@@ -37,7 +37,9 @@
 
 (defmethod source-file-type ((c makefile) (s module)) nil)
 
-(defmethod output-files ((operation compile-op) (c makefile))
+;; we use :AROUND here as there's often another :AROUND method on ASDF:OUTPUT-FILES
+;; that places the output into some FASL directory
+(defmethod output-files :around ((operation compile-op) (c makefile))
   (list (make-pathname :name "Makefile"
 		       :type nil
 		       :defaults (component-pathname c))))
@@ -50,9 +52,10 @@
     (when (find-package :qt)
       (set (find-symbol "*LOADED*" :qt) nil))
     (unless (zerop (run-shell-command
-                    "qmake ~S"
+                    "qmake ~S -o ~S"
                     (namestring
-		     (merge-pathnames "commonqt.pro" (component-pathname c)))))
+		     (merge-pathnames "commonqt.pro" (component-pathname c)))
+                    (namestring (output-file o c))))
       (error 'operation-error :component c :operation o))))
 
 
