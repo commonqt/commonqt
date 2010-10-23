@@ -32,6 +32,17 @@
 (defvar *library-loaded-p* nil)
 
 (defun load-libcommonqt ()
+  ;; Workaround for Qt+SBCL SIGCHLD handler conflict.
+  ;; In its SIGCHLD handler Qt invokes the old handler with
+  ;; signal argument only, so in case when SA_SIGINFO is used
+  ;; it receives bad values as its siginfo and context
+  ;; arguments. In case of SBCL this causes memory fault
+  ;; e.g. when using SB-EXT:RUN-PROGRAM. Here we disable
+  ;; the handler that causes that fault (SB-EXT:RUN-PROGRAM
+  ;; still works after that). Thanks to nyef on #lisp.
+  ;; See also: src/corelib/io/qprocess_unix.cpp in Qt
+  #+sbcl
+  (sb-sys:enable-interrupt sb-unix:sigchld :default)
   (cffi:load-foreign-library
    #-(or windows mswindows win32)
    (namestring (merge-pathnames "libcommonqt.so"
