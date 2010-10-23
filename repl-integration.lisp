@@ -25,10 +25,16 @@
   (new repl-notifier))
 
 (defun notifier-do-eval (notifier)
-  (setf (form-result notifier)
-        (multiple-value-list
-            (eval (pending-form notifier)))
-        (new-package notifier) *package*))
+  (flet ((doit ()
+           (setf (form-result notifier)
+                 (multiple-value-list
+                     (eval (pending-form notifier)))
+                 (new-package notifier) *package*)))
+    #-swank
+    (doit)
+    #+swank
+    (let ((swank:*sldb-quit-restart* (find-restart 'abort)))
+      (doit))))
 
 (defclass repl-executer ()
   ((notifier :reader notifier :initarg :notifier))
