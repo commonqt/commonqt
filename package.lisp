@@ -80,7 +80,9 @@
            #:cancel-finalization
            #:*report-memory-leaks*
            #:new
-           #:enum-or)
+           #:enum-or
+           #:qsubclassp
+           #:qtypep)
   (:import-from alexandria named-lambda))
 
 (defpackage :qt-user
