@@ -2,9 +2,9 @@
 (named-readtables:in-readtable :qt)
 
 (defun qlist-element-type (type)
-  (let ((element-type (subseq type (1+ (position #\< type))
-                              (position #\> type)))
-        (star-p (find #\* type :from-end t :end 1)))
+  (let* ((element-type (subseq type (1+ (position #\< type))
+                               (position #\> type)))
+         (star-p (find #\* element-type :from-end t)))
     (values element-type
             star-p)))
 
