@@ -69,7 +69,6 @@
                  (:file "utils")
                  (:file "ffi")
                  (:file "reader")
-		 (:file "qlist") 
                  (:file "marshal")
                  (:file "unmarshal")
                  (:file "classess")
@@ -79,6 +78,6 @@
                  (:file "meta")
                  (:file "qvariant")
                  (:file "property")
-                 (:file "test"))
+                 (:file "qapp"))
     :depends-on (:cffi :named-readtables :cl-ppcre :alexandria :closer-mop
                        :iterate :trivial-garbage :bordeaux-threads))

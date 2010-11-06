@@ -493,7 +493,9 @@
   (zerop (unbash <type>)))
 
 (defun map-types (fun)
-  (map-types-in-module fun 0))
+  (iter (for <module> below *n-modules*)
+        (declare (type module-iterator <module>))
+        (map-types-in-module fun <module>)))
 
 (defun map-types-in-module (fun <module>)
   (let ((n (data-ntypes (data-ref <module>))))
@@ -903,7 +905,6 @@
 
 (defun unload ()
   (setf *loaded* nil))
-
 
 ;;; core image workarounds
 

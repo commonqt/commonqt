@@ -95,7 +95,9 @@
                                        (perform-cast val castfn <from> <to>)))))
                            (lambda (val si)
                              (setf (si class)
-                                   (qobject-pointer val)))))
+                                   (if (typep val 'cffi:foreign-pointer)
+                                       val
+                                       (qobject-pointer val))))))
                 (enum (etypecase obj
                         (integer
                          (lambda (val si) (setf (si enum) val)))
@@ -130,34 +132,38 @@
     (cond
       ((and primary-thunk (typep obj primary-type))
        (assert (null around-thunk))
-       (lambda (value stack-item cont)
+       (named-lambda marshal-primary-outer (value stack-item cont)
          (funcall set-thunk
                   (funcall primary-thunk value)
                   stack-item)
          (funcall cont)))
       ((and around-thunk (typep obj around-type))
-       (lambda (value stack-item cont)
+       (named-lambda marshal-around-outer (value stack-item cont)
          (funcall around-thunk
                   value
-                  (lambda (new-value)
+                  (named-lambda marshal-around-inner (new-value)
                     (funcall set-thunk new-value stack-item)
                     (funcall cont)))))
       (t
-       (lambda (value stack-item cont)
+       (named-lambda marshal-default (value stack-item cont)
          (funcall set-thunk value stack-item)
          (funcall cont))))))
 
 (defmacro defmarshal ((var name &key around (type t)) &body body)
-  (let ((function-name (intern (format nil "~a-~a" name 'marshaller))))
-   (if around
-       `(setf (get ',name 'marshaller/primary) nil
-              (get ',name 'marshaller/around)
-              (cons ',type (named-lambda ,function-name (,var ,around) ,@body)))
-       `(setf (get ',name 'marshaller/primary)
-              (cons ',type (named-lambda ,function-name (,var) ,@body))
-              (get ',name 'marshaller/around) nil))))
+  (if (consp name)
+      `(progn
+         ,@(iter (for n1 in name)
+                 (collect `(defmarshal (,var ,n1 :around ,around :type ,type) ,@body))))
+      (let ((function-name (intern (format nil "~a-~a" name 'marshaller))))
+        (if around
+            `(setf (get ',name 'marshaller/primary) nil
+                   (get ',name 'marshaller/around)
+                   (cons ',type (named-lambda ,function-name (,var ,around) ,@body)))
+            `(setf (get ',name 'marshaller/primary)
+                   (cons ',type (named-lambda ,function-name (,var) ,@body))
+                   (get ',name 'marshaller/around) nil)))))
 
-(defmarshal (value :|const QString&| :around cont :type string)
+(defmarshal (value (:|QString| :|const QString&|) :around cont :type string)
   (let ((qstring (sw_make_qstring value)))
     (unwind-protect
          (funcall cont qstring)
@@ -174,6 +180,65 @@
     (unwind-protect
          (funcall cont char*)
       (cffi:foreign-free char*))))
+
+(defmarshal (value (:|QByteArray| :|const QByteArray&|) :around cont :type string)
+  (let ((qbytearray (sw_make_qbytearray value)))
+    (unwind-protect
+         (funcall cont qbytearray)
+      (sw_delete_qbytearray qbytearray))))
+
+(defmarshal (value (:|QStringList| :|const QStringList&|) :around cont :type list)
+  (let ((qstringlist (sw_qstringlist_new)))
+    (unwind-protect
+         (progn
+           (dolist (str value)
+             (let ((char* (cffi:foreign-string-alloc str)))
+               (unwind-protect
+                    (sw_qstringlist_append qstringlist char*)
+                 (cffi:foreign-free char*))))
+           (funcall cont qstringlist))
+      (sw_qstringlist_delete qstringlist))))
+
+(defmarshal (value (:|QList<int>| :|const QList<int>&|) :around cont :type list)
+  (let ((qlist (sw_qlist_int_new)))
+    (unwind-protect
+         (progn
+           (dolist (v value)
+             (cffi:with-foreign-object (vptr :int)
+               (setf (cffi:mem-ref vptr :int) v)
+               (sw_qlist_int_append qlist vptr)))
+           (funcall cont qlist))
+      (sw_qlist_int_delete qlist))))
+
+(defmarshal (value (:|QList<QObject*>| :|const QList<QObject*>&|) :around cont :type list)
+  (let ((qlist (sw_qlist_void_new)))
+    (unwind-protect
+         (progn
+           (dolist (v value)
+             (sw_qlist_void_append qlist (qobject-pointer v)))
+           (funcall cont qlist))
+      (sw_qlist_void_delete qlist))))
+
+(defmarshal (value (:|QList<QByteArray>| :|const QList<QByteArray>&|) :around cont :type list)
+  (let ((qlist (sw_qlist_qbytearray_new)))
+    (unwind-protect
+         (progn
+           (dolist (v value)
+             (let ((vptr (sw_make_qbytearray v)))
+               (unwind-protect
+                    (sw_qlist_qbytearray_append qlist vptr)
+                 (sw_delete_qbytearray vptr))))
+           (funcall cont qlist))
+      (sw_qlist_qbytearray_delete qlist))))
+
+(defmarshal (value (:|QList<QVariant>| :|const QList<QVariant>&|) :around cont :type list)
+  (let ((qlist (sw_qlist_qvariant_new)))
+    (unwind-protect
+         (progn
+           (dolist (v value)
+             (sw_qlist_qvariant_append qlist (qobject-pointer (qvariant v))))
+           (funcall cont qlist))
+      (sw_qlist_qvariant_delete qlist))))
 
 ;; (defmarshal (argument :|const QList<int>&| :type qlist<int>)
 ;;   (qlist-pointer argument))
