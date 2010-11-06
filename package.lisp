@@ -85,6 +85,8 @@
            #:qtypep)
   (:import-from alexandria named-lambda))
 
+(defpackage :qt-internal)
+
 (defpackage :qt-user
   (:use :cl :qt)
   (:export #:*application*
