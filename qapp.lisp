@@ -39,12 +39,19 @@
 ;;; Second return value is an update array of arguments.
 ;;; For example, "-display" "foo" will have been removed afterwards.
 
+(defun ensure-qapplication (&rest args)
+  (apply #'do-make-qapplication nil args))
+
 (defun make-qapplication (&rest args)
+  (apply #'do-make-qapplication t args))
+
+(defun do-make-qapplication (warn-if-exists &rest args)
   (ensure-smoke :qtcore)
   (ensure-smoke :qtgui)
   (let ((instance (#_QCoreApplication::instance)))
     (cond ((not (null-qobject-p instance))
-           (warn "QCoreApplication is already instantiated.")
+           (when warn-if-exists
+             (warn "QCoreApplication is already instantiated."))
            instance)
           (t (%make-qapplication (cons "argv0dummy" args))))))
 

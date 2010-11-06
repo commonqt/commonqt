@@ -31,6 +31,7 @@
   (:export #:ensure-smoke
            #:qapropos
            #:qdescribe
+           #:ensure-qapplication
            #:make-qapplication
            #:interpret-call
            #:interpret-call-without-override
