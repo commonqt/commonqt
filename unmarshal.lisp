@@ -112,6 +112,9 @@
 (def-unmarshal (value "QString" type)
   (qstring-pointer-to-lisp value))
 
+(def-unmarshal (value "QString*" type)
+  (qstring-pointer-to-lisp value))
+
 (def-unmarshal (value "QThread*" type)
   (make-instance 'qthread :pointer value))
 

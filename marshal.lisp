@@ -163,6 +163,10 @@
          (funcall cont qstring)
       (sw_delete_qstring qstring))))
 
+;;; Don't delete the string because it may be used afterwards by Qt
+(defmarshal (value :|QString*| :around cont :type string)
+  (funcall cont (sw_make_qstring value)))
+
 (defmarshal (value :|const char*| :around cont :type string)
   (let ((char* (cffi:foreign-string-alloc value)))
     (unwind-protect
