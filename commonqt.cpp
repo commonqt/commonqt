@@ -4,12 +4,11 @@
 //
 #include <smoke.h>
 #include <smoke/qtcore_smoke.h>
-#include <Qt/qstring.h>
-#include <Qt/qstringlist.h>
-#include <Qt/qpointer.h>
-#include <Qt/qmetaobject.h>
-#include <QtCore/qobject.h>
-#include <QtGui/qapplication.h>
+#include <QStringList>
+#include <QPointer>
+#include <QMetaObject>
+#include <QObject>
+#include <QApplication>
 #include "commonqt.h"
 
 // #define DEBUG 1
