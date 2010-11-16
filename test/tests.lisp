@@ -10,24 +10,28 @@
 (let ((bad (cons nil nil)))
   (defun remarshal (value type &optional with-const-p)
     (cffi:with-foreign-object (stack-item 'qt::|union StackItem|)
-      (let ((result bad))
-        (qt::marshal value (qt::find-qtype type)
+      (let ((result bad)
+            (<type> (or (qt::find-qtype type)
+                        (error "no such type ~s" type))))
+        (assert (qt::can-marshal-p value <type>) ()
+                "cannot marshal ~s as ~s" value type)
+        (qt::marshal value <type>
                      stack-item #'(lambda ()
                                     (setf result
-                                          (qt::unmarshal
-                                           (qt::find-qtype type)
-                                           stack-item))))
+                                          (qt::unmarshal <type> stack-item))))
         (assert (not (eq bad result)) () "marshalling continuation not invoked")
         (when with-const-p
-          (qt::marshal value (qt::find-qtype (format nil "const ~A&" type))
-                       stack-item
-                       #'(lambda ()
-                           (let ((v (qt::unmarshal
-                                     (qt::find-qtype type)
-                                     stack-item)))
-                             (assert (equal result v)
-                                     () "remarshal: got ~s instead of ~s when marshalling using const ~A&"
-                                     v result type)))))
+          (let* ((const-type (format nil "const ~A&" type))
+                 (<const-type> (qt::find-qtype const-type)))
+            (assert (qt::can-marshal-p value <const-type>) ()
+                    "cannot marshal ~s as ~s" value const-type)
+            (qt::marshal value <const-type>
+                         stack-item
+                         #'(lambda ()
+                             (let ((v (qt::unmarshal <type> stack-item)))
+                               (assert (equal result v)
+                                       () "remarshal: got ~s instead of ~s when marshalling using const ~A&"
+                                       v result type))))))
         result))))
 
 (defmacro define-marshalling-test (name type with-const-p &rest values)
@@ -66,8 +70,7 @@
   () ("abc") ("" 123 "zzz" 456))
 
 (deftest test-qobjectlist-marshalling
-    (progn
-      (ensure-qapplication)
+    (with-qapp
       (let ((a (#_new QObject))
             (b (#_new QPushButton "Def"))
             (c (#_new QLabel "zzz")))
@@ -79,3 +82,34 @@
                   (#_text (third list)))))
           (extract (remarshal (list a b c) "QList<QObject*>" t)))))
   ("Abc" "Def" "zzz"))
+
+(deftest test-item-model-stuff-marshalling
+    (with-qapp
+      (let ((model (#_new QStandardItemModel)))
+        (#_appendRow model (list (#_new QStandardItem "01")
+                                 (#_new QStandardItem "bca")))
+        (#_appendRow model (list (#_new QStandardItem "02")
+                                 (#_new QStandardItem "abc")))
+        (#_appendRow model (list (#_new QStandardItem "03")
+                                 (#_new QStandardItem "bcq")))
+        (values
+          (iter (for item in (remarshal (list (#_new QStandardItem "zz")
+                                              (#_new QStandardItem "rr"))
+                                        "QList<QStandardItem*>"))
+                (collect (#_text item)))
+          (iter (for i from 0 to 2)
+                (collect (cons (#_data model (#_index model i 0))
+                               (#_data model (#_index model i 1)))))
+          (iter (for index in (#_match model (#_index model 0 1)
+                                       (#_Qt::DisplayRole) "bc" -1))
+                (collect (cons (#_row index) (#_column index))))
+          (iter (for index in (remarshal (#_match model (#_index model 0 1)
+                                                  (#_Qt::DisplayRole) "bc" -1)
+                                         "QList<QModelIndex>"))
+                (collect (cons (#_row index) (#_column index)))))))
+  ("zz" "rr") (("01" . "bca") ("02" . "abc") ("03" . "bcq"))
+  ((0 . 1) (2 . 1)) ((0 . 1) (2 . 1)))
+
+;; TBD: check can-marshal-p in remarshal
+;; TBD: instability qt::internal symbols produced by the reader macro
+;; TBD: deconstify types when looking for marshaller/unmarshaller, remove (macro-generated) duplicate marshaller definitions

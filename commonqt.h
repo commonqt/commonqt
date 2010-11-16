@@ -77,6 +77,7 @@ EXPORT void sw_qlist_void_append(void*, void*);
 DECLARE_QLIST_SCALAR_MARSHALLER(int)
 DECLARE_QLIST_SCALAR_MARSHALLER(qvariant)
 DECLARE_QLIST_SCALAR_MARSHALLER(qbytearray)
+DECLARE_QLIST_SCALAR_MARSHALLER(qmodelindex)
 
 #ifdef __cplusplus
 }

@@ -168,9 +168,13 @@
   (smoke** :pointer)
   (index** :pointer))
 
+(defun qlist-function-name (type-name name)
+  (alexandria:symbolicate "SW_QLIST_" (string-upcase type-name) "_" (string-upcase name)))
+
 (macrolet ((define-qlist-marshaller-funcs (type-name)
                (flet ((func-name (name)
-                        (concatenate 'string "sw_qlist_" (string-downcase type-name) "_" name)))
+                        (concatenate 'string "sw_qlist_" (string-downcase type-name)
+                                     "_" (string-downcase name))))
                  `(progn
                     (defcfun ,(func-name "new") :pointer)
                     (defcfun ,(func-name "delete") :void (qlist :pointer))
@@ -180,7 +184,8 @@
   (define-qlist-marshaller-funcs void)
   (define-qlist-marshaller-funcs int)
   (define-qlist-marshaller-funcs qvariant)
-  (define-qlist-marshaller-funcs qbytearray))
+  (define-qlist-marshaller-funcs qbytearray)
+  (define-qlist-marshaller-funcs qmodelindex))
 
 (cffi:defcstruct |struct SmokeData|
   (name :string)

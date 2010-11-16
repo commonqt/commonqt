@@ -111,31 +111,6 @@
 (def-unmarshal (value "QString" type)
   (qstring-pointer-to-lisp value))
 
-(def-unmarshal (value "QStringList" type)
-  (iter (for i from 0 below (sw_qstringlist_size value))
-        (collect (convert-qstring-data (sw_qstringlist_at value i)))))
-
-(def-unmarshal (value "QList<int>" type)
-  (iter (for i from 0 below (sw_qlist_int_size value))
-        (collect (cffi:mem-ref (sw_qlist_int_at value i) :int))))
-
-(def-unmarshal (value "QList<QObject*>" type)
-  (iter (for i from 0 below (sw_qlist_void_size value))
-        ;; TBD: unmarshaller-2
-        (collect (%qobject (find-qclass "QObject") (sw_qlist_void_at value i)))))
-
-(def-unmarshal (value "QList<QByteArray>" type)
-  (iter (for i from 0 below (sw_qlist_qbytearray_size value))
-        ;; TBD: unmarshaller-2
-        (collect (interpret-call
-                  (%qobject (find-qclass "QByteArray") (sw_qlist_qbytearray_at value i))
-                  "data"))))
-
-(def-unmarshal (value "QList<QVariant>" type)
-  (iter (for i from 0 below (sw_qlist_qvariant_size value))
-        ;; TBD: unmarshaller-2
-        (collect (unvariant (sw_qlist_qvariant_at value i)))))
-
 (def-unmarshal (value "QThread*" type)
   (make-instance 'qthread :pointer value))
 

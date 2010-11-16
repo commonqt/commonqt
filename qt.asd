@@ -75,9 +75,10 @@
                  (:file "primitive-call")
                  (:file "info")
                  (:file "call")
-                 (:file "meta")
                  (:file "qvariant")
+                 (:file "meta")
                  (:file "property")
+                 (:file "qlist")
                  (:file "qapp"))
     :depends-on (:cffi :named-readtables :cl-ppcre :alexandria :closer-mop
                        :iterate :trivial-garbage :bordeaux-threads))

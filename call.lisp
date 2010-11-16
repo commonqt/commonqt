@@ -224,20 +224,39 @@
   (note-lisp-type-for-qtype :|const char*| 'string)
   (note-lisp-type-for-qtype :|const QList<int>&| 'qlist<int>))
 
+(defun convertible-to-qvariant-p (value)
+  ;; FIXME: this belongs to qvariant.lisp but we need it here (and qvariant.lisp needs call stuff)
+  (typecase value
+    ((or string integer) t)
+    (qobject
+       (qt::qtypep value (with-cache () (qt::find-class "QVariant"))))
+    (t nil)))
+
 (defun can-marshal-p (lisp-object <type>)
   (let ((slot (qtype-stack-item-slot <type>)))
-    (if (eq slot 'class)
-        (and (typep  lisp-object 'abstract-qobject)
-             (qtypep lisp-object (qtype-class <type>)))
-        (typep lisp-object
-               `(and ,(or (get slot 'lisp-type-for-stack-slot)
-                          (progn
-                            (warn "slot ~A not implemented"
-                                  (qtype-stack-item-slot <type>))
-                            nil))
-                     #+nil
-                     ,(get (qtype-interned-name <type>)
-                           'lisp-type-for-qtype t))))))
+    (cond ((typep  lisp-object 'abstract-qobject)
+           (qtypep lisp-object (qtype-class <type>)))
+          ((let ((element-type (qlist-element-type <type>)))
+             (and element-type
+                  (alexandria:proper-list-p lisp-object)
+                  (iter (for item in lisp-object)
+                        (always (can-marshal-p item element-type))))))
+          ((and (not (eq slot 'class))
+                (typep lisp-object
+                       `(and ,(or (get slot 'lisp-type-for-stack-slot)
+                                  (progn
+                                    (warn "slot ~A not implemented"
+                                          (qtype-stack-item-slot <type>))
+                                    nil))
+                             #+nil
+                             ,(get (qtype-interned-name <type>)
+                                   'lisp-type-for-qtype t)))))
+          ((type= (qtype-deconstify <type>)
+                  (with-cache () (qt::find-qtype "QByteArray")))
+           (typep lisp-object 'string))
+          ((type= (qtype-deconstify <type>)
+                  (with-cache () (qt::find-qtype "QVariant")))
+           (convertible-to-qvariant-p lisp-object)))))
 
 (defun find-applicable-method (object name args fix-types)
   (qclass-find-applicable-method (if (integerp object)
