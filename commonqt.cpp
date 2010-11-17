@@ -5,6 +5,7 @@
 #include <smoke.h>
 #include <smoke/qtcore_smoke.h>
 #include <QtCore>
+#include <QtGui>
 #include "commonqt.h"
 
 // #define DEBUG 1
@@ -346,3 +347,4 @@ DEFINE_QLIST_SCALAR_MARSHALLER(int, int)
 DEFINE_QLIST_SCALAR_MARSHALLER(QVariant, qvariant)
 DEFINE_QLIST_SCALAR_MARSHALLER(QByteArray, qbytearray)
 DEFINE_QLIST_SCALAR_MARSHALLER(QModelIndex, qmodelindex)
+DEFINE_QLIST_SCALAR_MARSHALLER(QKeySequence, qkeysequence)

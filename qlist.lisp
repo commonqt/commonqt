@@ -85,6 +85,7 @@
            (,delete-func qlist))))))
 
 (define-copyable-object-list-marshaller "QModelIndex")
+(define-copyable-object-list-marshaller "QKeySequence")
 
 ;;; unmarshalling
 
@@ -125,6 +126,7 @@
                        (%qobject (find-qclass ,type-name) (,at-func value i))))))))
 
 (define-copyable-object-list-unmarshaller "QModelIndex")
+(define-copyable-object-list-unmarshaller "QKeySequence")
 
 (def-unmarshal (value "QList<QVariant>" type)
   (iter (for i from 0 below (sw_qlist_qvariant_size value))

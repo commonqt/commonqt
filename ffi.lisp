@@ -185,7 +185,8 @@
   (define-qlist-marshaller-funcs int)
   (define-qlist-marshaller-funcs qvariant)
   (define-qlist-marshaller-funcs qbytearray)
-  (define-qlist-marshaller-funcs qmodelindex))
+  (define-qlist-marshaller-funcs qmodelindex)
+  (define-qlist-marshaller-funcs qkeysequence))
 
 (cffi:defcstruct |struct SmokeData|
   (name :string)
