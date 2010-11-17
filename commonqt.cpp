@@ -4,11 +4,7 @@
 //
 #include <smoke.h>
 #include <smoke/qtcore_smoke.h>
-#include <QStringList>
-#include <QPointer>
-#include <QMetaObject>
-#include <QObject>
-#include <QApplication>
+#include <QtCore>
 #include "commonqt.h"
 
 // #define DEBUG 1
@@ -145,6 +141,18 @@ sw_windows_version()
 // }
 
 void*
+sw_make_qbytearray(char* str)
+{
+        return new QByteArray(str);
+}
+
+void
+sw_delete_qbytearray(void *q)
+{
+        delete (QByteArray*) q;
+}
+
+void*
 sw_make_qstring(char *str)
 {
         return new QString(QString::fromUtf8(str));
@@ -168,24 +176,6 @@ void
 sw_delete_qstring(void *q)
 {
         delete (QString*) q;
-}
-
-void*
-sw_make_qstringlist()
-{
-        return new QStringList();
-}
-
-void
-sw_delete_qstringlist(void *q)
-{
-	delete static_cast<QStringList*>(q);
-}
-
-void
-sw_qstringlist_append(void *q, char *x)
-{
-	static_cast<QStringList*>(q)->append(QString(x));
 }
 
 void*
@@ -217,7 +207,7 @@ sw_find_class(char *name, Smoke **smoke, short *index)
 	*index = mi.index;
 }
 
-short
+void
 sw_id_instance_class(void *ptr, Smoke **smoke, short *index)
 {
 	Smoke::ModuleIndex mi = qtcore_Smoke->findClass(((QObject*)ptr)->metaObject()->className());
@@ -251,7 +241,39 @@ sw_id_class(Smoke *smoke, char *name, bool external)
 	return smoke->idClass(name, external).index;
 }
 
-// QList marshalling
+// QStringList marshalling
+
+void*
+sw_qstringlist_new()
+{
+        return new QStringList();
+}
+
+int
+sw_qstringlist_size(void* q)
+{
+	return static_cast<QStringList*>(q)->size();
+}
+
+void
+sw_qstringlist_delete(void *q)
+{
+	delete static_cast<QStringList*>(q);
+}
+
+const void*
+sw_qstringlist_at(void* q, int index)
+{
+	return static_cast<QStringList*>(q)->at(index).utf16();
+}
+
+void
+sw_qstringlist_append(void *q, char *x)
+{
+	static_cast<QStringList*>(q)->append(QString(QString::fromUtf8(x)));
+}
+        
+// QList<Something*> marshalling
 
 void*
 sw_qlist_void_new()
@@ -284,12 +306,43 @@ void
 sw_qlist_void_append(void *ptr, void *whatptr)
 {
 	QList<void*>* qlist = static_cast<QList<void*>*>(ptr);
-	
 	qlist->append(whatptr);
 }
 
-const void* sw_qlist_scalar_at(void *ptr, int index)
-{
-	QList<int>* qlist = static_cast<QList<int>*>(ptr);
-	return &qlist->at(index);
-}
+// QList<scalar> marshalling
+
+#define DEFINE_QLIST_SCALAR_MARSHALLER(ELEMENT_TYPE, NAME) \
+  void* \
+  sw_qlist_##NAME##_new() \
+  { \
+          return new QList<ELEMENT_TYPE>; \
+  } \
+  int \
+  sw_qlist_##NAME##_size(void *ptr) \
+  { \
+        QList<ELEMENT_TYPE>* qlist = static_cast<QList<ELEMENT_TYPE>*>(ptr); \
+  	return qlist->size(); \
+  } \
+  void \
+  sw_qlist_##NAME##_delete(void *ptr) \
+  { \
+  	QList<ELEMENT_TYPE>* qlist = static_cast<QList<ELEMENT_TYPE>*>(ptr); \
+  	delete qlist; \
+  } \
+  const void* \
+  sw_qlist_##NAME##_at(void *ptr, int index) \
+  { \
+  	QList<ELEMENT_TYPE>* qlist = static_cast<QList<ELEMENT_TYPE>*>(ptr); \
+  	return &qlist->at(index); \
+  } \
+  void \
+  sw_qlist_##NAME##_append(void *ptr, void *whatptr) \
+  { \
+  	QList<ELEMENT_TYPE>* qlist = static_cast<QList<ELEMENT_TYPE>*>(ptr); \
+  	qlist->append(*static_cast<ELEMENT_TYPE*>(whatptr)); \
+  }
+
+DEFINE_QLIST_SCALAR_MARSHALLER(int, int)
+DEFINE_QLIST_SCALAR_MARSHALLER(QVariant, qvariant)
+DEFINE_QLIST_SCALAR_MARSHALLER(QByteArray, qbytearray)
+DEFINE_QLIST_SCALAR_MARSHALLER(QModelIndex, qmodelindex)

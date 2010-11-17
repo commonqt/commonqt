@@ -94,7 +94,9 @@
                                        (perform-cast val castfn <from> <to>)))))
                            (lambda (val si)
                              (setf (si class)
-                                   (qobject-pointer val)))))
+                                   (if (typep val 'cffi:foreign-pointer)
+                                       val
+                                       (qobject-pointer val))))))
                 (enum (etypecase obj
                         (integer
                          (lambda (val si) (setf (si enum) val)))
@@ -129,34 +131,38 @@
     (cond
       ((and primary-thunk (typep obj primary-type))
        (assert (null around-thunk))
-       (lambda (value stack-item cont)
+       (named-lambda marshal-primary-outer (value stack-item cont)
          (funcall set-thunk
                   (funcall primary-thunk value)
                   stack-item)
          (funcall cont)))
       ((and around-thunk (typep obj around-type))
-       (lambda (value stack-item cont)
+       (named-lambda marshal-around-outer (value stack-item cont)
          (funcall around-thunk
                   value
-                  (lambda (new-value)
+                  (named-lambda marshal-around-inner (new-value)
                     (funcall set-thunk new-value stack-item)
                     (funcall cont)))))
       (t
-       (lambda (value stack-item cont)
+       (named-lambda marshal-default (value stack-item cont)
          (funcall set-thunk value stack-item)
          (funcall cont))))))
 
 (defmacro defmarshal ((var name &key around (type t)) &body body)
-  (let ((function-name (intern (format nil "~a-~a" name 'marshaller))))
-   (if around
-       `(setf (get ',name 'marshaller/primary) nil
-              (get ',name 'marshaller/around)
-              (cons ',type (named-lambda ,function-name (,var ,around) ,@body)))
-       `(setf (get ',name 'marshaller/primary)
-              (cons ',type (named-lambda ,function-name (,var) ,@body))
-              (get ',name 'marshaller/around) nil))))
+  (if (consp name)
+      `(progn
+         ,@(iter (for n1 in name)
+                 (collect `(defmarshal (,var ,n1 :around ,around :type ,type) ,@body))))
+      (let ((function-name (intern (format nil "~a-~a" name 'marshaller))))
+        (if around
+            `(setf (get ',name 'marshaller/primary) nil
+                   (get ',name 'marshaller/around)
+                   (cons ',type (named-lambda ,function-name (,var ,around) ,@body)))
+            `(setf (get ',name 'marshaller/primary)
+                   (cons ',type (named-lambda ,function-name (,var) ,@body))
+                   (get ',name 'marshaller/around) nil)))))
 
-(defmarshal (value :|const QString&| :around cont :type string)
+(defmarshal (value (:|QString| :|const QString&|) :around cont :type string)
   (let ((qstring (sw_make_qstring value)))
     (unwind-protect
          (funcall cont qstring)
@@ -178,6 +184,8 @@
          (funcall cont char*)
       (cffi:foreign-free char*))))
 
-;; (defmarshal (argument :|const QList<int>&| :type qlist<int>)
-;;   (qlist-pointer argument))
-
+(defmarshal (value (:|QByteArray| :|const QByteArray&|) :around cont :type string)
+  (let ((qbytearray (sw_make_qbytearray value)))
+    (unwind-protect
+         (funcall cont qbytearray)
+      (sw_delete_qbytearray qbytearray))))

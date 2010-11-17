@@ -77,20 +77,33 @@
 
 (defcfun "sw_windows_version" :int)
 
+(defcfun "sw_make_qbytearray" :pointer
+  (str :string))
+
+(defcfun "sw_delete_qbytearray" :void
+  (str :string))
+
 (defcfun "sw_make_qstring" :pointer
   (str :string))
 
 (defcfun "sw_delete_qstring" :void
   (qstring :pointer))
 
-(defcfun "sw_make_qstringlist" :pointer)
+(defcfun "sw_qstringlist_new" :pointer)
 
-(defcfun "sw_delete_qstringlist" :void
+(defcfun "sw_qstringlist_delete" :void
   (qstringlist :pointer))
 
 (defcfun "sw_qstringlist_append" :void
   (qstringlist :pointer)
   (str :string))
+
+(defcfun "sw_qstringlist_size" :int
+  (qstringlist :pointer))
+
+(defcfun "sw_qstringlist_at" :pointer
+  (qstringlist :pointer)
+  (index :int))
 
 (defcfun "sw_make_metaobject" :pointer
   (parent :pointer)
@@ -106,15 +119,15 @@
 (defcfun "sw_qstring_to_utf16" :pointer
   (obj :pointer))
 
-(defun qstring-pointer-to-lisp (raw-ptr)
+(declaim (inline convert-qstring-data))
+(defun convert-qstring-data (data)
   (declare (optimize speed))
   #+nil
   ;; fixme: babel doesn't get endianness right in utf-16.
   (cffi:foreign-string-to-lisp (sw_qstring_to_utf16 raw-ptr)
                                :encoding :utf-16)
   ;; handcode instead:
-  (let* ((data (sw_qstring_to_utf16 raw-ptr))
-         (nbytes (cffi::foreign-string-length data :encoding :utf-16))
+  (let* ((nbytes (cffi::foreign-string-length data :encoding :utf-16))
          (res (make-string (truncate nbytes 2))))
     (iter (for i from 0 by 2 below nbytes)
           (for j from 0)
@@ -122,6 +135,10 @@
             (until (zerop code))
             (setf (char res j) (code-char code))))
     res))
+
+(defun qstring-pointer-to-lisp (raw-ptr)
+  (declare (optimize speed))
+  (convert-qstring-data (sw_qstring_to_utf16 raw-ptr)))
 
 (defcfun "sw_find_name" :short
   (smoke :pointer)
@@ -151,12 +168,24 @@
   (smoke** :pointer)
   (index** :pointer))
 
-(defcfun "sw_qlist_void_new" :pointer)
-(defcfun "sw_qlist_void_delete" :void (qlist :pointer))
-(defcfun "sw_qlist_void_size" :int (qlist :pointer))
-(defcfun "sw_qlist_void_at" :pointer (qlist :pointer) (index :int))
-(defcfun "sw_qlist_void_append" :void (qlist :pointer) (var :pointer))
-(defcfun "sw_qlist_scalar_at" :pointer (qlist :pointer) (index :int))
+(defun qlist-function-name (type-name name)
+  (alexandria:symbolicate "SW_QLIST_" (string-upcase type-name) "_" (string-upcase name)))
+
+(macrolet ((define-qlist-marshaller-funcs (type-name)
+               (flet ((func-name (name)
+                        (concatenate 'string "sw_qlist_" (string-downcase type-name)
+                                     "_" (string-downcase name))))
+                 `(progn
+                    (defcfun ,(func-name "new") :pointer)
+                    (defcfun ,(func-name "delete") :void (qlist :pointer))
+                    (defcfun ,(func-name "size") :int (qlist :pointer))
+                    (defcfun ,(func-name "at") :pointer (qlist :pointer) (index :int))
+                    (defcfun ,(func-name "append") :void (qlist :pointer) (var :pointer))))))
+  (define-qlist-marshaller-funcs void)
+  (define-qlist-marshaller-funcs int)
+  (define-qlist-marshaller-funcs qvariant)
+  (define-qlist-marshaller-funcs qbytearray)
+  (define-qlist-marshaller-funcs qmodelindex))
 
 (cffi:defcstruct |struct SmokeData|
   (name :string)

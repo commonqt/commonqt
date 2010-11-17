@@ -28,6 +28,10 @@
 
 (in-package :qt)
 
+;; Using uninterned symbols to refer to macros turned out to be unsafe,
+;; as they appear to lose their identity during macroexpansion in SBCL.
+;; Thus we use gentemp with qt-internal package.
+
 (defvar *case-preserving-readtable*
   (let ((table (copy-readtable nil)))
     (setf (readtable-case table) :preserve)
@@ -47,7 +51,7 @@
 (defun ensure-call-macro (name)
   (or (gethash name *call-macros*)
       (setf (gethash name *call-macros*)
-            (let ((sym (gensym name)))
+            (let ((sym (gentemp name :qt-internal)))
               (setf (symbol-value sym) name)
               (setf (macro-function sym) #'call-macro-expander)
               sym))))
@@ -68,8 +72,9 @@
   (let ((key (list class-name method-name)))
     (or (gethash key *static-call-macros*)
         (setf (gethash key *static-call-macros*)
-              (let ((sym (gensym
-                          (concatenate 'string class-name "::" method-name))))
+              (let ((sym (gentemp
+                          (concatenate 'string class-name "::" method-name)
+                          :qt-internal)))
                 (setf (symbol-value sym) key)
                 (setf (macro-function sym) #'static-call-macro-expander)
                 sym)))))
@@ -87,7 +92,7 @@
 (defun ensure-new-macro (name)
   (or (gethash name *new-macros*)
       (setf (gethash name *new-macros*)
-            (let ((sym (gensym name)))
+            (let ((sym (gentemp name :qt-internal)))
               (setf (symbol-value sym) name)
               (setf (macro-function sym) #'new-macro-expander)
               sym))))

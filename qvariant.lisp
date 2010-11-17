@@ -13,8 +13,9 @@
     (integer (#_new QVariant :|int| value))
     (qobject value)))
 
-(defun unvariant (variant type)
+(defun unvariant (variant &optional (type (find-qtype "QVariant")))
   (let ((qobject (%qobject (qtype-class type) variant)))
     (case (primitive-value (#_type qobject))
       (2 (#_toInt qobject))
+      (10 (#_toString qobject))
       (t qobject))))

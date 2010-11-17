@@ -31,6 +31,7 @@
   (:export #:ensure-smoke
            #:qapropos
            #:qdescribe
+           #:ensure-qapplication
            #:make-qapplication
            #:interpret-call
            #:interpret-call-without-override
@@ -84,6 +85,8 @@
            #:qsubclassp
            #:qtypep)
   (:import-from alexandria named-lambda))
+
+(defpackage :qt-internal)
 
 (defpackage :qt-user
   (:use :cl :qt)

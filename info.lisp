@@ -493,7 +493,9 @@
   (zerop (unbash <type>)))
 
 (defun map-types (fun)
-  (map-types-in-module fun 0))
+  (iter (for <module> below *n-modules*)
+        (declare (type module-iterator <module>))
+        (map-types-in-module fun <module>)))
 
 (defun map-types-in-module (fun <module>)
   (let ((n (data-ntypes (data-ref <module>))))
@@ -674,6 +676,32 @@
   <class>
   name)
 
+
+(let ((unconst-table (make-hash-table)))
+  (defun qtype-deconstify (<type>)
+    (or (gethash <type> unconst-table)
+        (setf (gethash <type> unconst-table)
+              (let ((type-name (qtype-name <type>)))
+                (if (and (alexandria:starts-with-subseq "const " type-name)
+                         (alexandria:ends-with #\& type-name))
+                    (or (find-qtype (subseq type-name 6 (1- (length type-name))))
+                        <type>)
+                    <type>))))))
+
+(let ((qlist-element-table (make-hash-table)))
+  (defun qlist-element-type (<type>)
+    (multiple-value-bind (result present-p)
+        (gethash <type> qlist-element-table)
+      (if present-p
+          result
+          (setf (gethash <type> qlist-element-table)
+                (let ((type-name (qtype-name (qtype-deconstify <type>))))
+                  (cond ((string= type-name "QStringList")
+                         (find-qtype "QString"))
+                        ((and (alexandria:starts-with-subseq "QList<" type-name)
+                              (alexandria:ends-with #\> type-name))
+                         (find-qtype (subseq type-name 6 (1- (length type-name)))))
+                        (t nil))))))))
 
 ;;;;
 ;;;; Utilities
@@ -903,7 +931,6 @@
 
 (defun unload ()
   (setf *loaded* nil))
-
 
 ;;; core image workarounds
 

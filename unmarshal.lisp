@@ -79,10 +79,9 @@
         (case (qtype-stack-item-slot type)
           (class (lambda (value type) (%qobject (qtype-class type) value)))
           (enum  (lambda (value type) (enum value (qtype-interned-name type))))
-          (t    (or (get-dynamic-unmarshaller name)
-                    (lambda (value type)
-                      (declare (ignore type))
-                      value)))))))
+          (t    (lambda (value type)
+                  (declare (ignore type))
+                  value))))))
 
 (defvar *static-unmarshallers* (make-hash-table :test #'equal))
 
@@ -123,22 +122,3 @@
 
 (def-unmarshal (value "QByteArray" type)
   (interpret-call (%qobject (find-qclass "QByteArray") value) "data"))
-
-(defvar *dynamic-unmarshallers* nil)
-
-(defun get-dynamic-unmarshaller (name)
-  (loop for (nil (test unmarshaller-maker)) on *dynamic-unmarshallers* by #'cddr
-        when (funcall test name)
-        return
-        (let ((marshaller (funcall unmarshaller-maker name)))
-          (setf (gethash name *static-unmarshallers*)
-                marshaller))))
-
-(defun set-dynamic-unmarshal (name test maker)
-  (setf (getf *dynamic-unmarshallers* name)
-        (list test maker)))
-
-(set-dynamic-unmarshal
- 'qlist
- (lambda (name) (alexandria:starts-with-subseq "QList<" name))
- 'unmarshal-qlist)
