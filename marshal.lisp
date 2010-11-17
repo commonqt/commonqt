@@ -47,7 +47,6 @@
    :short (unbash <to>)
    :pointer))
 
-#+(or)
 (defun %cast (obj <to>)
 ;;;   (let* ((from-class (qobject-class obj))
 ;;;          (module (ldb-module from-class))
