@@ -112,6 +112,10 @@
 
 (define-object-ptr-list-unmarshaller "QObject")
 (define-object-ptr-list-unmarshaller "QStandardItem")
+(define-object-ptr-list-unmarshaller "QListWidgetItem")
+(define-object-ptr-list-unmarshaller "QTreeWidgetItem")
+(define-object-ptr-list-unmarshaller "QTableWidgetItem")
+(define-object-ptr-list-unmarshaller "QGraphicsItem")
 
 (defmacro define-copyable-object-list-unmarshaller (type-name)
   (let ((list-type (format nil "QList<~A>" type-name))
