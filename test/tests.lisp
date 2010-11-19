@@ -95,7 +95,7 @@
         (extract (remarshal (list a b c) "QList<QObject*>" t))))
   ("Abc" "Def" "zzz"))
 
-(deftest test-item-model-stuff-marshalling
+(deftest/qt test-item-model-stuff-marshalling
     (let ((model (#_new QStandardItemModel)))
       (#_appendRow model (list (#_new QStandardItem "01")
                                (#_new QStandardItem "bca")))
@@ -121,6 +121,13 @@
   ("zz" "rr") (("01" . "bca") ("02" . "abc") ("03" . "bcq"))
   ((0 . 1) (2 . 1)) ((0 . 1) (2 . 1)))
 
-;; TBD: check can-marshal-p in remarshal
-;; TBD: instability qt::internal symbols produced by the reader macro
+(deftest/qt test-no-enum-confusion
+    (let ((action (#_new QAction (null-qobject (find-qclass "QAction"))))
+          (keys (list (#_new QKeySequence :|int| (#_Qt::Key_Backspace))
+                      (#_new QKeySequence (#_QKeySequence::Back)))))
+      (#_setShortcuts action keys)
+      (iter (for shortcut in (#_shortcuts action))
+            (collect (#_toString shortcut))))
+  ("Backspace" "Alt+Left"))
+
 ;; TBD: deconstify types when looking for marshaller/unmarshaller, remove (macro-generated) duplicate marshaller definitions

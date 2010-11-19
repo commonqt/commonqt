@@ -234,8 +234,9 @@
 
 (defun can-marshal-p (lisp-object <type>)
   (let ((slot (qtype-stack-item-slot <type>)))
-    (cond ((typep  lisp-object 'abstract-qobject)
-           (qtypep lisp-object (qtype-class <type>)))
+    (cond ((typep lisp-object 'abstract-qobject)
+           (and (eq slot 'class)
+                (qtypep lisp-object (qtype-class <type>))))
           ((let ((element-type (qlist-element-type <type>)))
              (and element-type
                   (alexandria:proper-list-p lisp-object)
