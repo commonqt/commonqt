@@ -310,9 +310,10 @@
 (defun qtypep (instance thing)
   (let ((kind (nth-value 2 (unbash thing))))
     (cond
-     ((eql kind +class+) (qsubclassp (qobject-class instance) thing))
-     ((eql kind +type+) (qtypep instance (qtype-class thing)))
-     (t (error "not a type or class: ~A" thing)))))
+      ((not (typep instance 'abstract-qobject)) nil)
+      ((eql kind +class+) (qsubclassp (qobject-class instance) thing))
+      ((eql kind +type+) (qtypep instance (qtype-class thing)))
+      (t (error "not a type or class: ~A" thing)))))
 
 (defun qsubclassp (a b)
   (or (eq a b)
