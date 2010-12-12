@@ -106,9 +106,7 @@
 
 (def-unmarshal (value "QList<QByteArray>" type)
   (iter (for i from 0 below (sw_qlist_qbytearray_size value))
-        (collect (interpret-call
-                  (%qobject (find-qclass "QByteArray") (sw_qlist_qbytearray_at value i))
-                  "data"))))
+        (collect (%qobject (find-qclass "QByteArray") (sw_qlist_qbytearray_at value i)))))
 
 (define-object-ptr-list-unmarshaller "QObject")
 (define-object-ptr-list-unmarshaller "QStandardItem")

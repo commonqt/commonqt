@@ -61,10 +61,10 @@
   (values (gethash id (dynamic-receiver-slots object))))
 
 (defun resolve-signal (sender signal)
-  (let ((signal-sig (#_QMetaObject::normalizedSignature
-                     (if (alexandria:starts-with #\2 signal)
-                         (subseq signal 1)
-                         signal))))
+  (let ((signal-sig (#_data (#_QMetaObject::normalizedSignature
+                             (if (alexandria:starts-with #\2 signal)
+                                 (subseq signal 1)
+                                 signal)))))
     (values (#_indexOfSignal (#_metaObject sender) signal-sig)
             signal-sig)))
 

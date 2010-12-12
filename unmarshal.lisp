@@ -122,6 +122,3 @@
 
 (def-unmarshal (value "QVariant" type)
   (unvariant value type))
-
-(def-unmarshal (value "QByteArray" type)
-  (interpret-call (%qobject (find-qclass "QByteArray") value) "data"))

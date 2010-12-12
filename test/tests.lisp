@@ -22,31 +22,37 @@
        (deftest ,name (,func-name) ,@values))))
 
 (let ((bad (cons nil nil)))
-  (defun remarshal (value type &optional with-const-p)
+  (defun marshal-and-test (value type test-fun &optional (unmarshal-type type))
     (cffi:with-foreign-object (stack-item 'qt::|union StackItem|)
       (let ((result bad)
             (<type> (or (qt::find-qtype type)
-                        (error "no such type ~s" type))))
+                        (error "no such type ~s" type)))
+	    (<unmarshal-type> (qt::find-qtype unmarshal-type)))
         (assert (qt::can-marshal-p value <type>) ()
                 "cannot marshal ~s as ~s" value type)
         (qt::marshal value <type>
-                     stack-item #'(lambda ()
-                                    (setf result
-                                          (qt::unmarshal <type> stack-item))))
+                     stack-item
+		     #'(lambda ()
+			 (setf result
+			       (funcall test-fun
+					(qt::unmarshal
+					 <unmarshal-type> stack-item)))))
         (assert (not (eq bad result)) () "marshalling continuation not invoked")
-        (when with-const-p
-          (let* ((const-type (format nil "const ~A&" type))
-                 (<const-type> (qt::find-qtype const-type)))
-            (assert (qt::can-marshal-p value <const-type>) ()
-                    "cannot marshal ~s as ~s" value const-type)
-            (qt::marshal value <const-type>
-                         stack-item
-                         #'(lambda ()
-                             (let ((v (qt::unmarshal <type> stack-item)))
-                               (assert (equal result v)
-                                       () "remarshal: got ~s instead of ~s when marshalling using const ~A&"
-                                       v result type))))))
-        result))))
+        result
+        result)))
+  
+  (defun remarshal (value type &optional with-const-p)
+    (let ((result (marshal-and-test value type #'identity))) 
+      (when with-const-p
+	(let ((const-type (format nil "const ~A&" type)))
+	  (marshal-and-test value
+			    const-type
+			    #'(lambda (v)
+				(assert (equal result v)
+					() "remarshal: got ~s instead of ~s when marshalling using const ~A&"
+					v result type))
+			    type)))
+      result)))
 
 (defmacro define-marshalling-test (name type with-const-p &rest values)
   `(deftest/qt ,name
@@ -54,8 +60,15 @@
                        (collect `(remarshal ',val ,type ,with-const-p))))
      ,@values))
 
-(define-marshalling-test test-qbytearray-marshalling
-    "QByteArray" t
+(defmacro define-marshalling-test/no-unmarshal
+    (name type key &rest values)
+  `(deftest/qt ,name
+       (values ,@(iter (for val in values)
+                       (collect `(marshal-and-test ',val ,type ,key))))
+     ,@values))
+
+(define-marshalling-test/no-unmarshal test-qbytearray-marshalling
+    "QByteArray" (lambda (x) (#_data x))
   "" "abc" "qwerty uiop" #.(make-string 3 :initial-element (code-char 1093)))
 
 (define-marshalling-test test-qvariant-marshalling
@@ -74,8 +87,10 @@
     "QList<int>" t
   () (42) (#x7fffffff 12345 678) (11 12))
 
-(define-marshalling-test test-qlistbytearray-marshalling
-    "QList<QByteArray>" t
+(define-marshalling-test/no-unmarshal test-qlistbytearray-marshalling
+    "QList<QByteArray>" (lambda (x)
+			  (iter (for y in x)
+				(collect (#_data y))))
   () ("abc") ("" "abcd" "qqqq" "rrr") ("abc" "Def" "ghi"))
 
 (define-marshalling-test test-qlistqvariant-marshalling
@@ -251,3 +266,11 @@
    (one-arg 456)))
 
 ;; TBD: deconstify types when looking for marshaller/unmarshaller, remove (macro-generated) duplicate marshaller definitions
+
+(deftest/qt window-geometry-using-qvariant-and-qbytarray
+  ;; regression test for issue with with qbytearrays unmarshalled as strings
+  (with-object (window (#_new QWidget))
+    (with-object (sx (#_new QSettings "CommonQt test" "CommonQt test"))
+      (#_setValue sx "geometry" (#_new QVariant (#_saveGeometry window)))
+      (#_restoreGeometry window (#_toByteArray (#_value sx "geometry")))))
+  t)
