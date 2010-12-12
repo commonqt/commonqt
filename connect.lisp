@@ -74,7 +74,7 @@
                            (tg:weak-pointer-value (connection-entry-sender item)))
                        (dynamic-receiver-connections receiver))))
 
-(defun dynamic-connect (receiver sender signal function)
+(defun dynamic-connect (receiver sender signal function this-object)
   (sweep-connections receiver)
   (multiple-value-bind (signal-id signal-sig)
       (resolve-signal sender signal)
@@ -86,9 +86,14 @@
       (setf (gethash slot-id (dynamic-receiver-slots receiver))
             (make-instance 'slot-member
                            :name (subseq slot-sig 1)
-                           :function #'(lambda (this &rest args)
-                                         (declare (ignore this))
-                                         (apply function args))))
+                           :function
+                           (if this-object
+                               #'(lambda (this &rest args)
+                                   (declare (ignore this))
+                                   (apply function this-object args))
+                               #'(lambda (this &rest args)
+                                   (declare (ignore this))
+                                   (apply function args)))))
       (push (make-connection-entry (tg:make-weak-pointer sender) signal-id function slot-id)
             (dynamic-receiver-connections receiver))
       (incf (dynamic-receiver-next-id receiver))
@@ -131,7 +136,7 @@
   (cond ((alexandria:length= 1 destination)
          (values t signal
                  (ensure-dynamic-receiver sender)
-                 (first destination)))
+                 (first destination) nil))
         ((stringp (second destination))
          (values nil
                  signal
@@ -139,29 +144,37 @@
                  (let ((slot (second destination)))
                    (if (digit-char-p (char slot 0))
                        slot
-                       (QSLOT slot)))))
+                       (QSLOT slot))) nil))
         (t
          (unless (functionp (second destination))
            (error "dynamic connection spec refers to a non-function object"))
          (values t signal
                  (ensure-dynamic-receiver (first destination))
-                 (second destination)))))
+                 (second destination)
+                 (first destination)))))
 
 (defun connect (sender signal &rest destination)
   "Connect the SIGNAL of the SENDER to the specified destination.
-  The destination can be specified as a RECEIVER SLOT, in which
-  case the signal is connected to the specified slot of the receiver
-  object, FUNCTION, in which case the function is invoked when
-  the signal is emitted, or RECEIVER FUNCTION, which is the same
-  as just FUNCTION but connection lifetime is limited to the
-  lifetime of RECEIVER object. Signal and slot arguments can
-  be specified using QSIGNAL and QSLOT functions or without
-  them in which case slot argument is considered to refer
-  to a slot, not another signal."
-  (multiple-value-bind (dynamic-p signal receiver target)
+  There are three ways to call CONNECT:
+  1. (connect SENDER SIGNAL RECEIVER SLOT)
+  Connect named SIGNAL of SENDER to a named SLOT of the RECEIVER
+  2. (connect SENDER SIGNAL FUNCTION)
+  Connect named SIGANL of SENDER to FUNCTION. The FUNCTION
+  receives signal arguments as its arguments.
+  3. (connect SENDER SIGNAL RECEIVER FUNCTION)
+  Connect named SIGANL of SENDER to FUNCTION. The FUNCTION
+  receives RECEIVER followed by signal arguments as its arguments.
+  The connection is removed as soon as RECEIVER object is deleted.
+
+  In all of above cases, wrapping signal and slot names in
+  (QSIGNAL ...) and (QSLOT ...) is not required, although it's
+  not an error. The only case in which it's necessary is
+  connecting a signal to another signal, in which (QSIGNAL ...)
+  is used in place of SLOT."
+  (multiple-value-bind (dynamic-p signal receiver target this-object)
       (parse-connect-args sender signal destination)
     (if dynamic-p
-        (dynamic-connect receiver sender signal target)
+        (dynamic-connect receiver sender signal target this-object)
         (#_connect "QObject" sender signal receiver target))))
 
 (defun disconnect (sender signal &rest destination)

@@ -205,16 +205,18 @@
 
 (deftest/qt test-dynamic-connect
     (let ((log '()))
-      (labels ((note (&rest args)
-                 (push args log))
-               (no-args ()
-                 (note 'no-args))
-               (one-arg (n)
-                 (note 'one-arg n))
-               (two-args (n s)
-                 (note 'two-args n s)))
-        (let ((sender (make-instance 'sig-emitter))
-              (receiver (#_new QObject)))
+      (let ((sender (make-instance 'sig-emitter))
+            (receiver (#_new QObject)))
+        (labels ((note (&rest args)
+                   (push args log))
+                 (no-args (this)
+                   (assert (eq receiver this))
+                   (note 'no-args))
+                 (one-arg (n)
+                   (note 'one-arg n))
+                 (two-args (this n s)
+                   (assert (eq receiver this))
+                   (note 'two-args n s)))
           ;; we don't use lambdas for connections because we
           ;; want to break connections later
           (connect sender "noArgs()" receiver #'no-args)
