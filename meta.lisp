@@ -278,7 +278,9 @@
   (apply #'initialize-qt-class instance #'call-next-method args))
 
 (defun get-qt-class-member (qt-class id)
-  (elt (class-member-table qt-class) id))
+  (let ((table (class-member-table qt-class)))
+    (when (< id (length table))
+      (elt table id))))
 
 (defun make-override-table (specs)
   (let ((table (make-hash-table :test 'equal)))
@@ -430,6 +432,11 @@
 (defun metaobject-override (object)
   (class-qmetaobject (class-of object)))
 
+(defgeneric dynamic-object-member (object id)
+  (:method (object id)
+    (declare (ignore object id))
+    nil))
+
 (defun qt_metacall-override (object call id stack)
   (let ((new-id (call-next-qmethod)))
     (cond
@@ -439,7 +446,10 @@
        id)
       (t
        (let ((member
-              (get-qt-class-member (class-of object) new-id)))
+              (or
+               (get-qt-class-member (class-of object) new-id)
+               (dynamic-object-member object new-id)
+               (error "QT_METACALL-OVERRIDE: invalid member id ~A" id))))
          (etypecase member
            (signal-member
             (#_activate (class-qmetaobject (class-of object))

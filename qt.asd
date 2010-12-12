@@ -79,6 +79,7 @@
                  (:file "meta")
                  (:file "property")
                  (:file "qlist")
-                 (:file "qapp"))
+                 (:file "qapp")
+                 (:file "connect"))
     :depends-on (:cffi :named-readtables :cl-ppcre :alexandria :closer-mop
                        :iterate :trivial-garbage))

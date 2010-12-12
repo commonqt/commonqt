@@ -83,7 +83,9 @@
            #:new
            #:enum-or
            #:qsubclassp
-           #:qtypep)
+           #:qtypep
+           #:connect
+           #:disconnect)
   (:import-from alexandria named-lambda))
 
 (defpackage :qt-internal)

@@ -76,12 +76,6 @@
       (values qapplication
               (char**-to-string-vector argv updated-argc nil)))))
 
-(defun QSIGNAL (str)
-  (concatenate 'string "2" str))
-
-(defun QSLOT (str)
-  (concatenate 'string "1" str))
-
 (defun describe-metaobject-methods (mo)
   (let* ((offset (primitive-value (#_methodOffset mo))))
     (format t "Metaobject ~A~%" mo)

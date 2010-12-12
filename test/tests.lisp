@@ -137,4 +137,115 @@
             (collect (#_toString shortcut))))
   ("Backspace" "Alt+Left"))
 
+(defclass sig-emitter ()
+  ()
+  (:metaclass qt-class)
+  (:qt-superclass "QObject")
+  (:signals ("noArgs()")
+            ("oneArg(int)")
+            ("twoArgs(int, QString)")))
+
+(defmethod initialize-instance :after ((instance sig-emitter) &key parent)
+  (if parent
+      (new instance parent)
+      (new instance)))
+
+(defclass sig-receiver ()
+  ((handler :accessor handler :initarg :handler))
+  (:metaclass qt-class)
+  (:qt-superclass "QObject")
+  (:slots ("slotNoArgs()"
+           (lambda (this &rest args)
+             (apply (handler this) 'no-args args)))
+          ("slotOneArg(int)"
+           (lambda (this &rest args)
+             (apply (handler this) 'one-arg args)))
+          ("slotTwoArgs(int, QString)"
+           (lambda (this &rest args)
+             (apply (handler this) 'two-args args)))))
+
+(defmethod initialize-instance :after ((instance sig-receiver) &key parent)
+  (if parent
+      (new instance parent)
+      (new instance)))
+
+(deftest/qt test-connect
+    (let ((log '()))
+      (flet ((note (&rest args)
+               (push args log)))
+        (let ((sender (make-instance 'sig-emitter))
+              (receiver (make-instance 'sig-receiver :handler #'note)))
+          (connect sender "noArgs()" receiver "slotNoArgs()")
+          (connect sender (QSIGNAL "oneArg(int)") receiver "slotOneArg(int)")
+          (connect sender "twoArgs(int, QString)"
+                   receiver (QSLOT "slotTwoArgs(int, QString)"))
+          (emit-signal sender "noArgs()")
+          (emit-signal sender "oneArg(int)" 42)
+          (emit-signal sender "oneArg(int)" 4242)
+          (emit-signal sender "twoArgs(int, QString)" 42 "zzz")
+
+          (disconnect sender "noArgs()" receiver "slotNoArgs()")
+          (disconnect sender "twoArgs(int, QString)"
+                      receiver (QSLOT "slotTwoArgs(int, QString)"))
+          (emit-signal sender "noArgs()")
+          (emit-signal sender "oneArg(int)" 123)
+          (emit-signal sender "twoArgs(int, QString)" 12 "qqq")
+
+          (disconnect sender (QSIGNAL "oneArg(int)")
+                      receiver (QSLOT "slotOneArg(int)"))
+          (emit-signal sender "noArgs()")
+          (emit-signal sender "oneArg(int)" 456)
+          (emit-signal sender "twoArgs(int, QString)" 34 "qqq")
+          (reverse log))))
+  ((no-args)
+   (one-arg 42)
+   (one-arg 4242)
+   (two-args 42 "zzz")
+   (one-arg 123)))
+
+(deftest/qt test-dynamic-connect
+    (let ((log '()))
+      (labels ((note (&rest args)
+                 (push args log))
+               (no-args ()
+                 (note 'no-args))
+               (one-arg (n)
+                 (note 'one-arg n))
+               (two-args (n s)
+                 (note 'two-args n s)))
+        (let ((sender (make-instance 'sig-emitter))
+              (receiver (#_new QObject)))
+          ;; we don't use lambdas for connections because we
+          ;; want to break connections later
+          (connect sender "noArgs()" receiver #'no-args)
+          (connect sender (QSIGNAL "oneArg(int)") #'one-arg)
+          (connect sender "twoArgs(int, QString)" receiver #'two-args)
+          (emit-signal sender "noArgs()")
+          (emit-signal sender "oneArg(int)" 42)
+          (emit-signal sender "oneArg(int)" 4242)
+          (emit-signal sender "twoArgs(int, QString)" 42 "zzz")
+
+          (disconnect sender "noArgs()" receiver #'no-args)
+          (emit-signal sender "noArgs()")
+          (emit-signal sender "oneArg(int)" 123)
+          (emit-signal sender "twoArgs(int, QString)" 12 "qqq")
+
+          (#_delete receiver)
+          (emit-signal sender "noArgs()")
+          (emit-signal sender "oneArg(int)" 456)
+          (emit-signal sender "twoArgs(int, QString)" 34 "qqq")
+
+          (disconnect sender (QSIGNAL "oneArg(int)") #'one-arg)
+          (emit-signal sender "noArgs()")
+          (emit-signal sender "oneArg(int)" 789)
+          (emit-signal sender "twoArgs(int, QString)" 56 "qqq")
+          (reverse log))))
+  ((no-args)
+   (one-arg 42)
+   (one-arg 4242)
+   (two-args 42 "zzz")
+   (one-arg 123)
+   (two-args 12 "qqq")
+   (one-arg 456)))
+
 ;; TBD: deconstify types when looking for marshaller/unmarshaller, remove (macro-generated) duplicate marshaller definitions
