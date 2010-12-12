@@ -95,6 +95,13 @@
         (extract (remarshal (list a b c) "QList<QObject*>" t))))
   ("Abc" "Def" "zzz"))
 
+(deftest/qt test-object-children
+    (let* ((a (#_new QObject))
+           (b (#_new QObject a))
+           (c (#_new QObject a)))
+      (set-difference (list b c) (#_children a)))
+  nil)
+
 (deftest/qt test-item-model-stuff-marshalling
     (let ((model (#_new QStandardItemModel)))
       (#_appendRow model (list (#_new QStandardItem "01")
