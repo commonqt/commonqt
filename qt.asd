@@ -12,7 +12,12 @@
 (defmethod source-file-type ((c cpp->so) (s module)) "cpp")
 
 (defmethod output-files ((operation compile-op) (c cpp->so))
-  (list (merge-pathnames "libcommonqt.so" (component-pathname c))))
+  (values
+    (loop for filename in '("libcommonqt.so" "libcommonqt.so.1"
+                            "libcommonqt.so.1.0" "libcommonqt.so.1.0.0")
+          collect (merge-pathnames filename (component-pathname c)))
+    ;; libcommonqt.so* files are never moved to separate FASL directory
+    t))
 
 (defmethod perform ((o load-op) (c cpp->so))
   t)
