@@ -308,6 +308,8 @@
          (every #'can-marshal-p args argtypes))))
 
 (defun qtypep (instance thing)
+  (when (stringp thing)
+    (setf thing (find-qtype thing)))
   (let ((kind (nth-value 2 (unbash thing))))
     (cond
       ((not (typep instance 'abstract-qobject)) nil)
