@@ -520,14 +520,16 @@
 
 (defun make-slot-or-signal (str)
   (let ((str (#_data (#_QMetaObject::normalizedSignature str))))
-    (cl-ppcre:register-groups-bind (a b c d)
-        ("^(([\\w,<>:]*)\\s+)?([^\\s]*)\\((.*)\\)" str)
-      (declare (ignore a))
-      (make-instance 'slot-or-signal
-                     :name c
-                     :full-name (concatenate 'string c "(" d ")")
-                     :arg-types d
-                     :reply-type (if (or (null b) (equal b "void")) "" b)))))
+    (or
+     (cl-ppcre:register-groups-bind (a b c d)
+         ("^(([\\w,<>:]*)\\s+)?([^\\s]*)\\((.*)\\)" str)
+       (declare (ignore a))
+       (make-instance 'slot-or-signal
+                      :name c
+                      :full-name (concatenate 'string c "(" d ")")
+                      :arg-types d
+                      :reply-type (if (or (null b) (equal b "void")) "" b)))
+     (error "invalid slot or signal signature: ~s" str))))
 
 (defconstant +AccessPrivate+ #x00)
 (defconstant +AccessProtected+ #x01)
