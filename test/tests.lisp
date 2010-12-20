@@ -38,16 +38,18 @@
 					(qt::unmarshal
 					 <unmarshal-type> stack-item)))))
         (assert (not (eq bad result)) () "marshalling continuation not invoked")
-        result
         result)))
   
-  (defun remarshal (value type &optional with-const-p)
+  (defun remarshal (value type &optional with-const-p key)
     (let ((result (marshal-and-test value type #'identity))) 
       (when with-const-p
 	(let ((const-type (format nil "const ~A&" type)))
 	  (marshal-and-test value
 			    const-type
 			    #'(lambda (v)
+                                (when key
+                                  (setf result (funcall key result)
+                                        v (funcall key v)))
 				(assert (equal result v)
 					() "remarshal: got ~s instead of ~s when marshalling using const ~A&"
 					v result type))
@@ -73,7 +75,37 @@
 
 (define-marshalling-test test-qvariant-marshalling
     "QVariant" t
-  "" 123 "zzz" #.(make-string 3 :initial-element (code-char 1093)))
+  "" 123 123.25d0 "zzz" #.(make-string 3 :initial-element (code-char 1093)))
+
+(deftest/qt test-single-float-via-qvariant-marshalling
+    (values (remarshal 0.0 "QVariant" t)
+            (remarshal 123.25 "QVariant" t))
+  0.0d0 123.25d0)
+
+(deftest/qt test-qcolor-via-qvariant-marshalling
+    (flet ((convert (c) (#_name c)))
+      (values (remarshal (#_new QColor "#000000") "QVariant" t #'convert)
+              (remarshal (#_new QColor "#ffffff") "QVariant" t #'convert)))
+  "#000000" "#ffffff")
+
+(deftest/qt test-qpixmap-via-qvariant-marshalling
+    (flet ((convert (p) (cons (#_width p) (#_height p))))
+      (values (remarshal (#_new QPixmap 142 100) "QVariant" t #'convert)))
+  (142 . 100))
+
+(deftest/qt test-qpixmap-via-qvariant-marshalling
+    (flet ((convert (p)
+             (assert (qtypep p "QPixmap"))
+             (cons (#_width p) (#_height p))))
+      (values (remarshal (#_new QPixmap 142 100) "QVariant" t #'convert)))
+  (142 . 100))
+
+(deftest/qt test-qicon-via-qvariant-marshalling
+    (flet ((convert (icon)
+             (assert (qtypep icon "QIcon"))
+             (#_isNull icon)))
+      (values (remarshal (#_new QIcon) "QVariant" t #'convert)))
+  t)
 
 (define-marshalling-test test-qstring-marshalling
     "QString" t
