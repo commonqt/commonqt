@@ -345,3 +345,35 @@
     (assert (equal (#_objectName x) "<<<xyz>>>"))
     t)
   t)
+
+(deftest/qt override/invalid-function-specification
+    (let* ((c (gentemp))		;zzz gensym doesn't work
+	   (m (gensym))
+	   (form `(defclass ,c ()
+		    ()
+		    (:metaclass qt-class)
+		    (:qt-superclass "QObject")
+		    (:override ("objectName" (,m))))))
+      ;;
+      ;; assert that evaluation of the DEFCLASS form fails because M is
+      ;; not defined.
+      ;;
+      (handler-case
+	  (eval form)
+	(:no-error (x)
+	  (error "expected an error, but got ~A" x))
+	(error ()
+	  ;;
+	  ;; Now define M and check the same evaluation now works:
+	  ;;
+	  (setf (macro-function m)
+		(lambda (whole env)
+		  (declare (ignore whole env))
+		  '(lambda (x) (declare (ignore x)) "dummy")))
+	  (eval form)
+	  (eval `(defmethod initialize-instance :after ((instance ,c) &key)
+		   (new instance)))
+	  (with-object (instance (make-instance c))
+	    (assert (equal (#_objectName instance) "dummy")))
+	  t)))
+  t)

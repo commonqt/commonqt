@@ -212,7 +212,7 @@
   ;; into the DEFCLASS expansion like slots and init functions can, but
   ;; those are special built-in features of DEFCLASS which meta classes
   ;; cannot implement for their own options.  Big oversight in the MOP IMNSHO.
-  (typecase (macroexpand form)
+  (etypecase (macroexpand form)
     ((or symbol function)
      form)
     ((cons (eql lambda) t)
