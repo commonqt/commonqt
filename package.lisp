@@ -85,7 +85,8 @@
            #:qsubclassp
            #:qtypep
            #:connect
-           #:disconnect)
+           #:disconnect
+           #:with-signals-blocked)
   (:import-from alexandria named-lambda))
 
 (defpackage :qt-internal)

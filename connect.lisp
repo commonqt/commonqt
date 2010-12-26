@@ -186,3 +186,11 @@
     (if dynamic-p
         (dynamic-disconnect receiver sender signal target)
         (#_disconnect "QObject" sender signal receiver target))))
+
+(defmacro with-signals-blocked (object &body body)
+  "Execute BODY while signals emitted by OBJECT are blocked."
+  (let ((object-var (gensym "OBJECT")))
+    `(let ((,object-var ,object))
+       (unwind-protect (progn (#_blockSignals ,object-var t)
+                              ,@body)
+         (#_blockSignals ,object-var nil)))))
