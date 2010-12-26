@@ -329,3 +329,19 @@
     (assert (equal (#_objectName x) "test"))
     t)
   t)
+
+(defmacro override/macroexpand (x)
+  `(lambda (y) (format nil ',x (test-name y))))
+
+(defclass override/macroexpand (override-object-name)
+    ((name :initarg :name
+	   :accessor test-name))
+  (:metaclass qt-class)
+  (:qt-superclass "QObject")
+  (:override ("objectName" (override/macroexpand "<<<~A>>>"))))
+
+(deftest/qt override/macroexpand
+  (with-object (x (make-instance 'override/macroexpand :name "xyz"))
+    (assert (equal (#_objectName x) "<<<xyz>>>"))
+    t)
+  t)
