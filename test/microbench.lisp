@@ -47,10 +47,14 @@
 	   #+sbcl sb-sys:without-gcing
 	   (dotimes (i repeat)
 	     (funcall fun i)))
-    (let ((run1 (get-internal-run-time)))
-      (round (* (- run1 run0)
-		(/ 1000000000 internal-time-units-per-second)
-		(/ repeat))))))
+    (let* ((run1 (get-internal-run-time))
+	   (q
+	    (float (* (- run1 run0)
+		      (/ 1000000000 internal-time-units-per-second)
+		      (/ repeat)))))
+      (if (< q 10)
+	  q
+	  (round q)))))
 
 (defparameter *repeat*
   50000)
@@ -140,10 +144,70 @@
       (iter (for object in-vector others)
 	    (#_delete object)))))
 
-(defun bench-call-parent/naive (&optional (repeat *repeat*))
+(defun bench-interpret-new-qobject (&optional (repeat *repeat*))
+  (let ((objects (make-array repeat)))
+    (prog1
+	(measure-dotimes (x repeat)
+	  (setf (elt objects x) (interpret-new "QObject")))
+      (iter (for object in-vector objects)
+	    (#_delete object)))))
+
+(defun bench-interpret-new-qcolor (&optional (repeat *repeat*))
+  (let ((objects (make-array repeat)))
+    (prog1
+	(measure-dotimes (x repeat)
+	  (setf (elt objects x) (interpret-new "QColor")))
+      (iter (for object in-vector objects)
+	    (#_delete object)))))
+
+(defun bench-interpret-new-qcolor/3 (&optional (repeat *repeat*))
+  (let ((objects (make-array repeat)))
+    (prog1
+	(measure-dotimes (x repeat)
+	  (setf (elt objects x) (interpret-new "QColor" #xca #xfe #xba)))
+      (iter (for object in-vector objects)
+	    (#_delete object)))))
+
+(defun bench-interpret-new-qcolor/4 (&optional (repeat *repeat*))
+  (let ((objects (make-array repeat)))
+    (prog1
+	(measure-dotimes (x repeat)
+	  (setf (elt objects x) (interpret-new "QColor" #xca #xfe #xba #xbe)))
+      (iter (for object in-vector objects)
+	    (#_delete object)))))
+
+(defun bench-interpret-delete-qobject (&optional (repeat *repeat*))
+  (let ((objects (make-array repeat)))
+    (dotimes (i repeat)
+      (setf (elt objects i)
+	    (#_new QObject)))
+    (measure-dotimes (i repeat)
+      (interpret-delete (elt objects i)))))
+
+(defun bench-interpret-call-parent (&optional (repeat *repeat*))
   (measure-on-qobjects (lambda (objects i)
 			 (interpret-call (elt objects i) "parent"))
 		       repeat))
+
+(defun bench-interpret-call-setparent0 (&optional (repeat *repeat*))
+  (let ((x (null-qobject (find-qclass "QObject"))))
+    (measure-on-qobjects (lambda (objects i)
+			   (interpret-call (elt objects i) "setParent" x))
+			 repeat)))
+
+(defun bench-interpret-call-setparent (&optional (repeat *repeat*))
+  (let ((others (make-array repeat)))
+    (dotimes (i repeat)
+      (setf (elt others i)
+	    (#_new QObject)))
+    (prog1
+	(measure-on-qobjects (lambda (objects i)
+			       (interpret-call (elt objects i)
+					       "setParent"
+					       (elt others i)))
+			     repeat)
+      (iter (for object in-vector others)
+	    (#_delete object)))))
 
 (defun bench/nop (&optional (repeat *repeat*))
   (measure-on-qobjects (lambda (objects i)
@@ -428,21 +492,19 @@
 		  (software-type)
 		  (software-version))))
 
-(defun choose-repeat-count ()
+(defun choose-repeat-count (&optional (fun 'bench-call-parent)
+			              (seconds-for-a-test 2))
   ;; run the call-parent microbench for at least a second to estimate
   ;; implementation speed, then choose a good iteration count based on that.
   (let* ((total-time 0)
 	 (niterations 0)
 	 (1s 1e9)
-	 (good-time-for-a-test
-	  ;; let's say that 1 second is actually also a good time to
-	  ;; run a real test.  We could return a different number here though.
-	  1s))
+	 (good-time-for-a-test (* seconds-for-a-test 1s)))
     (iter (until (> total-time 1s))
 	  (incf total-time
 		(measure-dotimes (dummy 1)
 		  (let ((arbitrary-number 1000))
-		    (bench-call-parent arbitrary-number)
+		    (funcall fun arbitrary-number)
 		    (incf niterations arbitrary-number)))))
     (ceiling (* niterations (/ good-time-for-a-test total-time)))))
 
@@ -454,6 +516,8 @@
 
 (defun microbench
     (&optional (name (lisp-implementation-type)))
+  (ensure-smoke :qtcore)
+  (ensure-smoke :qtgui)
   (with-open-file (s (make-pathname :name name
 				    :type "bench-txt"
 				    :defaults (commonqt-directory))
@@ -464,8 +528,6 @@
     (let ((*standard-output* (make-broadcast-stream *standard-output* s))
 	  (*repeat* (choose-repeat-count)))
       (format s ":repeat-count ~D~%" *repeat*)
-      (ensure-smoke :qtcore)
-      (ensure-smoke :qtgui)
       (init/cffi)
       (format s ":results (~%")
       (dolist (fun '(bench/nop
@@ -476,10 +538,20 @@
 		     bench-new-qcolor/4
 		     bench-call-parent
 		     bench-call-setparent0
-		     bench-call-setparent
-		     ;; bench-call-parent/naive
-		     ))
-	(format t "(~A ~30T~D)~%" fun (best-of-3-funcall fun)))
+		     bench-call-setparent))
+	(format t "(~A ~30T~7D)~%" fun (best-of-3-funcall fun)))
+      ;; give the interpreted functions their own repeat count to avoid
+      ;; long delays:
+      (let ((*repeat* (choose-repeat-count 'bench-interpret-call-parent)))
+	(dolist (fun '(bench-interpret-new-qobject
+		       bench-interpret-delete-qobject
+		       bench-interpret-new-qcolor
+		       bench-interpret-new-qcolor/3
+		       bench-interpret-new-qcolor/4
+		       bench-interpret-call-parent
+		       bench-interpret-call-setparent0
+		       bench-interpret-call-setparent))
+	  (format t "(~A ~30T~6D)~%" fun (best-of-3-funcall fun))))
       ;;
       ;; The /CFFI tests do not benchmark CommonQt as such; they show
       ;; how fast we "would" be able to run if we had "optimal"
@@ -488,15 +560,19 @@
       ;; information, no runtime dispatch, etc.
       ;;
       (format t ";; the following numbers are for comparison only:~%")
-      (dolist (fun '(bench-new-qobject/cffi
-		     bench-delete-qobject/cffi
-		     bench-new-qcolor/cffi
-		     bench-new-qcolor3/cffi
-		     bench-new-qcolor4/cffi
-		     bench-call-parent/cffi
-		     bench-call-setparent0/cffi
-		     bench-call-setparent/cffi))
-	(format t "(~A ~30T~D)~%" fun (best-of-3-funcall fun))))
+      (let ((*repeat* (choose-repeat-count
+		       'bench-new-qcolor/cffi
+		       ;; hmm, need to force a higher repeat count...:
+		       5)))
+	(dolist (fun '(bench-new-qobject/cffi
+		       bench-delete-qobject/cffi
+		       bench-new-qcolor/cffi
+		       bench-new-qcolor3/cffi
+		       bench-new-qcolor4/cffi
+		       bench-call-parent/cffi
+		       bench-call-setparent0/cffi
+		       bench-call-setparent/cffi))
+	  (format t "(~A ~30T~6D)~%" fun (best-of-3-funcall fun)))))
     (format s "))~%")))
 
 (defun read-microbench-results (&optional (name (lisp-implementation-type)))
