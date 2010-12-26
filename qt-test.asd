@@ -9,5 +9,6 @@
     :pathname #-asdf2 (merge-pathnames #p"test/" *load-truename*)
               #+asdf2 "test/"
     :components ((:file "package")
-                 (:file "tests"))
+                 (:file "tests")
+                 (:file "microbench"))
     :depends-on (:qt :alexandria :iterate :trivial-garbage :rt))
