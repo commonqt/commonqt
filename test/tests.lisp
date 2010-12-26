@@ -306,3 +306,26 @@
       (#_setValue sx "geometry" (#_new QVariant (#_saveGeometry window)))
       (#_restoreGeometry window (#_toByteArray (#_value sx "geometry")))))
   t)
+
+(defclass override-object-name ()
+    ((name :initarg :name
+	   :accessor test-name))
+  (:metaclass qt-class)
+  (:qt-superclass "QObject")
+  (:override ("objectName" override-object-name)))
+
+(defmethod initialize-instance :after ((instance override-object-name) &key)
+  (new instance))
+
+(defun override-object-name (x)
+  (if (slot-boundp x 'name)
+      (test-name x)
+      (call-next-qmethod)))
+
+(deftest/qt override-object-name
+  (with-object (x (make-instance 'override-object-name))
+    (assert (equal (#_objectName x) ""))
+    (setf (test-name x) "test")
+    (assert (equal (#_objectName x) "test"))
+    t)
+  t)
