@@ -377,3 +377,10 @@
 	    (assert (equal (#_objectName instance) "dummy")))
 	  t)))
   t)
+
+(deftest/qt new-qwebview
+    (progn
+      (ensure-smoke :qtwebkit)
+      (with-object (x (#_new QWebView)))
+      t)
+  t)

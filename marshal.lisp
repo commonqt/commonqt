@@ -35,6 +35,8 @@
           (if (eql module (ldb-module <to>))
               <to>
               (find-qclass-in-module module (qclass-name <to>)))))
+    (unless compatible-<to>
+      (error "sorry, casting across modules in several steps not yet supported"))
     (values (data-castfn (data-ref module))
             compatible-<to>)))
 

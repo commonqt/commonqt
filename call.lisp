@@ -418,3 +418,11 @@
              (funcall fun c)
              (map-qclass-superclasses #'recurse c)))
     (recurse class)))
+
+(defun map-cpl-using-result (fun class initial-value)
+  (labels ((recurse (c val)
+             (let ((newval (funcall fun c val)))
+               (map-qclass-superclasses
+                (lambda (sub) (recurse sub newval))
+                c))))
+    (recurse class initial-value)))
