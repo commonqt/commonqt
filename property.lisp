@@ -87,18 +87,19 @@
   (when (typep thing 'dynamic-object)
     (format t "This object is also an instance of a Lisp class, ~A.~%~%"
             (class-name (class-of thing))))
-  (format t "Properties~A:~%"
-          (if (typep thing 'dynamic-object) " and slots" ""))
-  (dolist (prop (object-properties thing))
-    (multiple-value-bind (value boundp)
-        (handler-bind ((warning #'muffle-warning))
-          (property thing prop))
-      (format t "~4T~A ~A~40T"
-              (#_typeName prop)
-              (#_name prop))
-      (if boundp
-          (format t "~S~%" value)
-          (format t "<unbound>~%"))))
+  (when (qtypep thing (qt::find-qclass "QObject"))
+    (format t "Properties~A:~%"
+            (if (typep thing 'dynamic-object) " and slots" ""))
+    (dolist (prop (object-properties thing))
+      (multiple-value-bind (value boundp)
+          (handler-bind ((warning #'muffle-warning))
+            (property thing prop))
+        (format t "~4T~A ~A~40T"
+                (#_typeName prop)
+                (#_name prop))
+        (if boundp
+            (format t "~S~%" value)
+            (format t "<unbound>~%")))))
   (when (typep thing 'dynamic-object)
     (dolist (slotd (c2mop:class-slots (class-of thing)))
       (let ((name (c2mop:slot-definition-name slotd)))
