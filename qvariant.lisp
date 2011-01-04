@@ -28,15 +28,16 @@
            (finally (return value))))))
 
 (defvar *qvariant-types*
-  '("BitArray" "Bool" "ByteArray" "Char" "Date" "DateTime" "Double" "EasingCurve"
-    "Hash" "Int" "Line" "LineF" "List" "Locale" "LongLong" "Map" "Point" "PointF"
-    "Rect" "RectF" "RegExp" "Size" "SizeF" "String" "StringList" "Time" "UInt"
-    "ULongLong" "Url"))
+  '("Bool" "Int" "UInt" "LongLong" "ULongLong" "Double" "Char" "Map" "List"
+    "String" "StringList" "ByteArray" "BitArray" "Date" "Time" "DateTime" "Url"
+    "Locale" "Rect" "RectF" "Size" "SizeF" "Line" "LineF" "Point" "PointF"
+    "RegExp" "Hash" "EasingCurve"))
 
 (defvar *qvariant-map* nil)
 
 (defun initialize-qvariant-map ()
-  (let ((new-map (make-array 127)))
+  (let ((new-map (make-array (1+ (length *qvariant-types*)))))
+    (setf (aref new-map 0) #'identity) ;; Leave invalid QVariant as it is
     (loop for type in *qvariant-types*
           for enum = (primitive-value
                       (interpret-call "QVariant" type))
