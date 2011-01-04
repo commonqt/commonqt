@@ -40,45 +40,14 @@
     (iter (for i from offset below count)
           (collect (#_property meta i)))))
 
-(defparameter *property-types* (make-hash-table :test 'equal))
-
-(defmacro defpropertytype (name (object-var) &body body)
-  `(setf (gethash ',name *property-types*)
-         (lambda (,object-var) ,@body)))
-
-(defpropertytype "int" (p) (#_toInt p))
-(defpropertytype "uint" (p) (#_toUInt p))
-(defpropertytype "float" (p) (#_toFloat p))
-(defpropertytype "double" (p) (#_toDouble p))
-(defpropertytype "bool" (p) (#_toBool p))
-
-(defpropertytype "QString" (p) (#_toString p))
-(defpropertytype "QLocale" (p) (#_toLocale p))
-(defpropertytype "QSize" (p) (#_toSize p))
-(defpropertytype "QPoint" (p) (#_toPoint p))
-(defpropertytype "QRect" (p) (#_toRect p))
-
-(defun variant-reader (type-name)
-  (or (gethash type-name *property-types*)
-      (progn
-        (warn "no reader known for property type ~S, returning variant"
-              type-name)
-        #'identity)))
-
 (defun property (object property)
-  (multiple-value-bind (name property)
-      (etypecase property
-        (qobject (values (#_name property) property))
-        (string (values property (or (find property
-                                           (object-properties object)
-                                           :key (lambda (x) (#_name x))
-                                           :test #'equal)
-                                     (error "No such property ~A on ~A"
-                                            property object)))))
-    (let ((variant (#_property object name)))
-      (if variant
-          (values (funcall (variant-reader (#_typeName property)) variant) t)
-          (values nil nil)))))
+  (let* ((name (etypecase property
+                 (qobject (#_name property))
+                 (string property)))
+         (property (#_property object name)))
+    (values property
+            (plusp (#_indexOfProperty (#_metaObject object) name)))))
+
 
 (defun describe-qobject (thing)
   (format t "~A is a smoke object.~%~%" thing)
