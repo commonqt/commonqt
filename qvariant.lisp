@@ -43,6 +43,7 @@
   (typecase value
     ((or string integer single-float double-float) t)
     (qobject
-       (iter (for (code . type) in (qvariant-ptr-types))
-             (thereis (qtypep value type))))
+     (or (qtypep value "QVariant")
+         (iter (for (code . type) in (qvariant-ptr-types))
+               (thereis (qtypep value type)))))
     (t nil)))
