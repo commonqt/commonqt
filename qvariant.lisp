@@ -46,22 +46,21 @@
     new-map))
 
 (defun %unvariant (variant type)
-  (unless *qvariant-map*
-    (setf *qvariant-map* (initialize-qvariant-map)))
-  (when (array-in-bounds-p *qvariant-map* type)
-    (let ((function (aref *qvariant-map* type)))
-      (when (stringp function)
-        (setf function
-              (compile nil `(lambda (x)
-                              (optimized-call nil x ,function)))
-              (aref *qvariant-map* type) function))
-      (when (functionp function)
-        (funcall function variant)))))
+  (let ((function (aref *qvariant-map* type)))
+    (when (stringp function)
+      (setf function
+            (compile nil `(lambda (x)
+                            (optimized-call nil x ,function)))
+            (aref *qvariant-map* type) function))
+    (funcall function variant)))
 
 (defun unvariant (variant &optional (type (find-qtype "QVariant")))
   (let* ((qobject (%qobject (qtype-class type) variant))
          (code (primitive-value (#_type qobject))))
-    (or (%unvariant qobject code)
+    (unless *qvariant-map*
+      (setf *qvariant-map* (initialize-qvariant-map)))
+    (if (array-in-bounds-p *qvariant-map* code)
+        (%unvariant qobject code)
         (alexandria:if-let ((qclass (cdr (assoc code (qvariant-ptr-types)))))
           (%qobject qclass (#_constData qobject))
           qobject))))
