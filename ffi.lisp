@@ -41,17 +41,16 @@
   ;; the handler that causes that fault (SB-EXT:RUN-PROGRAM
   ;; still works after that). Thanks to nyef on #lisp.
   ;; See also: src/corelib/io/qprocess_unix.cpp in Qt
-  #+sbcl
+  #+(and sbcl (not (or windows mswindows win32)))
   (sb-sys:enable-interrupt sb-unix:sigchld :default)
-  (cffi:load-foreign-library
-   #-(or windows mswindows win32)
-   (namestring (merge-pathnames "libcommonqt.so"
-                                (asdf::component-relative-pathname
-                                 (asdf:find-system :qt))))
-   #+(or windows mswindows win32)
-   (namestring (merge-pathnames "debug/commonqt.dll"
-                                (asdf::component-relative-pathname
-                                 (asdf:find-system :qt)))))
+  (let ((windowsp (or #+(or windows mswindows win32) t)))
+    (cffi:load-foreign-library
+     (if windowsp
+	 ;; just assume it's in $PATH
+         "commonqt.dll"
+         (namestring (merge-pathnames "libcommonqt.so"
+                                      (asdf::component-relative-pathname
+                                       (asdf:find-system :qt)))))))
   (setf *library-loaded-p* t))
 
 #-(or ccl
