@@ -191,6 +191,6 @@
   "Execute BODY while signals emitted by OBJECT are blocked."
   (let ((object-var (gensym "OBJECT")))
     `(let ((,object-var ,object))
-       (unwind-protect (progn (#_blockSignals ,object-var t)
+       (unwind-protect (progn (optimized-call nil ,object-var "blockSignals" t)
                               ,@body)
-         (#_blockSignals ,object-var nil)))))
+         (optimized-call nil ,object-var "blockSignals" nil)))))
