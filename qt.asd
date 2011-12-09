@@ -3,6 +3,8 @@
 
 (in-package :qt-system)
 
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (asdf:oos 'asdf:load-op :trivial-features))
 
 ;;; .cpp
 
@@ -57,7 +59,8 @@
     (when (find-package :qt)
       (set (find-symbol "*LOADED*" :qt) nil))
     (unless (zerop (run-shell-command
-                    "qmake ~S -o ~S"
+                    "qmake ~A~S -o ~S"
+                    #+darwin "-spec macx-g++ " #-darwin ""
                     (namestring
 		     (merge-pathnames "commonqt.pro" (component-pathname c)))
                     (namestring (output-file o c))))
@@ -86,5 +89,6 @@
                  (:file "qlist")
                  (:file "qapp")
                  (:file "connect"))
+    :defsystem-depends-on (:trivial-features)
     :depends-on (:cffi :named-readtables :cl-ppcre :alexandria :closer-mop
-                       :iterate :trivial-garbage))
+                       :iterate :trivial-garbage #+darwin :bordeaux-threads))
