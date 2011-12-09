@@ -48,9 +48,10 @@
      (if windowsp
 	 ;; just assume it's in $PATH
          "commonqt.dll"
-         (namestring (merge-pathnames "libcommonqt.so"
-                                      (asdf::component-relative-pathname
-                                       (asdf:find-system :qt)))))))
+         (namestring (make-pathname :name "libcommonqt"
+                                    :type #+darwin "dylib" #-darwin "so"
+                                    :defaults (asdf::component-relative-pathname
+                                               (asdf:find-system :qt)))))))
   (setf *library-loaded-p* t))
 
 #-(or ccl
