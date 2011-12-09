@@ -92,16 +92,29 @@
     (setf *notifier* (make-instance 'repl-notifier)
           *gui-thread*
           (let ((global-values (mapcar #'symbol-value *globals*)))
-            (bt:make-thread
-             #'(lambda ()
-                 (loop for var in *globals*
-                       for value in global-values
-                       do (setf (symbol-value var) value))
-                 (setf *qapp* (make-qapplication)
-                       *executer* (make-instance 'repl-executer
-                                                 :notifier *notifier*))
-                 (#_setQuitOnLastWindowClosed *qapp* nil)
-                 (#_exec *qapp*)))))
+            (flet ((setup-and-exec ()
+                     (loop for var in *globals*
+                           for value in global-values
+                           do (setf (symbol-value var) value))
+                     (setf *qapp* (make-qapplication)
+                           *executer* (make-instance 'repl-executer
+                                                     :notifier *notifier*))
+                     (#_setQuitOnLastWindowClosed *qapp* nil)
+                     (loop
+                       (#_exec *qapp*))))
+              #+(and darwin sbcl)
+              (let ((initial-thread (find "initial thread"
+                                          (bt:all-threads)
+                                          :test #'string-equal
+                                          :key #'bt:thread-name)))
+                (if (eq initial-thread (bt:current-thread))
+                    (setup-and-exec)
+                    (bt:interrupt-thread initial-thread #'setup-and-exec))
+                initial-thread)
+              #+(and darwin (not sbcl))
+              (error "sorry, don't know how to find the initial thread. FIXME.")
+              #-darwin
+              (bt:make-thread #'setup-and-exec))))
     (when (and install-repl-hook (find-package "SWANK"))
       (let ((hooks (find-symbol "*SLIME-REPL-EVAL-HOOKS*" "SWANK")))
         (if hooks
