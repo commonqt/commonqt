@@ -5,5 +5,5 @@ HEADERS     += commonqt.h
 SOURCES     += commonqt.cpp
 CONFIG      += qt thread debug dll
 
-unix:LIBS += -lsmokeqtcore
+unix:LIBS += -lsmokeqtcore -lsmokebase
 win32:LIBS += smokebase.lib
