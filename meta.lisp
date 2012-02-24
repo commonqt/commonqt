@@ -130,12 +130,15 @@
    (cached-arg-types :accessor dynamic-member-cached-arg-types)))
 
 (defclass signal-member (dynamic-member)
-  ((name :initarg :name
-         :accessor dynamic-member-name)))
+  ())
 
 (defclass slot-member (dynamic-member)
   ((function :initarg :function
              :accessor dynamic-member-function)))
+
+(defmethod print-object ((instance dynamic-member) stream)
+  (print-unreadable-object (instance stream :type t :identity t)
+    (princ (dynamic-member-name instance) stream)))
 
 (defmethod print-object ((instance dynamic-object) stream)
   (print-unreadable-object (instance stream :type t :identity nil)
@@ -220,6 +223,25 @@
     ((cons (eql function) t)
      (eval form))))
 
+(defun compute-qt-slots (slot-description class)
+  (let ((slots
+          (loop for (name value) in slot-description
+                when value
+                collect
+                (make-instance 'slot-member
+                               :name name
+                               :function (parse-function value)))))
+    (loop for class in (c2mop:class-precedence-list class)
+          when (typep class 'qt-class)
+          do (loop for slot in (class-slots class)
+                   unless (find (dynamic-member-name slot)
+                                slot-description
+                                :key #'car :test #'equal)
+                   do (pushnew slot slots
+                               :test #'equal
+                               :key #'dynamic-member-name)))
+    slots))
+
 (defun initialize-qt-class
     (class next-method &rest args
      &key qt-superclass direct-superclasses slots signals info override
@@ -241,11 +263,7 @@
                             nil
                             direct-superclasses)
                         (list dynamic-object)))))
-         (slots
-          (iter (for (name value) in slots)
-                (collect (make-instance 'slot-member
-                                        :name name
-                                        :function (parse-function value)))))
+         (slots (compute-qt-slots slots class))
          (signals
           (iter (for (name) in signals)
                 (collect (make-instance 'signal-member
