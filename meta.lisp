@@ -223,7 +223,7 @@
     ((cons (eql function) t)
      (eval form))))
 
-(defun compute-qt-slots (slot-description class)
+(defun compute-qt-slots (slot-description direct-superclasses)
   (let ((slots
           (loop for (name value) in slot-description
                 when value
@@ -231,7 +231,7 @@
                 (make-instance 'slot-member
                                :name name
                                :function (parse-function value)))))
-    (loop for class in (c2mop:class-precedence-list class)
+    (loop for class in direct-superclasses
           when (typep class 'qt-class)
           do (loop for slot in (class-slots class)
                    unless (find (dynamic-member-name slot)
@@ -263,7 +263,7 @@
                             nil
                             direct-superclasses)
                         (list dynamic-object)))))
-         (slots (compute-qt-slots slots class))
+         (slots (compute-qt-slots slots direct-superclasses))
          (signals
           (iter (for (name) in signals)
                 (collect (make-instance 'signal-member
