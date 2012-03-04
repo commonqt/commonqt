@@ -242,6 +242,28 @@
                                :key #'dynamic-member-name)))
     slots))
 
+(defun compute-dynamic-member (description type acessor direct-superclasses)
+  (let ((result
+          (loop for (name . value) in description
+                when (or (not value)
+                         (car value))
+                collect
+                (if value
+                    (make-instance type
+                                   :name name
+                                   :function (parse-function (car value)))
+                    (make-instance type :name name)))))
+    (loop for class in direct-superclasses
+          when (typep class 'qt-class)
+          do (loop for object in (funcall acessor class)
+                   unless (find (name object)
+                                description
+                                :key #'car :test #'equal)
+                   do (pushnew object result
+                               :test #'equal
+                               :key #'dynamic-member-name)))
+    result))
+
 (defun initialize-qt-class
     (class next-method &rest args
      &key qt-superclass direct-superclasses slots signals info override
@@ -263,11 +285,12 @@
                             nil
                             direct-superclasses)
                         (list dynamic-object)))))
-         (slots (compute-qt-slots slots direct-superclasses))
+         (slots
+           (compute-dynamic-member slots 'slot-member
+                                   #'class-slots direct-superclasses))
          (signals
-          (iter (for (name) in signals)
-                (collect (make-instance 'signal-member
-                                        :name name))))
+           (compute-dynamic-member signals 'signal-member
+                                   #'class-signals direct-superclasses))
          (class-infos
           (iter (for (name value) in info)
                 (collect (make-class-info name value))))
