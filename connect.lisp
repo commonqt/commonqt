@@ -187,10 +187,14 @@
         (dynamic-disconnect receiver sender signal target)
         (#_disconnect "QObject" sender signal receiver target))))
 
-(defmacro with-signals-blocked (object &body body)
+(defmacro with-signals-blocked (objects &body body)
   "Execute BODY while signals emitted by OBJECT are blocked."
-  (let ((object-var (gensym "OBJECT")))
-    `(let ((,object-var ,object))
-       (unwind-protect (progn (optimized-call nil ,object-var "blockSignals" t)
+  (let ((vars (loop repeat (length objects)
+                    collect (gensym))))
+    `(let ,(mapcar #'list vars objects)
+       (unwind-protect (progn ,@(loop for var in vars
+                                      collect `(optimized-call nil ,var "blockSignals" t))
                               ,@body)
-         (optimized-call nil ,object-var "blockSignals" nil)))))
+         (progn
+           ,@(loop for var in vars
+                   collect `(optimized-call nil ,var "blockSignals" nil)))))))
