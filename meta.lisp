@@ -223,25 +223,6 @@
     ((cons (eql function) t)
      (eval form))))
 
-(defun compute-qt-slots (slot-description direct-superclasses)
-  (let ((slots
-          (loop for (name value) in slot-description
-                when value
-                collect
-                (make-instance 'slot-member
-                               :name name
-                               :function (parse-function value)))))
-    (loop for class in direct-superclasses
-          when (typep class 'qt-class)
-          do (loop for slot in (class-slots class)
-                   unless (find (dynamic-member-name slot)
-                                slot-description
-                                :key #'car :test #'equal)
-                   do (pushnew slot slots
-                               :test #'equal
-                               :key #'dynamic-member-name)))
-    slots))
-
 (defun compute-dynamic-member (description type acessor direct-superclasses)
   (let ((result
           (loop for (name . value) in description
@@ -256,7 +237,7 @@
     (loop for class in direct-superclasses
           when (typep class 'qt-class)
           do (loop for object in (funcall acessor class)
-                   unless (find (name object)
+                   unless (find (dynamic-member-name object)
                                 description
                                 :key #'car :test #'equal)
                    do (pushnew object result
