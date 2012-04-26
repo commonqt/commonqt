@@ -292,8 +292,7 @@
            :override-specs override-specs
            args)))
 
-(defmethod initialize-instance :around ((instance qt-class) &rest args
-                                        &key &allow-other-keys)
+(defmethod initialize-instance :around ((instance qt-class) &rest args)
   (apply #'initialize-qt-class instance #'call-next-method args))
 
 (defmethod reinitialize-instance :around ((instance qt-class) &rest args)
