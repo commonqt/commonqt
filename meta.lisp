@@ -175,9 +175,9 @@
             :accessor class-signals)
    (qt-slots :initarg :slots
              :accessor class-slots)
-   (override-specs :initarg :override-specs
+   (override-specs :initarg :override
                    :accessor class-override-specs)
-   (class-infos :initarg :class-infos
+   (class-infos :initarg :info
                 :accessor class-class-infos)
    (effective-class :initform nil)
    (qmetaobject :initform nil)
@@ -250,22 +250,22 @@
      &key qt-superclass direct-superclasses slots signals info override
      &allow-other-keys)
   (let* ((qt-superclass
-          (if qt-superclass
-              (destructuring-bind (name) qt-superclass
-                (check-type name string)
-                name)
-              nil))
+           (if qt-superclass
+               (destructuring-bind (name) qt-superclass
+                 (check-type name string)
+                 name)
+               nil))
          (direct-superclasses
-          (let ((qt-class (find-class 'qt-class))
-                (standard-object (find-class 'standard-object))
-                (dynamic-object (find-class 'dynamic-object)))
-            (if (some (lambda (c) (typep c qt-class))
-                      direct-superclasses)
-                direct-superclasses
-                (append (if (equal direct-superclasses (list standard-object))
-                            nil
-                            direct-superclasses)
-                        (list dynamic-object)))))
+           (let ((qt-class (find-class 'qt-class))
+                 (standard-object (find-class 'standard-object))
+                 (dynamic-object (find-class 'dynamic-object)))
+             (if (some (lambda (c) (typep c qt-class))
+                       direct-superclasses)
+                 direct-superclasses
+                 (append (if (equal direct-superclasses (list standard-object))
+                             nil
+                             direct-superclasses)
+                         (list dynamic-object)))))
          (slots
            (compute-dynamic-member slots 'slot-member
                                    #'class-slots direct-superclasses))
@@ -273,14 +273,14 @@
            (compute-dynamic-member signals 'signal-member
                                    #'class-signals direct-superclasses))
          (class-infos
-          (iter (for (name value) in info)
-                (collect (make-class-info name value))))
+           (iter (for (name value) in info)
+             (collect (make-class-info name value))))
          (override-specs
-          (iter (for (method fun) in override)
-                (collect (make-instance 'override-spec
-                                        :method-name method
-                                        :target-function
-                                        (parse-function fun))))))
+           (iter (for (method fun) in override)
+             (collect (make-instance 'override-spec
+                                     :method-name method
+                                     :target-function
+                                     (parse-function fun))))))
     (apply next-method
            class
            :allow-other-keys t
@@ -288,8 +288,8 @@
            :qt-superclass qt-superclass
            :slots slots
            :signals signals
-           :class-infos class-infos
-           :override-specs override-specs
+           :info class-infos
+           :override override-specs
            args)))
 
 (defmethod initialize-instance :around ((instance qt-class) &rest args)
