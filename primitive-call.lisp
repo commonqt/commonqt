@@ -30,10 +30,10 @@
 
 (defun binding-for-ctor (method instance)
   (let* ((<module> (ldb-module (qmethod-class method)))
-	 (data (data-ref <module>)))
+         (data (data-ref <module>)))
     (if (typep instance 'dynamic-object)
-	(data-fat data)
-	(data-thin data))))
+        (data-fat data)
+        (data-thin data))))
 
 ;; old-style NEW usage for INITIALIZE-INSTANCE methods kept around for
 ;; compatibility.
@@ -126,8 +126,8 @@
   ;; (format *trace-output* "cache miss for ~A::~A~%" instance method)
   (let ((name method)
         (method (etypecase method
-		  (integer method)
-		  (string (find-applicable-method
+                  (integer method)
+                  (string (find-applicable-method
                            instance method args fix-types)))))
     (unless method
       (error "No applicable method ~A found on ~A with arguments ~A"
@@ -325,6 +325,3 @@
     (funcall (resolve-call allow-override-p instance method args)
              instance
              args)))
-
-
-
