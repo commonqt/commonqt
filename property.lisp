@@ -73,7 +73,7 @@
                                            (object-properties object)
                                            :key (lambda (x) (#_name x))
                                            :test #'equal)
-                                     (error "no such property ~A on ~A"
+                                     (error "No such property ~A on ~A"
                                             property object)))))
     (let ((variant (#_property object name)))
       (if variant

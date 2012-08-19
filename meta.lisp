@@ -32,9 +32,9 @@
 (defun interpret-delete (object)
   (cond
     ((typep object 'null-qobject)
-     (error "cannot delete null object: ~A" object))
+     (error "Cannot delete null object: ~A" object))
     ((qobject-deleted object)
-     (warn "not deleting dead object: ~A" object))
+     (warn "Not deleting dead object: ~A" object))
     (t
      (optimized-call nil object (resolve-delete object))
      (note-deleted object))))
@@ -45,7 +45,7 @@
     (lambda (object)
       (cond
         ((typep object 'null-qobject)
-         (error "cannot delete null object: ~A" object))
+         (error "Cannot delete null object: ~A" object))
         ((qobject-deleted object)
          (warn "not deleting dead object: ~A" object))
         (t
@@ -62,9 +62,9 @@
          (((qobject-class object) :hash t))
        (cond
          ((typep object 'null-qobject)
-          (error "cannot delete null object: ~A" object))
+          (error "Cannot delete null object: ~A" object))
          ((qobject-deleted object)
-          (warn "not deleting dead object: ~A" object))
+          (warn "Not deleting dead object: ~A" object))
          (t
           (optimized-call nil object dtor)
           (note-deleted object))))))
@@ -495,7 +495,7 @@
     (:|uint| 'uint)
     (:|bool| 'bool)
     (:|QString| 'ptr)
-    (t (error "don't know how to unmarshal slot argument ~A" x))))
+    (t (error "Don't know how to unmarshal slot argument ~s" x))))
 
 (defun ensure-dynamic-member-types (member)
   (with-slots (cached-arg-types) member
@@ -503,7 +503,7 @@
       (setf cached-arg-types
             (mapcar (lambda (name)
 		      (or (find-qtype name)
-			  (error "no smoke type found for dynamic member arg type ~A.  Giving up."
+			  (error "No smoke type found for dynamic member arg type ~A.  Giving up."
 				 name)))
                     (cl-ppcre:split
                      ","
@@ -555,7 +555,7 @@
                       :full-name (concatenate 'string c "(" d ")")
                       :arg-types d
                       :reply-type (if (or (null b) (equal b "void")) "" b)))
-     (error "invalid slot or signal signature: ~s" str))))
+     (error "Invalid slot or signal signature: ~s" str))))
 
 (defconstant +AccessPrivate+ #x00)
 (defconstant +AccessProtected+ #x01)

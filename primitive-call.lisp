@@ -70,7 +70,7 @@
           (cond
             ((keywordp form)
              (when type
-               (error "duplicate type specification: ~A / ~A" type form))
+               (error "Duplicate type specification: ~A / ~A" type form))
              (setf type form))
             (t
              (collect type into types)
@@ -130,7 +130,7 @@
                   (string (find-applicable-method
                            instance method args fix-types)))))
     (unless method
-      (error "No applicable method ~A found on ~A with arguments ~A"
+      (error "No applicable method ~A found on ~A with arguments ~S"
              name instance args))
     (let* ((precompiled-override
             (when allow-override-p
@@ -148,7 +148,8 @@
       (cond
         ((integerp instance)
          (unless (qmethod-static-p method)
-           (error "not a static method"))
+           (error "~a::~a is not a static method"
+                  (qclass-name instance) name))
          (assert (not precompiled-override))
          (lambda (<class> args)
            (declare (ignore <class>))
@@ -184,19 +185,19 @@
   ;; (format *trace-output* "cache miss for #_new ~A~%" instance)
   (let* ((class (qobject-class instance))
          (method
-          (qclass-find-applicable-method class
-                                         (qclass-name class)
-                                         args
-                                         fix-types)))
+           (qclass-find-applicable-method class
+                                          (qclass-name class)
+                                          args
+                                          fix-types)))
     (unless method
-      (error "No applicable constructor ~A found for arguments ~A"
+      (error "No applicable constructor ~A found for arguments ~S"
              (qclass-name class) args))
     (assert (eq class (qtype-class (qmethod-return-type method))))
     (let ((classfn (qclass-trampoline-fun (qmethod-class method)))
           (method-index (qmethod-classfn-index method))
           (binding (binding-for-ctor method instance))
           (arglist-marshaller
-           (arglist-marshaller args (list-qmethod-argument-types method))))
+            (arglist-marshaller args (list-qmethod-argument-types method))))
       (named-lambda new-continuation (instance args)
         (%%new instance
                args

@@ -215,7 +215,7 @@
                     (module-number smoke)
                     +class+)))))
       (when errorp
-        (error "class not found for ~S" ptr))))
+        (error "Class not found for ~S" ptr))))
 
 (defun find-qclass (name &optional (errorp t))
   (etypecase name
@@ -232,7 +232,7 @@
                        (module-number smoke)
                        +class+)))))
          (when errorp
-           (error "class not found: ~A" name))))))
+           (error "Class not found: ~A" name))))))
 
 (defun find-qclass-in-module (<module> name &optional (allow-external t))
   (declare (type module-number <module>))
@@ -269,7 +269,7 @@
             (while (plusp classid))
 	    (funcall fun (or (resolve-external-qclass
 			      (bash classid <module> +class+))
-			     (error "failed to resolve superclass: ~/qt:format-reference/"
+			     (error "Failed to resolve superclass: ~/qt:format-reference/"
 				    (bash classid <module> +class+))))))))
 
 (deflistify list-qclass-superclasses map-qclass-superclasses
@@ -904,7 +904,7 @@
     (unless (named-module-number name)
       (let ((idx *n-modules*))
         (unless (< idx (length *module-table*))
-          (error "sorry, +module-bits+ exceeded"))
+          (error "Sorry, +module-bits+ exceeded"))
         (cffi:load-foreign-library
         (format nil
                 #+darwin "libsmoke~A.dylib"

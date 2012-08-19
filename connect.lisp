@@ -111,7 +111,7 @@
                            (eq function (connection-entry-function connection)))
                   (return connection))
                 (finally
-                 (error "unable to locate dynamic connection, sender ~s, ~
+                 (error "Unable to locate dynamic connection, sender ~s, ~
                               receiver ~s, signal ~s, function ~s"
                         sender receiver signal function)))))
     (#_QMetaObject::disconnect
@@ -126,13 +126,14 @@
       (make-instance 'dynamic-receiver :parent owner)))
 
 (defun parse-connect-args (sender signal destination)
-  (unless (plusp (length signal))
-    (error "invalid signal name"))
+  (unless (and (stringp signal)
+               (plusp (length signal)))
+    (error "Invalid signal name: ~s" signal))
   (setf signal (if (digit-char-p (char signal 0))
                    signal
                    (QSIGNAL signal)))
   (unless (<= 1 (length destination) 2)
-    (error "invalid connection destination"))
+    (error "Invalid connection destination: ~s" destination))
   (cond ((alexandria:length= 1 destination)
          (values t signal
                  (ensure-dynamic-receiver sender)
@@ -147,7 +148,8 @@
                        (QSLOT slot))) nil))
         (t
          (unless (functionp (second destination))
-           (error "dynamic connection spec refers to a non-function object"))
+           (error "Dynamic connection spec refers to a non-function object: ~s"
+                  (second destination)))
          (values t signal
                  (ensure-dynamic-receiver (first destination))
                  (second destination)

@@ -314,7 +314,7 @@
       ((not (typep instance 'abstract-qobject)) nil)
       ((eql kind +class+) (qsubclassp (qobject-class instance) thing))
       ((eql kind +type+) (qtypep instance (qtype-class thing)))
-      (t (error "not a type or class: ~A" thing)))))
+      (t (error "Not a type or class: ~A" thing)))))
 
 (defun qsubclassp (a b)
   (or (eq a b)
