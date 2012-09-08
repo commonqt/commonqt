@@ -41,7 +41,8 @@
        (progn ,@body)
      (abort ()
        :report (lambda (stream)
-                 (write-string "Abort smoke callback" stream)))))
+                 (write-string "Abort smoke callback" stream))
+       0)))
 
 (defun %deletion-callback (obj)
   (with-callback-restart
