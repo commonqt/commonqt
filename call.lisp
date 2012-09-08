@@ -36,48 +36,48 @@
   (setf (gethash (cffi:pointer-address ptr) *weakly-cached-objects*)
         newval))
 
+(defmacro with-callback-restart (&body body)
+  `(restart-case
+       (progn ,@body)
+     (abort ()
+       :report (lambda (stream)
+                 (write-string "Abort smoke callback" stream)))))
+
 (defun %deletion-callback (obj)
-  (restart-case
-      (let ((object (pointer->cached-object obj)))
-        (when object
-          (note-deleted object)))
-    (abort ()
-      :report (lambda (stream) (write-string "Abort smoke callback" stream)))))
+  (with-callback-restart
+    (let ((object (pointer->cached-object obj)))
+      (when object
+        (note-deleted object)))))
 
 (defun %method-invocation-callback (smoke method-idx obj stack abstractp)
   (declare (ignore abstractp))
-  (restart-case
-      (let* ((<module> (module-number smoke))
-             (object (pointer->cached-object obj))
-             (<method> (bash method-idx <module> +method+))
-             (fun (and object (find-method-override object <method>))))
-        (if fun
-            (let* ((args
-                    (loop for type in (list-qmethod-argument-types <method>)
-                       for i from 1
-                       for item = (cffi:mem-aref stack
-                                                 '|union StackItem|
-                                                 i)
-                       collect (unmarshal type item)))
-                   (result (override fun object <method> args))
-                   (rtype (qmethod-return-type <method>)))
-              (unless (qtype-void-p rtype)
-                (marshal result rtype stack (lambda ())))
-              1)
-            0))
-    (abort ()
-      :report (lambda (stream) (write-string "Abort smoke callback" stream))
-      0)))
+  (with-callback-restart
+    (let* ((<module> (module-number smoke))
+           (object (pointer->cached-object obj))
+           (<method> (bash method-idx <module> +method+))
+           (fun (and object (find-method-override object <method>))))
+      (if fun
+          (let* ((args
+                   (loop for type in (list-qmethod-argument-types <method>)
+                         for i from 1
+                         for item = (cffi:mem-aref stack
+                                                   '|union StackItem|
+                                                   i)
+                         collect (unmarshal type item)))
+                 (result (override fun object <method> args))
+                 (rtype (qmethod-return-type <method>)))
+            (unless (qtype-void-p rtype)
+              (marshal result rtype stack (lambda ())))
+            1)
+          0))))
 
 (defun %child-callback (added obj)
-  (restart-case
-      (let ((object (pointer->cached-object obj)))
-        (when object
-          (if (zerop added)
-              (note-child-removed object)
-              (note-child-added object))))
-    (abort ()
-      :report (lambda (stream) (write-string "Abort smoke callback" stream)))))
+  (with-callback-restart
+    (let ((object (pointer->cached-object obj)))
+      (when object
+        (if (zerop added)
+            (note-child-removed object)
+            (note-child-added object))))))
 
 (defclass abstract-qobject ()
   ((class :initarg :class
