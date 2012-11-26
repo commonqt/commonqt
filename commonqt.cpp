@@ -23,11 +23,15 @@ typedef void (*t_child_callback)(void*, bool, void*);
 class Binding : public SmokeBinding
 {
 public:
-        Binding(Smoke* s) : SmokeBinding(s) {}
+        Binding(Smoke* s) : SmokeBinding(s)
+        {
+                overridenMethods = new bool[smoke->numMethods];
+        }
 
         t_deletion_callback deletion_callback;
         t_callmethod_callback callmethod_callback;
 	t_child_callback child_callback;
+        bool *overridenMethods;
 
         void deleted(Smoke::Index, void* obj) {
                 deletion_callback(smoke, obj);
@@ -70,7 +74,13 @@ public:
         bool callMethod(Smoke::Index method, void* obj,
                 Smoke::Stack args, bool isAbstract)
         {
-                return callmethod_callback(smoke, method, obj, args, isAbstract);
+                if (overridenMethods[method]) {
+                        return callmethod_callback(smoke, method, obj, args, isAbstract);
+                }
+                else {
+                        return false;
+                }
+                     
         }
 };
 
@@ -121,6 +131,14 @@ sw_smoke(Smoke* smoke,
 
         data->thin = binding;
         data->fat = dynamicBinding;
+}
+
+void sw_override(SmokeData* data, short method, bool override)
+{
+        DynamicBinding* dynamicBinding = (DynamicBinding*) data->fat;
+        Binding* binding = (Binding*) data->thin;
+        dynamicBinding->overridenMethods[method] = override;
+        binding->overridenMethods[method] = override;
 }
 
 int

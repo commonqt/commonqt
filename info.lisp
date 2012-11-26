@@ -437,7 +437,8 @@
   (deftest qmethod-enum-p #x10)
   (deftest qmethod-ctor-p #x20)
   (deftest qmethod-dtor-p #x40)
-  (deftest qmethod-protected-p #x80))
+  (deftest qmethod-protected-p #x80)
+  (deftest qmethod-virtual-p #x400))
 
 (defun list-qmethod-flags (<method>)
   (remove-if-not (lambda (fun)
@@ -676,6 +677,12 @@
   <class>
   name)
 
+(defun list-class-all-methods-named (<class> method-name)
+  (labels ((recurse (c)
+             (append (list-class-methods-named c method-name)
+                     (iter (for super in (list-qclass-superclasses c))
+                       (appending (recurse super))))))
+    (recurse <class>)))
 
 (let ((unconst-table (make-hash-table)))
   (defun qtype-deconstify (<type>)

@@ -279,23 +279,19 @@
          (every #'type= r s))))
 
 (defun qclass-find-applicable-method (class method-name args fix-types)
-  (labels ((recurse (c)
-             (append (list-class-methods-named c method-name)
-                     (iter (for super in (list-qclass-superclasses c))
-                           (appending (recurse super))))))
-    (let ((methods #+nil (remove-duplicates (recurse class)
-                                      :from-end t
-                                      :test #'method-signature=)
-                   (recurse class)))
-      (cond
-        ((null methods)
-         nil)
-        ((cdr methods)
-         (find-if (lambda (method)
-                    (method-applicable-p method args fix-types))
-                  methods))
-        (t
-         (car methods))))))
+  (let ((methods #+nil (remove-duplicates (recurse class)
+                                          :from-end t
+                                          :test #'method-signature=)
+                 (list-class-all-methods-named class method-name)))
+    (cond
+      ((null methods)
+       nil)
+      ((cdr methods)
+       (find-if (lambda (method)
+                  (method-applicable-p method args fix-types))
+                methods))
+      (t
+       (car methods)))))
 
 (defun method-applicable-p (method args &optional fix-types)
   (let ((argtypes (list-qmethod-argument-types method)))

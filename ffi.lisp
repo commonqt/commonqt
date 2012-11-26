@@ -168,6 +168,11 @@
   (smoke** :pointer)
   (index** :pointer))
 
+(defcfun "sw_override" :void
+  (smoke-data* :pointer)
+  (method :short)
+  (override :boolean))
+
 (defun qlist-function-name (type-name name)
   (alexandria:symbolicate "SW_QLIST_" (string-upcase type-name) "_" (string-upcase name)))
 

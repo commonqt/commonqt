@@ -40,6 +40,7 @@
     (values (data-castfn (data-ref module))
             compatible-<to>)))
 
+(declaim (inline perform-cast))
 (defun perform-cast (obj castfn <from> <to>)
   (cffi:foreign-funcall-pointer
    castfn

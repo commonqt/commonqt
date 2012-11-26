@@ -364,6 +364,23 @@
                   (#_metaObject qobj)
                 (#_delete qobj))))))
 
+(defun inform-cpp-about-override (qclass method-name)
+  (map-class-methods-named
+   (lambda (<method>)
+     (multiple-value-bind (idx <module>)
+         (unbash* <method> +method+)
+       (sw_override (data-ref <module>) idx t)))
+   qclass
+   method-name))
+
+(defun inform-cpp-about-overrides (qt-class)
+  (let ((<class> (slot-value qt-class 'effective-class)))
+    (inform-cpp-about-override <class> "metaObject")
+    (inform-cpp-about-override <class> "qt_metacall")
+    (loop for override in (class-override-specs qt-class)
+          for method-name = (override-spec-method-name override)
+          do (inform-cpp-about-override <class> method-name))))
+
 (defun ensure-qt-class-caches (qt-class)
   (check-type qt-class qt-class)
   (with-slots (effective-class qmetaobject smoke-generation generation)
@@ -400,6 +417,7 @@
                                        (class-signals qt-class))
                                (mapcar #'convert-dynamic-member
                                        (class-slots qt-class)))))
+      (inform-cpp-about-overrides qt-class)
       ;; invalidate call site caches
       (setf generation (gensym))
       ;; mark as fresh
