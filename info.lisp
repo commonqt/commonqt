@@ -895,7 +895,7 @@
   (fill *module-data-table* nil)
   (setf *weakly-cached-objects* (tg:make-weak-hash-table :weakness :value))
   (setf *strongly-cached-objects* (make-hash-table))
-  (setf *keep-alive* (make-hash-table))
+  (setf *keep-alive* (make-hash-table :test #'eq))
   (setf *qobject-metaobject* nil)
   (unless *library-loaded-p*
     (load-libcommonqt))

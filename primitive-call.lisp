@@ -29,11 +29,9 @@
 (in-package :qt)
 
 (defun binding-for-ctor (method instance)
-  (let* ((<module> (ldb-module (qmethod-class method)))
-         (data (data-ref <module>)))
-    (if (typep instance 'dynamic-object)
-        (data-fat data)
-        (data-thin data))))
+  (if (typep instance 'dynamic-object)
+      (class-binding (class-of instance))
+      (data-binding (data-ref (ldb-module (qmethod-class method))))))
 
 ;; old-style NEW usage for INITIALIZE-INSTANCE methods kept around for
 ;; compatibility.

@@ -169,9 +169,17 @@
   (index** :pointer))
 
 (defcfun "sw_override" :void
-  (smoke-data* :pointer)
+  (binding :pointer)
   (method :short)
   (override :boolean))
+
+(defcfun "sw_make_dynamic_binding" :pointer
+  (smoke :pointer)
+  (meta-object :pointer)
+  (meta-object-index :short)
+  (deletion-callback :pointer)
+  (method-callback :pointer)
+  (child-callback :pointer))
 
 (defun qlist-function-name (type-name name)
   (alexandria:symbolicate "SW_QLIST_" (string-upcase type-name) "_" (string-upcase name)))
@@ -209,8 +217,7 @@
   (argumentList :pointer)
   (ambiguousMethodList :pointer)
   (castFn :pointer)
-  (thin :pointer)
-  (fat :pointer))
+  (binding :pointer))
 
 (macrolet ((% (fun slot)
              `(progn
@@ -232,8 +239,7 @@
   (% data-argumentList argumentList)
   (% data-ambiguousMethodList ambiguousMethodList)
   (% data-castFn castFn)
-  (% data-thin thin)
-  (% data-fat fat))
+  (% data-binding binding))
 
 (cffi:defcunion |union StackItem|
   (ptr :pointer)

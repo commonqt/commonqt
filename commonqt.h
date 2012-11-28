@@ -8,6 +8,9 @@ extern "C" {
 #  define EXPORT
 #endif
 
+class DynamicBinding;
+class Binding;
+  
 typedef struct SmokeData {
 	const char *name;
 
@@ -31,13 +34,14 @@ typedef struct SmokeData {
 	short *ambiguousMethodList;
 	void *castFn;
 
-	void *thin;
-	void *fat;
+	void *binding;
 } SmokeData;
 
 EXPORT void sw_init();
 EXPORT void sw_smoke(Smoke *, SmokeData*, void *, void *, void *);
-EXPORT void sw_override(SmokeData*, short, bool);
+EXPORT void sw_override(DynamicBinding*, short, bool);
+EXPORT void* sw_make_dynamic_binding(Smoke*, QMetaObject*, short,
+                                     void*, void*, void*);
   
 EXPORT void* sw_make_qbytearray(char *);
 EXPORT void sw_delete_qbytearray(void *q);

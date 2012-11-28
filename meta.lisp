@@ -191,11 +191,12 @@
    (generation :initform nil
                :accessor class-generation)
    (member-table :accessor class-member-table)
-   (overrides :accessor class-overrides)))
+   (overrides :accessor class-overrides)
+   (binding :initform nil
+            :accessor class-binding)))
 
 (defun default-overrides ()
   (let ((overrides (make-hash-table :test 'equal)))
-    (setf (gethash "metaObject" overrides) 'metaobject-override)
     (setf (gethash "qt_metacall" overrides) 'qt_metacall-override)
     overrides))
 
@@ -250,6 +251,18 @@
                                :key #'dynamic-member-name)))
     result))
 
+(defun qt-class-compute-superclasses (direct-superclasses)
+  (let ((qt-class (find-class 'qt-class))
+        (standard-object (find-class 'standard-object))
+        (dynamic-object (find-class 'dynamic-object)))
+    (if (some (lambda (c) (typep c qt-class))
+              direct-superclasses)
+        direct-superclasses
+        (append (if (equal direct-superclasses (list standard-object))
+                    nil
+                    direct-superclasses)
+                (list dynamic-object)))))
+
 (defun initialize-qt-class
     (class next-method &rest args
      &key qt-superclass direct-superclasses slots signals info override
@@ -261,16 +274,7 @@
                  name)
                nil))
          (direct-superclasses
-           (let ((qt-class (find-class 'qt-class))
-                 (standard-object (find-class 'standard-object))
-                 (dynamic-object (find-class 'dynamic-object)))
-             (if (some (lambda (c) (typep c qt-class))
-                       direct-superclasses)
-                 direct-superclasses
-                 (append (if (equal direct-superclasses (list standard-object))
-                             nil
-                             direct-superclasses)
-                         (list dynamic-object)))))
+           (qt-class-compute-superclasses direct-superclasses))
          (slots
            (compute-dynamic-member slots 'slot-member
                                    #'class-slots direct-superclasses))
@@ -364,22 +368,40 @@
                   (#_metaObject qobj)
                 (#_delete qobj))))))
 
-(defun inform-cpp-about-override (qclass method-name)
+(defun inform-cpp-about-override (qclass binding method-name)
   (map-class-methods-named
    (lambda (<method>)
-     (multiple-value-bind (idx <module>)
-         (unbash* <method> +method+)
-       (sw_override (data-ref <module>) idx t)))
+     (sw_override binding (unbash* <method> +method+)
+                  t))
    qclass
    method-name))
 
 (defun inform-cpp-about-overrides (qt-class)
-  (let ((<class> (slot-value qt-class 'effective-class)))
-    (inform-cpp-about-override <class> "metaObject")
-    (inform-cpp-about-override <class> "qt_metacall")
-    (loop for override in (class-override-specs qt-class)
-          for method-name = (override-spec-method-name override)
-          do (inform-cpp-about-override <class> method-name))))
+  (let ((<class> (slot-value qt-class 'effective-class))
+        (binding (class-binding qt-class)))
+    (loop for method-name being the hash-key of (class-overrides qt-class)
+          do (inform-cpp-about-override <class> binding method-name))))
+
+(defun meta-object-method-index (qt-class)
+  (map-class-methods-named
+   (lambda (<method>)
+     (return-from meta-object-method-index
+       (values (unbash* <method> +method+))))
+   (slot-value qt-class 'effective-class)
+   "metaObject"))
+
+(defun set-class-binding (qt-class)
+  (multiple-value-bind (idx <module>)
+      (unbash* (slot-value qt-class 'effective-class) +class+)
+    (declare (ignore idx))
+    (setf (class-binding qt-class)
+          (sw_make_dynamic_binding (module-ref <module>)
+                                   (qobject-pointer
+                                    (slot-value qt-class 'qmetaobject))
+                                   (meta-object-method-index qt-class)
+                                   (cffi:callback deletion-callback)
+                                   (cffi:callback method-invocation-callback)
+                                   (cffi:callback child-callback)))))
 
 (defun ensure-qt-class-caches (qt-class)
   (check-type qt-class qt-class)
@@ -417,6 +439,7 @@
                                        (class-signals qt-class))
                                (mapcar #'convert-dynamic-member
                                        (class-slots qt-class)))))
+      (set-class-binding qt-class)
       (inform-cpp-about-overrides qt-class)
       ;; invalidate call site caches
       (setf generation (gensym))
@@ -472,9 +495,6 @@
 		   method-name
 		   (or new-args args)))))
     (apply fun object args)))
-
-(defun metaobject-override (object)
-  (class-qmetaobject (class-of object)))
 
 (defgeneric dynamic-object-member (object id)
   (:method (object id)

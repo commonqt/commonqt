@@ -23,15 +23,11 @@ typedef void (*t_child_callback)(void*, bool, void*);
 class Binding : public SmokeBinding
 {
 public:
-        Binding(Smoke* s) : SmokeBinding(s)
-        {
-                overridenMethods = new bool[smoke->numMethods];
-        }
+        Binding(Smoke* s) : SmokeBinding(s) {}
 
         t_deletion_callback deletion_callback;
         t_callmethod_callback callmethod_callback;
 	t_child_callback child_callback;
-        bool *overridenMethods;
 
         void deleted(Smoke::Index, void* obj) {
                 deletion_callback(smoke, obj);
@@ -71,16 +67,23 @@ class DynamicBinding : public Binding
 public:
         DynamicBinding(Smoke* s) : Binding(s) {}
 
+        QHash<short, bool> overridenMethods;
+        QMetaObject* metaObject;
+        short metaObjectIndex;
+
         bool callMethod(Smoke::Index method, void* obj,
                 Smoke::Stack args, bool isAbstract)
         {
-                if (overridenMethods[method]) {
+                if (method == metaObjectIndex) {
+                        args[0].s_voidp = (void*)metaObject;
+                        return true;
+                }
+                else if (overridenMethods[method]) {
                         return callmethod_callback(smoke, method, obj, args, isAbstract);
                 }
                 else {
                         return false;
                 }
-                     
         }
 };
 
@@ -92,7 +95,6 @@ sw_smoke(Smoke* smoke,
 	 void* child_callback)
 {
         Binding* binding = new Binding(smoke);
-        DynamicBinding* dynamicBinding = new DynamicBinding(smoke);
 
 	data->name = smoke->moduleName();
 
@@ -116,7 +118,32 @@ sw_smoke(Smoke* smoke,
         data->ambiguousMethodList = smoke->ambiguousMethodList;
         data->castFn = (void *) smoke->castFn;
 
-	dynamicBinding->deletion_callback
+	binding->deletion_callback
+		= (t_deletion_callback) deletion_callback;
+
+        binding->callmethod_callback
+                = (t_callmethod_callback) method_callback;
+
+	binding->child_callback
+		= (t_child_callback) child_callback;
+
+        data->binding = binding;
+}
+
+void sw_override(DynamicBinding* dynamicBinding, short method, bool override)
+{
+        dynamicBinding->overridenMethods[method] = override;
+}
+
+void* sw_make_dynamic_binding(Smoke* smoke,
+                              QMetaObject* metaObject,
+                              short metaObjectIndex,
+                              void* deletion_callback,
+                              void* method_callback,
+                              void* child_callback) {
+        DynamicBinding* dynamicBinding = new DynamicBinding(smoke);
+
+        dynamicBinding->deletion_callback
 		= (t_deletion_callback) deletion_callback;
 
         dynamicBinding->callmethod_callback
@@ -125,20 +152,9 @@ sw_smoke(Smoke* smoke,
 	dynamicBinding->child_callback
 		= (t_child_callback) child_callback;
 
-	binding->deletion_callback = dynamicBinding->deletion_callback;
-	binding->callmethod_callback = dynamicBinding->callmethod_callback;
-	binding->child_callback = dynamicBinding->child_callback;
-
-        data->thin = binding;
-        data->fat = dynamicBinding;
-}
-
-void sw_override(SmokeData* data, short method, bool override)
-{
-        DynamicBinding* dynamicBinding = (DynamicBinding*) data->fat;
-        Binding* binding = (Binding*) data->thin;
-        dynamicBinding->overridenMethods[method] = override;
-        binding->overridenMethods[method] = override;
+        dynamicBinding->metaObject = metaObject;
+        dynamicBinding->metaObjectIndex = metaObjectIndex;
+        return dynamicBinding;
 }
 
 int
@@ -291,7 +307,7 @@ sw_qstringlist_append(void *q, char *x)
 {
 	static_cast<QStringList*>(q)->append(QString(QString::fromUtf8(x)));
 }
-        
+
 // QList<Something*> marshalling
 
 void*
