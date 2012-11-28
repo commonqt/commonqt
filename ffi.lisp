@@ -171,7 +171,7 @@
 (defcfun "sw_override" :void
   (binding :pointer)
   (method :short)
-  (override :boolean))
+  (override :short))
 
 (defcfun "sw_make_dynamic_binding" :pointer
   (smoke :pointer)
@@ -309,10 +309,19 @@
      (obj :pointer)
      (args :pointer)
      (abstractp :char))
-  ;; Just dispatch to an ordinary function for debugging purposes.
+  (%method-invocation-callback smoke method obj args abstractp))
+
+(defcallback dynamic-invocation-callback
+    :char
+    ((smoke :pointer)
+     (method :short)
+     (override-id :short)
+     (obj :pointer)
+     (args :pointer)
+     (abstractp :char))
   ;; Redefinition of a callback wouldn't affect the existing C++ code,
   ;; redefinition of the function does.
-  (%method-invocation-callback smoke method obj args abstractp))
+  (%dynamic-invocation-callback smoke obj method override-id args abstractp))
 
 (defcallback child-callback
     :void
@@ -320,9 +329,6 @@
      (added :char)                      ;bool
      (obj :pointer))
   (declare (ignore smoke))
-  ;; Just dispatch to an ordinary function for debugging purposes.
-  ;; Redefinition of a callback wouldn't affect the existing C++ code,
-  ;; redefinition of the function does.
   (%child-callback added obj))
 
 (defvar *ptr-callback*)

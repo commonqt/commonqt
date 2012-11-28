@@ -127,214 +127,29 @@
 		     (postmortem ptr class str qobjectp dynamicp)))))
   object)
 
-(defclass dynamic-member ()
-  ((name :initarg :name
-         :accessor dynamic-member-name)
-   (cached-arg-types :accessor dynamic-member-cached-arg-types)))
-
-(defclass signal-member (dynamic-member)
-  ())
-
-(defclass slot-member (dynamic-member)
-  ((function :initarg :function
-             :accessor dynamic-member-function)))
-
-(defmethod print-object ((instance dynamic-member) stream)
-  (print-unreadable-object (instance stream :type t :identity t)
-    (princ (dynamic-member-name instance) stream)))
-
-(defmethod print-object ((instance dynamic-object) stream)
-  (print-unreadable-object (instance stream :type t :identity nil)
-    (cond
-      ((not (slot-boundp instance 'class))
-       (format stream "uninitialized"))
-      ((cffi:pointerp (qobject-pointer instance))
-       (format stream "~A 0x~8,'0X"
-               (qclass-name (qobject-class instance))
-               (cffi:pointer-address (qobject-pointer instance))))
-      (t
-       (format stream "~A ~A"
-               (qclass-name (qobject-class instance))
-               (qobject-pointer instance))))))
-
-(defmethod initialize-instance ((instance dynamic-object) &key)
-  (multiple-value-prog1
-      (call-next-method)
-    (let ((class (class-of instance)))
-      (ensure-qt-class-caches class)
-      (setf (qobject-class instance) (class-effective-class class)))))
-
-(defmethod initialize-instance :around ((instance dynamic-object) &key)
-  (multiple-value-prog1
-      (call-next-method)
-    (unless (cffi:pointerp (qobject-pointer instance))
-      (error "INITIALIZE-INSTANCE of ~A failed to call Qt constructor"
-             instance))))
-
-(defclass qt-class (standard-class)
-  ((qt-superclass :initarg :qt-superclass
-                  :accessor class-qt-superclass)
-   (signals :initarg :signals
-            :accessor class-signals)
-   (qt-slots :initarg :slots
-             :accessor class-slots)
-   (override-specs :initarg :override
-                   :accessor class-override-specs)
-   (class-infos :initarg :info
-                :accessor class-class-infos)
-   (effective-class :initform nil)
-   (qmetaobject :initform nil)
-   (smoke-generation :initform nil
-                     :accessor class-smoke-generation)
-   (generation :initform nil
-               :accessor class-generation)
-   (member-table :accessor class-member-table)
-   (overrides :accessor class-overrides)
-   (binding :initform nil
-            :accessor class-binding)))
-
-(defun default-overrides ()
-  (let ((overrides (make-hash-table :test 'equal)))
-    (setf (gethash "qt_metacall" overrides) 'qt_metacall-override)
-    overrides))
-
-(defmethod c2mop:validate-superclass
-    ((class qt-class) (superclass t))
-  nil)
-
-(defmethod c2mop:validate-superclass
-    ((class standard-class) (superclass qt-class))
-  nil)
-
-(defmethod c2mop:validate-superclass
-    ((class qt-class) (superclass standard-class))
-  (eq superclass (find-class 'dynamic-object)))
-
-(defmethod c2mop:validate-superclass
-    ((class qt-class) (superclass qt-class))
-  t)
-
-(defun parse-function (form)
-  ;; this run-time use of COMPILE is a huge kludge.  We'd just want to hook
-  ;; into the DEFCLASS expansion like slots and init functions can, but
-  ;; those are special built-in features of DEFCLASS which meta classes
-  ;; cannot implement for their own options.  Big oversight in the MOP IMNSHO.
-  (etypecase (macroexpand form)
-    ((or symbol function)
-     form)
-    ((cons (eql lambda) t)
-     (compile nil form))
-    ((cons (eql function) t)
-     (eval form))))
-
-(defun compute-dynamic-member (description type acessor direct-superclasses)
-  (let ((result
-          (loop for (name . value) in description
-                when (or (not value)
-                         (car value))
-                collect
-                (if value
-                    (make-instance type
-                                   :name name
-                                   :function (parse-function (car value)))
-                    (make-instance type :name name)))))
-    (loop for class in direct-superclasses
-          when (typep class 'qt-class)
-          do (loop for object in (funcall acessor class)
-                   unless (find (dynamic-member-name object)
-                                description
-                                :key #'car :test #'equal)
-                   do (pushnew object result
-                               :test #'equal
-                               :key #'dynamic-member-name)))
-    result))
-
-(defun qt-class-compute-superclasses (direct-superclasses)
-  (let ((qt-class (find-class 'qt-class))
-        (standard-object (find-class 'standard-object))
-        (dynamic-object (find-class 'dynamic-object)))
-    (if (some (lambda (c) (typep c qt-class))
-              direct-superclasses)
-        direct-superclasses
-        (append (if (equal direct-superclasses (list standard-object))
-                    nil
-                    direct-superclasses)
-                (list dynamic-object)))))
-
-(defun initialize-qt-class
-    (class next-method &rest args
-     &key qt-superclass direct-superclasses slots signals info override
-     &allow-other-keys)
-  (let* ((qt-superclass
-           (if qt-superclass
-               (destructuring-bind (name) qt-superclass
-                 (check-type name string)
-                 name)
-               nil))
-         (direct-superclasses
-           (qt-class-compute-superclasses direct-superclasses))
-         (slots
-           (compute-dynamic-member slots 'slot-member
-                                   #'class-slots direct-superclasses))
-         (signals
-           (compute-dynamic-member signals 'signal-member
-                                   #'class-signals direct-superclasses))
-         (class-infos
-           (iter (for (name value) in info)
-             (collect (make-class-info name value))))
-         (override-specs
-           (iter (for (method fun) in override)
-             (collect (make-instance 'override-spec
-                                     :method-name method
-                                     :target-function
-                                     (parse-function fun))))))
-    (apply next-method
-           class
-           :allow-other-keys t
-           :direct-superclasses direct-superclasses
-           :qt-superclass qt-superclass
-           :slots slots
-           :signals signals
-           :info class-infos
-           :override override-specs
-           args)))
-
-(defmethod initialize-instance :around ((instance qt-class) &rest args)
-  (apply #'initialize-qt-class instance #'call-next-method args))
-
-(defmethod reinitialize-instance :around ((instance qt-class) &rest args)
-  (apply #'initialize-qt-class instance #'call-next-method args))
-
 (defun get-qt-class-member (qt-class id)
   (let ((table (class-member-table qt-class)))
     (when (< id (length table))
       (elt table id))))
 
 (defun make-override-table (specs)
-  (let ((table (make-hash-table :test 'equal)))
-    (dolist (spec specs)
-      (setf (gethash (override-spec-method-name spec) table)
-            (override-spec-target-function spec)))
-    table))
+  (coerce specs 'vector))
 
-(defclass override-spec ()
-  ((method-name :initarg :method-name
-                :accessor override-spec-method-name)
-   (target-function :initarg :target-function
-                    :accessor override-spec-target-function)))
-
-(defun merge-overrides (a b)
-  (let ((c (make-hash-table :test 'equal)))
-    (maphash (lambda (k v) (setf (gethash k c) v )) a)
-    (maphash (lambda (k v) (unless (gethash k c) (setf (gethash k c) v))) b)
-    c))
+(defun make-lisp-side-override-table (specs)
+  (let ((ht (make-hash-table :test #'equal)))
+    (loop for spec in specs
+          do (setf (gethash (dynamic-member-name spec) ht)
+                   (dynamic-member-function spec)))
+    ht))
 
 (defmethod c2mop:finalize-inheritance :after ((object qt-class))
+  (unless (class-qt-superclass object)
+    (return-from c2mop:finalize-inheritance))
   (dolist (super (c2mop:class-direct-superclasses object))
     (unless (c2mop:class-finalized-p super)
       (c2mop:finalize-inheritance super)))
   (with-slots (qmetaobject qt-superclass member-table signals qt-slots
-                           overrides)
+               overrides lisp-side-overrides)
       object
     (setf qmetaobject
           ;; clear out any old QMetaObject, so that ensure-metaobject will
@@ -347,15 +162,10 @@
                             (c2mop:class-direct-superclasses object))
                    (error "No effective Qt class name declared for ~A"
                           object)))))
-    (setf overrides (make-override-table (class-override-specs object)))
-    (let ((supers (remove-if-not (lambda (super)
-                                   (typep super 'qt-class))
-                                 (c2mop:class-direct-superclasses object))))
-      (if supers
-          (dolist (super supers)
-            (setf overrides
-                  (merge-overrides overrides (class-overrides super))))
-          (setf overrides (merge-overrides overrides (default-overrides)))))
+    (setf overrides
+          (make-override-table (class-override-specs object)))
+    (setf lisp-side-overrides
+          (make-lisp-side-override-table (class-override-specs object)))
     (setf member-table (concatenate 'vector signals qt-slots))))
 
 (defun %qobject-metaobject ()
@@ -366,19 +176,24 @@
                   (#_metaObject qobj)
                 (#_delete qobj))))))
 
-(defun inform-cpp-about-override (qclass binding method-name)
+(defun inform-cpp-about-override (qclass binding method-name
+                                  override-id)
   (map-class-methods-named
    (lambda (<method>)
-     (sw_override binding (unbash* <method> +method+)
-                  t))
+     (sw_override binding
+                  (unbash* <method> +method+)
+                  override-id))
    qclass
    method-name))
 
 (defun inform-cpp-about-overrides (qt-class)
   (let ((<class> (slot-value qt-class 'effective-class))
         (binding (class-binding qt-class)))
-    (loop for method-name being the hash-key of (class-overrides qt-class)
-          do (inform-cpp-about-override <class> binding method-name))))
+    (loop for spec in (class-override-specs qt-class)
+          for id from 0
+          do (inform-cpp-about-override <class> binding
+                                        (dynamic-member-name spec)
+                                        id))))
 
 (defun meta-object-method-index (qt-class)
   (map-class-methods-named
@@ -398,7 +213,7 @@
                                     (slot-value qt-class 'qmetaobject))
                                    (meta-object-method-index qt-class)
                                    (cffi:callback deletion-callback)
-                                   (cffi:callback method-invocation-callback)
+                                   (cffi:callback dynamic-invocation-callback)
                                    (cffi:callback child-callback)))))
 
 (defun ensure-qt-class-caches (qt-class)
@@ -462,8 +277,14 @@
       (find-method-override-using-class (class-of object) method)
       nil))
 
+(defun find-dynamic-method-override (object method-id)
+  (if (typep object 'dynamic-object)
+      (svref (class-overrides (class-of object))
+             method-id)))
+
 (defun find-method-override-using-class (class method)
-  (gethash (qmethod-name method) (class-overrides class)))
+  (gethash (qmethod-name method)
+           (lisp-side-overrides class)))
 
 (defvar *next-qmethod-trampoline* nil)
 (defvar *next-qmethod* nil)
@@ -477,21 +298,14 @@
   (or *next-qmethod*
       (error "get-next-qmethod used outside of overriding method")))
 
-(defun override (fun object <method> args)
-  (let* ((method-name
-	  ;; dispatch on the method name rather than method index,
-	  ;; because the index sometimes points to a superclass method
-	  ;; rather than the specific class we want.  Don't know why.
-	  ;; Run-time lookup of the name ensures that we get the most
-	  ;; specific method that OBJECT has.
-	  (qmethod-name <method>))
-	 (*next-qmethod* method-name)
-	 (*next-qmethod-trampoline*
-	  (lambda (new-args)
-	    (apply #'interpret-call-without-override
-		   object
-		   method-name
-		   (or new-args args)))))
+(defun override (fun object method-name args)
+  (let ((*next-qmethod* method-name)
+        (*next-qmethod-trampoline*
+          (lambda (new-args)
+            (apply #'interpret-call-without-override
+                   object
+                   method-name
+                   (or new-args args)))))
     (apply fun object args)))
 
 (defgeneric dynamic-object-member (object id)
@@ -561,12 +375,6 @@
                        (t
                         (unmarshal type (cffi:mem-aref argv :pointer i)))))))
 
-(defclass class-info ()
-  ((key :initarg :key
-        :accessor entry-key)
-   (value :initarg :value
-          :accessor entry-value)))
-
 (defclass slot-or-signal ()
   ((name :initarg :name
          :accessor entry-name)
@@ -576,9 +384,6 @@
               :accessor entry-arg-types)
    (reply-type :initarg :reply-type
                :accessor entry-reply-type)))
-
-(defun make-class-info (key value)
-  (make-instance 'class-info :key key :value value))
 
 (defun make-slot-or-signal (str)
   (let ((str (#_data (#_QMetaObject::normalizedSignature str))))

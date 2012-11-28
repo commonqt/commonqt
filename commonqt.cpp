@@ -18,6 +18,7 @@ using namespace std;
 
 typedef void (*t_deletion_callback)(void*, void*);
 typedef bool (*t_callmethod_callback)(void*, short, void*, void*, bool);
+typedef bool (*t_dynamic_callmethod_callback)(void*, short, short, void*, void*, bool);
 typedef void (*t_child_callback)(void*, bool, void*);
 
 class Binding : public SmokeBinding
@@ -67,19 +68,25 @@ class DynamicBinding : public Binding
 public:
         DynamicBinding(Smoke* s) : Binding(s) {}
 
-        QHash<short, bool> overridenMethods;
+        QHash<short, short> overridenMethods;
         QMetaObject* metaObject;
         short metaObjectIndex;
+        t_dynamic_callmethod_callback callmethod_callback;
 
         bool callMethod(Smoke::Index method, void* obj,
                 Smoke::Stack args, bool isAbstract)
         {
+                
                 if (method == metaObjectIndex) {
                         args[0].s_voidp = (void*)metaObject;
                         return true;
                 }
-                else if (overridenMethods[method]) {
-                        return callmethod_callback(smoke, method, obj, args, isAbstract);
+                else if (overridenMethods.contains(method)) {
+                        short override_index = overridenMethods.value(method);
+                        
+                        return callmethod_callback(smoke, method,
+                                                   override_index,
+                                                   obj, args, isAbstract);
                 }
                 else {
                         return false;
@@ -130,9 +137,10 @@ sw_smoke(Smoke* smoke,
         data->binding = binding;
 }
 
-void sw_override(DynamicBinding* dynamicBinding, short method, bool override)
+void sw_override(DynamicBinding* dynamicBinding, short method,
+                 short override_index)
 {
-        dynamicBinding->overridenMethods[method] = override;
+        dynamicBinding->overridenMethods[method] = override_index;
 }
 
 void* sw_make_dynamic_binding(Smoke* smoke,
@@ -147,7 +155,7 @@ void* sw_make_dynamic_binding(Smoke* smoke,
 		= (t_deletion_callback) deletion_callback;
 
         dynamicBinding->callmethod_callback
-                = (t_callmethod_callback) method_callback;
+                = (t_dynamic_callmethod_callback) method_callback;
 
 	dynamicBinding->child_callback
 		= (t_child_callback) child_callback;

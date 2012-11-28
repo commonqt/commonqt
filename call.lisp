@@ -72,6 +72,35 @@
             1)
           0))))
 
+(defun %dynamic-invocation-callback (smoke obj
+                                     method-id
+                                     override-id stack abstractp)
+  (declare (ignore abstractp))
+  (with-callback-restart
+    (let* ((<module> (module-number smoke))
+           (object (pointer->cached-object obj))
+           (<method> (bash method-id <module> +method+))
+           (override (and object
+                          (find-dynamic-method-override object
+                                                        override-id))))
+      (if override
+          (let* ((args
+                   (loop for type in (list-qmethod-argument-types <method>)
+                         for i from 1
+                         for item = (cffi:mem-aref stack
+                                                   '|union StackItem|
+                                                   i)
+                         collect (unmarshal type item)))
+                 (result (override (dynamic-member-function override)
+                                   object
+                                   (dynamic-member-name override)
+                                   args))
+                 (rtype (qmethod-return-type <method>)))
+            (unless (qtype-void-p rtype)
+              (marshal result rtype stack (lambda ())))
+            1)
+          0))))
+
 (defun %child-callback (added obj)
   (with-callback-restart
     (let ((object (pointer->cached-object obj)))
@@ -79,116 +108,6 @@
         (if (zerop added)
             (note-child-removed object)
             (note-child-added object))))))
-
-(defclass abstract-qobject ()
-  ((class :initarg :class
-          :accessor qobject-class)))
-
-(defclass null-qobject (abstract-qobject)
-  ())
-
-(defun null-qobject (class)
-  (make-instance 'null-qobject :class (find-qclass class)))
-
-(defgeneric qobject-pointer (qobject))
-
-(defmethod qobject-pointer ((object null-qobject))
-  (cffi:null-pointer))
-
-(defclass qobject (abstract-qobject)
-  ((pointer :initarg :pointer
-            :initform :unborn
-            :accessor qobject-pointer)
-   (deleted :initform nil
-            :accessor qobject-deleted)))
-
-(defmethod print-object ((instance qobject) stream)
-  (print-unreadable-object (instance stream :type nil :identity nil)
-    (cond
-      ((not (slot-boundp instance 'class))
-       (format stream "uninitialized"))
-      ((cffi:pointerp (qobject-pointer instance))
-       (format stream "~A 0x~8,'0X"
-               (qclass-name (qobject-class instance))
-               (cffi:pointer-address (qobject-pointer instance))))
-      (t
-       (format stream "~A ~A"
-               (qclass-name (qobject-class instance))
-               (qobject-pointer instance))))))
-
-(defmethod print-object ((instance null-qobject) stream)
-  (print-unreadable-object (instance stream :type nil :identity nil)
-    (format stream "~A NULL"
-            (qclass-name (qobject-class instance)))))
-
-(defclass primitive ()
-  ((value :initarg :value :accessor primitive-value)))
-
-(defmethod print-object ((instance primitive) stream)
-  (print-unreadable-object (instance stream :type t :identity nil)
-    (format stream "~A" (primitive-value instance))))
-
-(defmacro defprimitive (name (superclass) type)
-  `(progn
-     (defclass ,name (,superclass) ())
-     (defun ,name (value)
-       (check-type value ,type)
-       (make-instance ',name :value value))))
-
-(defclass $ (primitive) ())
-(defclass ? (primitive) ())
-
-;;; (defprimitive int ($) (signed-byte 32))
-;;; (defprimitive uint ($) (unsigned-byte 32))
-;;; (defprimitive bool ($) (signed-byte 32))
-
-;;; (defprimitive char* ($) (satisfies cffi:pointerp))
-;;; (defprimitive char** (?) (satisfies cffi:pointerp))
-;;; (defprimitive qstring ($) string)
-;;; (defprimitive qstringlist (?) (satisfies cffi:pointerp))
-;;; (defprimitive int& ($) (satisfies cffi:pointerp))
-;;; (defprimitive void** (?) (satisfies cffi:pointerp))
-;;; (defprimitive bool* ($) (satisfies cffi:pointerp))
-;;; (defprimitive quintptr (?) (satisfies cffi:pointerp))
-
-(defclass enum ($)
-  ((type-name :initarg :type-name
-              :accessor enum-type-name)))
-
-(defun enum (value type-name)
-  (check-type value (signed-byte 32))
-  (make-instance 'enum :type-name type-name :value value))
-
-#+nil
-(defmethod print-object ((instance primitive) stream)
-  (print-unreadable-object (instance stream :type t :identity nil)
-    (format stream "~A"
-            (primitive-value instance))))
-
-(defmethod print-object ((instance enum) stream)
-  (print-unreadable-object (instance stream :type t :identity nil)
-    (format stream "~A ~A"
-            (enum-type-name instance)
-            (primitive-value instance))))
-
-(defun enum= (a b)
-  (and (eq (enum-type-name a) (enum-type-name b))
-       (eql (primitive-value a) (primitive-value b))))
-
-(defun enum-or (&rest enums)
-  (reduce #'logior enums
-          :key (lambda (x) (if (integerp x) x (primitive-value x)))))
-
-(defclass qthread ()
-  ((pointer :initarg :pointer
-            :accessor qthread-pointer)))
-
-(defmethod print-object ((instance qthread) stream)
-  (print-unreadable-object (instance stream :type t :identity nil)
-    (format stream "~X" (cffi:pointer-address (qthread-pointer instance)))))
-
-(defun qobject= (x y)
-  (cffi-sys:pointer-eq (qobject-pointer x) (qobject-pointer y)))
 
 (defun %qobject (class ptr)
   (let ((cached (pointer->cached-object ptr)))
