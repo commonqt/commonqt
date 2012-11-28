@@ -40,34 +40,24 @@
     (values (data-castfn (data-ref module))
             compatible-<to>)))
 
-(declaim (inline perform-cast))
-(defun perform-cast (obj castfn <from> <to>)
+(declaim (inline %perform-cast))
+(defun %perform-cast (object-pointer castfn <from> <to>)
   (cffi:foreign-funcall-pointer
    castfn
    ()
-   :pointer (qobject-pointer obj)
+   :pointer object-pointer
    :short (unbash <from>)
    :short (unbash <to>)
    :pointer))
 
-(defun %cast (obj <to>)
-;;;   (let* ((from-class (qobject-class obj))
-;;;          (module (ldb-module from-class))
-;;;          (to-class
-;;;           (if (eql module (ldb-module to-class))
-;;;               to-class
-;;;               (find-qclass-in-module module (qclass-name to-class)))))
-;;;     (cffi:foreign-funcall-pointer
-;;;      (data-castfn (data-ref module))
-;;;      ()
-;;;      :pointer (qobject-pointer obj)
-;;;      :short (unbash from-class)
-;;;      :short (unbash to-class)
-;;;      :pointer))
-  (let ((<from> (qobject-class obj)))
-    (multiple-value-bind (fn <cto>)
-        (resolve-cast <from> <to>)
-      (perform-cast obj fn <from> <cto>))))
+(declaim (inline perform-cast))
+(defun perform-cast (obj castfn <from> <to>)
+  (%perform-cast (qobject-pointer obj) castfn <from> <to>))
+
+(defun %cast (pointer <from> <to>)
+  (multiple-value-bind (fn <cto>)
+      (resolve-cast <from> <to>)
+    (%perform-cast pointer fn <from> <cto>)))
 
 (defun marshal (value type stack-item cont)
   (funcall (marshaller value type) value stack-item cont))

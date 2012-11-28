@@ -368,17 +368,13 @@
     (let ((addr (cffi:pointer-address (qobject-pointer object))))
       (remhash addr *weakly-cached-objects*)
       (remhash addr *strongly-cached-objects*)
-      (map-cpl-using-result
-       (lambda (super casted)
-         (let* ((ptr (%cast casted super))
-                (super-addr (cffi:pointer-address ptr)))
+      (map-casted-object-pointer
+       (lambda (ptr)
+         (let ((super-addr (cffi:pointer-address ptr)))
            (when (/= super-addr addr)
-             (remhash super-addr *weakly-cached-objects*))
-           (make-instance 'qobject
-                          :class super
-                          :pointer ptr)))
+             (remhash super-addr *weakly-cached-objects*))))
        (qobject-class object)
-       object))
+       (qobject-pointer object)))
     (setf (qobject-deleted object) t)))
 
 (defun cancel-finalization (object)
@@ -418,16 +414,23 @@
 (defmethod note-child-removed ((object qobject))
   (remhash object *keep-alive*))
 
-(defun map-cpl (fun class)
+(defun map-qclass-precedence-list (fun class)
   (labels ((recurse (c)
              (funcall fun c)
-             (map-qclass-superclasses #'recurse c)))
+             (map-qclass-direct-superclasses #'recurse c)))
     (recurse class)))
 
-(defun map-cpl-using-result (fun class initial-value)
-  (labels ((recurse (c val)
-             (let ((newval (funcall fun c val)))
-               (map-qclass-superclasses
-                (lambda (sub) (recurse sub newval))
-                c))))
-    (recurse class initial-value)))
+(defun map-casted-object-pointer (fun <class> pointer)
+  "Cast an object to each of its superclasses and call a function on
+   the resulting pointer"
+  (labels ((recurse (pointer <from> <to>)
+             (let ((casted (%cast pointer <from> <to>)))
+               (funcall fun casted)
+               (map-qclass-direct-superclasses
+                (lambda (<super>)
+                  (recurse casted <to> <super>))
+                <to>))))
+    (map-qclass-direct-superclasses
+     (lambda (<super>)
+       (recurse pointer <class> <super>))
+     <class>)))

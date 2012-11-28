@@ -102,17 +102,15 @@
 
 (defun cache! (object)
   (let ((ptr (qobject-pointer object)))
-   ; (assert (null (pointer->cached-object ptr)))
+    ;; (assert (null (pointer->cached-object ptr)))
     (setf (pointer->cached-object ptr) object)
     (assert (qobject-class object))
-    (map-cpl-using-result (lambda (super casted)
-                            (let ((ptr (%cast casted super)))
-                              (setf (pointer->cached-object ptr) object)
-                              (make-instance 'qobject
-                                             :class super
-                                             :pointer ptr)))
-                          (qobject-class object)
-                          object)
+    (map-casted-object-pointer
+     (lambda (super-ptr)
+       (unless (cffi:pointer-eq super-ptr ptr)
+         (setf (pointer->cached-object super-ptr) object)))
+     (qobject-class object)
+     ptr)
     (when (typep object 'dynamic-object)
       (setf (gethash (cffi:pointer-address ptr) *strongly-cached-objects*)
             object)))

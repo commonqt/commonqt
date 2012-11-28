@@ -255,7 +255,7 @@
     (format stream "~D <~D,~D,~D>" arg id <module> kind)))
 
 (declaim (inline map-qclass-superclasses))
-(defun map-qclass-superclasses (fun <class>)
+(defun map-qclass-direct-superclasses (fun <class>)
   (let* ((<module> (ldb-module <class>))
          (parents (the index-iterator
                     (cffi:foreign-slot-value (qclass-struct <class>)
@@ -272,7 +272,7 @@
 			     (error "Failed to resolve superclass: ~/qt:format-reference/"
 				    (bash classid <module> +class+))))))))
 
-(deflistify list-qclass-superclasses map-qclass-superclasses
+(deflistify list-qclass-superclasses map-qclass-direct-superclasses
   <class>)
 
 (defun qclass-flags (<class>)
