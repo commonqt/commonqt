@@ -144,8 +144,12 @@ NIL, meaning the value will not be used in hashing."
                      ((and ,previous ,check)
                       (car ,previous))
                      (t
-                      (let ((values (multiple-value-list ,value-form)))
+                      (let ((values ,(if (= (length vars) 1)
+                                         value-form
+                                         `(multiple-value-list ,value-form))))
                         (setf (aref ,places ,hash) (list values ,@key-syms))
                         values)))))
-             (values-list values))
+             ,(if (= (length vars) 1)
+                  'values
+                  '(values-list values)))
          ,@body))))
