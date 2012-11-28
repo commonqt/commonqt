@@ -52,7 +52,9 @@
 
 (declaim (inline perform-cast))
 (defun perform-cast (obj castfn <from> <to>)
-  (%perform-cast (qobject-pointer obj) castfn <from> <to>))
+  (if (eql <from> <to>)
+      (qobject-pointer obj)
+      (%perform-cast (qobject-pointer obj) castfn <from> <to>)))
 
 (defun %cast (pointer <from> <to>)
   (multiple-value-bind (fn <cto>)
