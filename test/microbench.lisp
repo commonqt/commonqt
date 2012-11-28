@@ -457,7 +457,7 @@
 			  "QColor"
 			  '(0 0 0 0)
 			  nil)))
-  (setf <binding> (data-thin (data-ref 0))))
+  (setf <binding> (data-binding (data-ref 0))))
 
 (defun commonqt-directory ()
   (asdf:component-pathname (asdf:find-system :qt)))
