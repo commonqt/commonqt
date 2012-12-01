@@ -132,43 +132,6 @@
     (when (< id (length table))
       (elt table id))))
 
-(defun make-override-table (specs)
-  (coerce specs 'vector))
-
-(defun make-lisp-side-override-table (specs)
-  (let ((ht (make-hash-table :test #'equal)))
-    (loop for spec in specs
-          do (setf (gethash (name spec) ht)
-                   (spec-function spec)))
-    ht))
-
-(defmethod c2mop:finalize-inheritance :after ((object qt-class))
-  (unless (class-qt-superclass object)
-    (return-from c2mop:finalize-inheritance))
-  (dolist (super (c2mop:class-direct-superclasses object))
-    (unless (c2mop:class-finalized-p super)
-      (c2mop:finalize-inheritance super)))
-  (with-slots (qmetaobject qt-superclass slot-or-signal-table
-               signals qt-slots
-               overrides lisp-side-overrides)
-      object
-    (setf qmetaobject
-          ;; clear out any old QMetaObject, so that ensure-metaobject will
-          ;; set up a new one
-          nil)
-    (setf qt-superclass
-          (or qt-superclass
-              (class-qt-superclass
-               (or (find-if (lambda (x) (typep x 'qt-class))
-                            (c2mop:class-direct-superclasses object))
-                   (error "No effective Qt class name declared for ~A"
-                          object)))))
-    (setf overrides
-          (make-override-table (class-override-specs object)))
-    (setf lisp-side-overrides
-          (make-lisp-side-override-table (class-override-specs object)))
-    (setf slot-or-signal-table (concatenate 'vector signals qt-slots))))
-
 (defun %qobject-metaobject ()
   (or *qobject-metaobject*
       (setf *qobject-metaobject*
@@ -190,7 +153,7 @@
 (defun inform-cpp-about-overrides (qt-class)
   (let ((<class> (slot-value qt-class 'effective-class))
         (binding (class-binding qt-class)))
-    (loop for spec in (class-override-specs qt-class)
+    (loop for spec in (class-overrides qt-class)
           for id from 0
           do
           (inform-cpp-about-override <class> binding (name spec) id))))
@@ -279,12 +242,12 @@
 
 (defun find-dynamic-method-override (object method-id)
   (if (typep object 'dynamic-object)
-      (svref (class-overrides (class-of object))
+      (svref (override-table (class-of object))
              method-id)))
 
 (defun find-method-override-using-class (class method)
   (gethash (qmethod-name method)
-           (lisp-side-overrides class)))
+           (lisp-side-override-table class)))
 
 (defvar *next-qmethod-trampoline* nil)
 (defvar *next-qmethod* nil)
