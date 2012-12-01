@@ -55,9 +55,9 @@
       (new instance parent)
       (new instance))
   (setf (dynamic-receiver-next-id instance)
-        (length (class-member-table (class-of instance)))))
+        (length (slot-or-signal-table (class-of instance)))))
 
-(defmethod dynamic-object-member ((object dynamic-receiver) id)
+(defmethod dynamic-slot-or-signal ((object dynamic-receiver) id)
   (values (gethash id (dynamic-receiver-slots object))))
 
 (defun resolve-signal (sender signal)
@@ -84,7 +84,7 @@
                       (format nil "\\1dynamicSlot~A" slot-id))))
       (assert (#_QMetaObject::checkConnectArgs signal-sig slot-sig))
       (setf (gethash slot-id (dynamic-receiver-slots receiver))
-            (make-instance 'slot-member
+            (make-instance 'slot-spec
                            :name (subseq slot-sig 1)
                            :function
                            (if this-object

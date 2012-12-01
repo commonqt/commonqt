@@ -127,8 +127,8 @@
 		     (postmortem ptr class str qobjectp dynamicp)))))
   object)
 
-(defun get-qt-class-member (qt-class id)
-  (let ((table (class-member-table qt-class)))
+(defun get-slot-or-symbol (qt-class id)
+  (let ((table (slot-or-signal-table qt-class)))
     (when (< id (length table))
       (elt table id))))
 
@@ -138,8 +138,8 @@
 (defun make-lisp-side-override-table (specs)
   (let ((ht (make-hash-table :test #'equal)))
     (loop for spec in specs
-          do (setf (gethash (dynamic-member-name spec) ht)
-                   (dynamic-member-function spec)))
+          do (setf (gethash (name spec) ht)
+                   (spec-function spec)))
     ht))
 
 (defmethod c2mop:finalize-inheritance :after ((object qt-class))
@@ -148,7 +148,8 @@
   (dolist (super (c2mop:class-direct-superclasses object))
     (unless (c2mop:class-finalized-p super)
       (c2mop:finalize-inheritance super)))
-  (with-slots (qmetaobject qt-superclass member-table signals qt-slots
+  (with-slots (qmetaobject qt-superclass slot-or-signal-table
+               signals qt-slots
                overrides lisp-side-overrides)
       object
     (setf qmetaobject
@@ -166,7 +167,7 @@
           (make-override-table (class-override-specs object)))
     (setf lisp-side-overrides
           (make-lisp-side-override-table (class-override-specs object)))
-    (setf member-table (concatenate 'vector signals qt-slots))))
+    (setf slot-or-signal-table (concatenate 'vector signals qt-slots))))
 
 (defun %qobject-metaobject ()
   (or *qobject-metaobject*
@@ -191,9 +192,8 @@
         (binding (class-binding qt-class)))
     (loop for spec in (class-override-specs qt-class)
           for id from 0
-          do (inform-cpp-about-override <class> binding
-                                        (dynamic-member-name spec)
-                                        id))))
+          do
+          (inform-cpp-about-override <class> binding (name spec) id))))
 
 (defun meta-object-method-index (qt-class)
   (map-class-methods-named
@@ -248,9 +248,9 @@
                                          (package-name (symbol-package name))
                                          (symbol-name name)))
                                (class-class-infos qt-class)
-                               (mapcar #'convert-dynamic-member
+                               (mapcar #'convert-slot-or-signal
                                        (class-signals qt-class))
-                               (mapcar #'convert-dynamic-member
+                               (mapcar #'convert-slot-or-signal
                                        (class-slots qt-class)))))
       (set-class-binding qt-class)
       (inform-cpp-about-overrides qt-class)
@@ -259,8 +259,8 @@
       ;; mark as fresh
       (setf (class-smoke-generation qt-class) *weakly-cached-objects*))))
 
-(defun convert-dynamic-member (member)
-  (make-slot-or-signal (dynamic-member-name member)))
+(defun convert-slot-or-signal (member)
+  (make-slot-or-signal (name member)))
 
 (defun class-effective-class (qt-class &optional (errorp t))
   (ensure-qt-class-caches qt-class)
@@ -308,7 +308,7 @@
                    (or new-args args)))))
     (apply fun object args)))
 
-(defgeneric dynamic-object-member (object id)
+(defgeneric dynamic-slot-or-signal (object id)
   (:method (object id)
     (declare (ignore object id))
     nil))
@@ -323,18 +323,18 @@
       (t
        (let ((member
               (or
-               (get-qt-class-member (class-of object) new-id)
-               (dynamic-object-member object new-id)
+               (get-slot-or-symbol (class-of object) new-id)
+               (dynamic-slot-or-signal object new-id)
                (error "QT_METACALL-OVERRIDE: invalid member id ~A" id))))
          (etypecase member
-           (signal-member
+           (signal-spec
             (#_activate (class-qmetaobject (class-of object))
                          object
                          id
                          stack)
             -1)
-           (slot-member
-            (apply (dynamic-member-function member)
+           (slot-spec
+            (apply (spec-function member)
                    object
                    (unmarshal-slot-args member stack))
             -1)))))))
@@ -347,7 +347,7 @@
     (:|QString| 'ptr)
     (t (error "Don't know how to unmarshal slot argument ~s" x))))
 
-(defun ensure-dynamic-member-types (member)
+(defun ensure-slot-or-signal-types (member)
   (with-slots (cached-arg-types) member
     (unless (slot-boundp member 'cached-arg-types)
       (setf cached-arg-types
@@ -357,11 +357,11 @@
 				 name)))
                     (cl-ppcre:split
                      ","
-                     (entry-arg-types (convert-dynamic-member member))))))
+                     (entry-arg-types (convert-slot-or-signal member))))))
     cached-arg-types))
 
 (defun unmarshal-slot-args (member argv)
-  (iter (for type in (ensure-dynamic-member-types member))
+  (iter (for type in (ensure-slot-or-signal-types member))
         (for i from 1)
         (collect (cond ((eq (qtype-interned-name type) ':|QString|)
                         (qstring-pointer-to-lisp

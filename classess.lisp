@@ -49,7 +49,7 @@
                      :accessor class-smoke-generation)
    (generation :initform nil
                :accessor class-generation)
-   (member-table :accessor class-member-table)
+   (slot-or-signal-table :accessor slot-or-signal-table)
    (overrides :initform nil
               :accessor class-overrides)
    (lisp-side-overrides :initform nil
@@ -57,24 +57,29 @@
    (binding :initform nil
             :accessor class-binding)))
 
-(defclass dynamic-member ()
+(defclass class-parameter-spec ()
   ((name :initarg :name
-         :accessor dynamic-member-name)
-   (cached-arg-types :accessor dynamic-member-cached-arg-types)))
+         :accessor name)))
 
-(defclass signal-member (dynamic-member)
-  ())
+(defclass slot-or-signal-spec (class-parameter-spec)
+  ((cached-arg-types :accessor cached-arg-types)))
 
-(defclass slot-member (dynamic-member)
+(defclass class-callable-spec (class-parameter-spec)
   ((function :initarg :function
-             :accessor dynamic-member-function)))
+             :accessor spec-function)))
 
-(defclass override-spec (slot-member)
+(defclass signal-spec (slot-or-signal-spec)
   ())
 
-(defmethod print-object ((instance dynamic-member) stream)
+(defclass slot-spec (class-callable-spec slot-or-signal-spec)
+  ())
+
+(defclass override-spec (class-callable-spec)
+  ())
+
+(defmethod print-object ((instance class-parameter-spec) stream)
   (print-unreadable-object (instance stream :type t :identity t)
-    (princ (dynamic-member-name instance) stream)))
+    (princ (name instance) stream)))
 
 (defclass class-info ()
   ((key :initarg :key
@@ -130,12 +135,12 @@
     (loop for class in direct-superclasses
           when (typep class 'qt-class)
           do (loop for object in (funcall acessor class)
-                   unless (find (dynamic-member-name object)
+                   unless (find (name object)
                                 description
                                 :key #'car :test #'equal)
                    do (pushnew object result
                                :test #'equal
-                               :key #'dynamic-member-name)))
+                               :key #'name)))
     result))
 
 (defun qt-class-compute-superclasses (class-name direct-superclasses)
@@ -168,10 +173,10 @@
                                               (class-name class))
                                           direct-superclasses))
          (slots
-           (compute-specs slots 'slot-member
-                                   #'class-slots direct-superclasses))
+           (compute-specs slots 'slot-spec
+                          #'class-slots direct-superclasses))
          (signals
-           (compute-specs signals 'signal-member
+           (compute-specs signals 'signal-spec
                                    #'class-signals direct-superclasses))
          (class-infos
            (iter (for (name value) in info)

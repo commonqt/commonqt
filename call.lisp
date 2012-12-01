@@ -91,10 +91,8 @@
                                                    '|union StackItem|
                                                    i)
                          collect (unmarshal type item)))
-                 (result (override (dynamic-member-function override)
-                                   object
-                                   (dynamic-member-name override)
-                                   args))
+                 (result (override (spec-function override)
+                                   object (name override) args))
                  (rtype (qmethod-return-type <method>)))
             (unless (qtype-void-p rtype)
               (marshal result rtype stack (lambda ())))
