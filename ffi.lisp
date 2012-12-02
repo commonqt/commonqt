@@ -307,9 +307,8 @@
     ((smoke :pointer)
      (method :short)
      (obj :pointer)
-     (args :pointer)
-     (abstractp :char))
-  (%method-invocation-callback smoke method obj args abstractp))
+     (args :pointer))
+  (%method-invocation-callback smoke method obj args))
 
 (defcallback dynamic-invocation-callback
     :char
@@ -317,11 +316,8 @@
      (method :short)
      (override-id :short)
      (obj :pointer)
-     (args :pointer)
-     (abstractp :char))
-  ;; Redefinition of a callback wouldn't affect the existing C++ code,
-  ;; redefinition of the function does.
-  (%dynamic-invocation-callback smoke obj method override-id args abstractp))
+     (args :pointer))
+  (%dynamic-invocation-callback smoke obj method override-id args))
 
 (defcallback child-callback
     :void

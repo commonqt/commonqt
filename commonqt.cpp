@@ -17,8 +17,8 @@
 using namespace std;
 
 typedef void (*t_deletion_callback)(void*, void*);
-typedef bool (*t_callmethod_callback)(void*, short, void*, void*, bool);
-typedef bool (*t_dynamic_callmethod_callback)(void*, short, short, void*, void*, bool);
+typedef bool (*t_callmethod_callback)(void*, short, void*, void*);
+typedef bool (*t_dynamic_callmethod_callback)(void*, short, short, void*, void*);
 typedef void (*t_child_callback)(void*, bool, void*);
 
 class Binding : public SmokeBinding
@@ -35,14 +35,14 @@ public:
         }
 
         bool callMethod(Smoke::Index method, void* obj,
-                Smoke::Stack args, bool isAbstract)
+                Smoke::Stack args, bool)
         {
 		Smoke::Method* m = &smoke->methods[method];
 		const char* name = smoke->methodNames[m->name];
 		Smoke::Class* c = &smoke->classes[m->classId];
 
 		if (*name == '~')
-			callmethod_callback(smoke, method, obj, args, isAbstract);
+			callmethod_callback(smoke, method, obj, args);
 		else if (!strcmp(name, "notify")
 			 && (!strcmp(c->className, "QApplication")
 			    || !strcmp(c->className, "QCoreApplication")))
@@ -74,7 +74,7 @@ public:
         t_dynamic_callmethod_callback callmethod_callback;
 
         bool callMethod(Smoke::Index method, void* obj,
-                Smoke::Stack args, bool isAbstract)
+                Smoke::Stack args, bool)
         {
                 
                 if (method == metaObjectIndex) {
@@ -86,7 +86,7 @@ public:
                         
                         return callmethod_callback(smoke, method,
                                                    override_index,
-                                                   obj, args, isAbstract);
+                                                   obj, args);
                 }
                 else {
                         return false;

@@ -50,8 +50,7 @@
       (when object
         (note-deleted object)))))
 
-(defun %method-invocation-callback (smoke method-idx obj stack abstractp)
-  (declare (ignore abstractp))
+(defun %method-invocation-callback (smoke method-idx obj stack)
   (with-callback-restart
     (let* ((<module> (module-number smoke))
            (object (pointer->cached-object obj))
@@ -74,8 +73,7 @@
 
 (defun %dynamic-invocation-callback (smoke obj
                                      method-id
-                                     override-id stack abstractp)
-  (declare (ignore abstractp))
+                                     override-id stack)
   (with-callback-restart
     (let* ((<module> (module-number smoke))
            (object (pointer->cached-object obj))
