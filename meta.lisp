@@ -221,14 +221,6 @@
         do
         (compute-class-meta-data class)))
 
-(defun %qobject-metaobject ()
-  (or *qobject-metaobject*
-      (setf *qobject-metaobject*
-            (let ((qobj (optimized-new (find-qclass "QObject"))))
-              (prog1
-                  (#_metaObject qobj)
-                (#_delete qobj))))))
-
 (defun inform-cpp-about-override (qclass binding method-name
                                   override-id)
   (map-class-methods-named
@@ -288,8 +280,6 @@
                            (class-qt-superclass qt-class)))
                    (qobject-class (find-qclass "QObject"))
                    (parent (cond
-                             ((eq class qobject-class)
-                              (%qobject-metaobject))
                              ((qsubclassp class qobject-class)
                               (#_staticMetaObject class))
                              (t
