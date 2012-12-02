@@ -115,19 +115,6 @@
     ((class qt-class) (superclass qt-class))
   t)
 
-(defun parse-function (form)
-  ;; this run-time use of COMPILE is a huge kludge.  We'd just want to hook
-  ;; into the DEFCLASS expansion like slots and init functions can, but
-  ;; those are special built-in features of DEFCLASS which meta classes
-  ;; cannot implement for their own options.  Big oversight in the MOP IMNSHO.
-  (etypecase (macroexpand form)
-    ((or symbol function)
-     form)
-    ((cons (eql lambda) t)
-     (compile nil form))
-    ((cons (eql function) t)
-     (eval form))))
-
 (defun qt-class-compute-superclasses (class-name direct-superclasses)
   (if (eq class-name
           'dynamic-object)
@@ -142,71 +129,6 @@
                         nil
                         direct-superclasses)
                     (list dynamic-object))))))
-
-(defun compute-specs (class slot spec-class
-                      raw-specs)
-  (let* ((result
-           (loop for (name . value) in raw-specs
-                 when (or (not value)
-                          (car value))
-                 collect
-                 (if value
-                     (make-instance spec-class
-                                    :name name
-                                    :function (parse-function (car value)))
-                     (make-instance spec-class :name name)))))
-    (loop for class in (c2mop:class-direct-superclasses class)
-          when (typep class 'qt-class)
-          do
-          (loop for object in (slot-value class slot)
-                ;; Search among raw-specs and not just rely on
-                ;; pushnew, because raw-specs may override the
-                ;; inclusion of a spec
-                unless (find (name object) raw-specs
-                             :key #'car :test #'equal)
-                do (pushnew object result
-                            :test #'equal
-                            :key #'name)))
-    (setf (slot-value class slot) result)))
-
-(defun make-override-table (specs)
-  (coerce specs 'vector))
-
-(defun make-lisp-side-override-table (specs)
-  (let ((ht (make-hash-table :test #'equal)))
-    (loop for spec in specs
-          do (setf (gethash (name spec) ht)
-                   (spec-function spec)))
-    ht))
-
-(defun compute-class-meta-data (class)
-  (with-slots (qmetaobject qt-superclass slot-or-signal-table
-               signals slots overrides
-               override-table lisp-side-override-table)
-      class
-    (setf qmetaobject
-          ;; clear out any old QMetaObject, so that ensure-qt-class-caches will
-          ;; set up a new one
-          nil)
-    (compute-specs class 'signals 'signal-spec
-                   (raw-signal-specs class))
-    (compute-specs class 'slots 'slot-spec
-                   (raw-slot-specs class))
-    (compute-specs class 'overrides 'override-spec
-                   (raw-override-specs class))
-    (unless (eq (class-name class) 'dynamic-object)
-      (setf qt-superclass
-            (or qt-superclass
-                (class-qt-superclass
-                 (or (find-if (lambda (x) (typep x 'qt-class))
-                              (c2mop:class-direct-superclasses class))
-                     (error "No effective Qt class name declared for ~A"
-                            class)))))
-      (setf override-table
-            (make-override-table overrides))
-      (setf lisp-side-override-table
-            (make-lisp-side-override-table overrides))
-      (setf slot-or-signal-table (concatenate 'vector signals slots)))))
 
 (defun initialize-qt-class
     (class next-method &rest args
@@ -238,13 +160,6 @@
 
 (defmethod reinitialize-instance :around ((class qt-class) &rest args)
   (apply #'initialize-qt-class class #'call-next-method args))
-
-(defmethod initialize-instance :after ((class qt-class) &key)
-  (compute-class-meta-data class))
-
-(defmethod reinitialize-instance :after ((class qt-class) &key)
-  (compute-class-meta-data class)
-  (map nil #'compute-class-meta-data (c2cl:class-direct-subclasses class)))
 
 ;;;
 
