@@ -77,7 +77,7 @@
                  (:file "utils")
                  (:file "ffi")
                  (:file "reader")
-                 (:file "classess")
+                 (:file "classes")
                  (:file "marshal")
                  (:file "unmarshal")
                  (:file "primitive-call")
