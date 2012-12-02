@@ -208,18 +208,18 @@
             (make-override-table overrides))
       (setf lisp-side-override-table
             (make-lisp-side-override-table overrides))
-      (setf slot-or-signal-table (concatenate 'vector signals slots)))))
+      (setf slot-or-signal-table (concatenate 'vector signals slots)))
+    (loop for sub-class in (c2mop:class-direct-subclasses class)
+          when (and (typep sub-class 'qt-class)
+                    (c2mop:class-finalized-p sub-class))
+          do
+          (compute-class-meta-data sub-class))))
 
 (defmethod c2mop:finalize-inheritance :after ((class qt-class))
   (dolist (super (c2mop:class-direct-superclasses class))
     (unless (c2mop:class-finalized-p super)
       (c2mop:finalize-inheritance super)))
-  (compute-class-meta-data class)
-  (loop for sub-class in (c2mop:class-direct-subclasses class)
-        when (and (typep sub-class 'qt-class)
-                  (c2mop:class-finalized-p sub-class))
-        do
-        (compute-class-meta-data class)))
+  (compute-class-meta-data class))
 
 (defun inform-cpp-about-override (qclass binding method-name
                                   override-id)
