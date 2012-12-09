@@ -132,68 +132,6 @@
     (when (< id (length table))
       (elt table id))))
 
-(defun compute-specs (class slot direct-specs)
-  (let* ((result direct-specs))
-    (loop for class in (c2mop:class-direct-superclasses class)
-          when (typep class 'qt-class)
-          do
-          (loop for object in (slot-value class slot)
-                do (pushnew object result
-                            :test #'equal
-                            :key #'name)))
-    (setf (slot-value class slot)
-          (remove-if #'inhibit result))))
-
-(defun make-override-table (specs)
-  (coerce specs 'vector))
-
-(defun make-lisp-side-override-table (specs)
-  (when specs
-    (let ((ht (make-hash-table :test #'equal)))
-      (loop for spec in specs
-            do (setf (gethash (name spec) ht)
-                     (spec-function spec)))
-      ht)))
-
-(defun compute-class-meta-data (class)
-  (with-slots (qmetaobject qt-superclass slot-or-signal-table
-               signals slots overrides
-               override-table lisp-side-override-table)
-      class
-    (setf qmetaobject
-          ;; clear out any old QMetaObject, so that ensure-qt-class-caches will
-          ;; set up a new one
-          nil)
-    (compute-specs class 'signals (direct-signals class))
-    (compute-specs class 'slots (direct-slots class))
-    (compute-specs class 'overrides (direct-overrides class))
-    (unless (eq (class-name class) 'dynamic-object)
-      (setf qt-superclass
-            (or qt-superclass
-                (class-qt-superclass
-                 (or (find-if (lambda (x) (typep x 'qt-class))
-                              (c2mop:class-direct-superclasses class))
-                     (error "No effective Qt class name declared for ~A"
-                            class)))))
-      (setf override-table
-            (make-override-table overrides))
-      (setf lisp-side-override-table
-            (make-lisp-side-override-table overrides))
-      (setf slot-or-signal-table (concatenate 'vector signals slots)))
-    (when (reinit class)
-      (setf (reinit class) nil)
-      (loop for sub-class in (c2mop:class-direct-subclasses class)
-            when (and (typep sub-class 'qt-class)
-                      (c2mop:class-finalized-p sub-class))
-            do
-            (compute-class-meta-data sub-class)))))
-
-(defmethod c2mop:finalize-inheritance :after ((class qt-class))
-  (dolist (super (c2mop:class-direct-superclasses class))
-    (unless (c2mop:class-finalized-p super)
-      (c2mop:finalize-inheritance super)))
-  (compute-class-meta-data class))
-
 (defun inform-cpp-about-override (qclass binding method-name
                                   override-id)
   (map-class-methods-named
