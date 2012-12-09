@@ -75,7 +75,17 @@
             :documentation "Prevent from ihneriting class specs.")))
 
 (defclass slot-or-signal-spec (class-parameter-spec)
-  ((cached-arg-types :accessor cached-arg-types)))
+  ((full-name :initarg :full-name
+              :initform nil
+              :accessor full-name)
+   (arg-types :initarg :arg-types
+              :initform nil
+              :accessor arg-types)
+   (arg-qtypes :initform nil
+               :accessor arg-qtypes)
+   (reply-type :initarg :reply-type
+               :initform nil
+               :accessor reply-type)))
 
 (defclass class-callable-spec (class-parameter-spec)
   ((function :initarg :function
@@ -96,9 +106,9 @@
 
 (defclass class-info ()
   ((key :initarg :key
-        :accessor entry-key)
+        :accessor key)
    (value :initarg :value
-          :accessor entry-value)))
+          :accessor value)))
 
 (defun make-class-info (key value)
   (make-instance 'class-info :key key :value value))

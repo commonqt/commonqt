@@ -248,6 +248,10 @@
       ;; reinitialize things
       (setf effective-class (find-qclass
                              (class-qt-superclass qt-class)))
+      (mapc #'initialize-slot-or-signal
+            (class-signals qt-class))
+      (mapc #'initialize-slot-or-signal
+            (class-slots qt-class))
       (setf qmetaobject
             (let* ((class (find-qclass
                            (class-qt-superclass qt-class)))
@@ -263,19 +267,14 @@
                                          (package-name (symbol-package name))
                                          (symbol-name name)))
                                (class-class-infos qt-class)
-                               (mapcar #'convert-slot-or-signal
-                                       (class-signals qt-class))
-                               (mapcar #'convert-slot-or-signal
-                                       (class-slots qt-class)))))
+                               (class-signals qt-class)
+                               (class-slots qt-class))))
       (set-class-binding qt-class)
       (inform-cpp-about-overrides qt-class)
       ;; invalidate call site caches
       (setf generation (gensym))
       ;; mark as fresh
       (setf (class-smoke-generation qt-class) *weakly-cached-objects*))))
-
-(defun convert-slot-or-signal (member)
-  (make-slot-or-signal (name member)))
 
 (defun class-effective-class (qt-class &optional (errorp t))
   (ensure-qt-class-caches qt-class)
@@ -363,21 +362,8 @@
     (:|QString| 'ptr)
     (t (error "Don't know how to unmarshal slot argument ~s" x))))
 
-(defun ensure-slot-or-signal-types (member)
-  (with-slots (cached-arg-types) member
-    (unless (slot-boundp member 'cached-arg-types)
-      (setf cached-arg-types
-            (mapcar (lambda (name)
-		      (or (find-qtype name)
-			  (error "No smoke type found for dynamic member arg type ~A.  Giving up."
-				 name)))
-                    (cl-ppcre:split
-                     ","
-                     (entry-arg-types (convert-slot-or-signal member))))))
-    cached-arg-types))
-
 (defun unmarshal-slot-args (member argv)
-  (iter (for type in (ensure-slot-or-signal-types member))
+  (iter (for type in (arg-qtypes member))
         (for i from 1)
         (collect (cond ((eq (qtype-interned-name type) ':|QString|)
                         (qstring-pointer-to-lisp
@@ -391,28 +377,36 @@
                        (t
                         (unmarshal type (cffi:mem-aref argv :pointer i)))))))
 
-(defclass slot-or-signal ()
-  ((name :initarg :name
-         :accessor entry-name)
-   (full-name :initarg :full-name
-              :accessor entry-full-name)
-   (arg-types :initarg :arg-types
-              :accessor entry-arg-types)
-   (reply-type :initarg :reply-type
-               :accessor entry-reply-type)))
+(defun process-slot-signal-signature (signature)
+  (ppcre:register-groups-bind (reply-type name types)
+      ("^(?:([\\w,<>:]*)\\s+)?([^\\s]*)\\((.*)\\)"
+       (#_data (#_QMetaObject::normalizedSignature signature)))
+    (return-from ;; OR cannot be used because of multiple values
+     process-slot-signal-signature
+      (values (concatenate 'string name "(" types ")")
+              types
+              (if (or (null reply-type)
+                      (equal reply-type "void"))
+                  ""
+                  reply-type))))
+  (error "Invalid slot or signal signature: ~s" signature))
 
-(defun make-slot-or-signal (str)
-  (let ((str (#_data (#_QMetaObject::normalizedSignature str))))
-    (or
-     (cl-ppcre:register-groups-bind (a b c d)
-         ("^(([\\w,<>:]*)\\s+)?([^\\s]*)\\((.*)\\)" str)
-       (declare (ignore a))
-       (make-instance 'slot-or-signal
-                      :name c
-                      :full-name (concatenate 'string c "(" d ")")
-                      :arg-types d
-                      :reply-type (if (or (null b) (equal b "void")) "" b)))
-     (error "Invalid slot or signal signature: ~s" str))))
+(defun find-arg-qtypes (arg-types)
+  (mapcar (lambda (name)
+            (or (find-qtype name)
+                (error "No smoke type found for dynamic member arg type ~A.  Giving up."
+                       name)))
+          (cl-ppcre:split "," arg-types)))
+
+(defun initialize-slot-or-signal (slot-or-signal)
+  (unless (full-name slot-or-signal)
+    (multiple-value-bind (full-name arg-types reply-type)
+        (process-slot-signal-signature (name slot-or-signal))
+      (setf (full-name slot-or-signal) full-name
+            (arg-types slot-or-signal) arg-types
+            (reply-type slot-or-signal) reply-type
+            (arg-qtypes slot-or-signal) (find-arg-qtypes arg-types))))
+  slot-or-signal)
 
 (defconstant +AccessPrivate+ #x00)
 (defconstant +AccessProtected+ #x01)
@@ -447,18 +441,18 @@
         (add 0)                         ;enums/sets
         (add 0)
         (dolist (entry class-infos)
-          (add-string (entry-key entry))
-          (add-string (entry-value entry)))
+          (add-string (key entry))
+          (add-string (value entry)))
         (dolist (entry signals)
-          (add-string (entry-full-name entry))
-          (add-string (remove #\, (entry-full-name entry) :test-not #'eql))
-          (add-string (entry-reply-type entry))
+          (add-string (full-name entry))
+          (add-string (remove #\, (full-name entry) :test-not #'eql))
+          (add-string (reply-type entry))
           (add-string "")               ;tag
           (add (logior +methodsignal+ +accessprotected+)))
         (dolist (entry slots)
-          (add-string (entry-full-name entry))
-          (add-string (remove #\, (entry-full-name entry) :test-not #'eql))
-          (add-string (entry-reply-type entry))
+          (add-string (full-name entry))
+          (add-string (remove #\, (full-name entry) :test-not #'eql))
+          (add-string (reply-type entry))
           (add-string "")               ;tag
           (add (logior +methodslot+ +accesspublic+)))
         (add 0)))))
