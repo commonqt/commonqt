@@ -132,54 +132,28 @@
     (when (< id (length table))
       (elt table id))))
 
-(defun parse-function (form)
-  ;; this run-time use of COMPILE is a huge kludge.  We'd just want to hook
-  ;; into the DEFCLASS expansion like slots and init functions can, but
-  ;; those are special built-in features of DEFCLASS which meta classes
-  ;; cannot implement for their own options.  Big oversight in the MOP IMNSHO.
-  (etypecase (macroexpand form)
-    ((or symbol function)
-     form)
-    ((cons (eql lambda) t)
-     (compile nil form))
-    ((cons (eql function) t)
-     (eval form))))
-
-(defun compute-specs (class slot spec-class
-                      raw-specs)
-  (let* ((result
-           (loop for (name . value) in raw-specs
-                 when (or (not value)
-                          (car value))
-                 collect
-                 (if value
-                     (make-instance spec-class
-                                    :name name
-                                    :function (parse-function (car value)))
-                     (make-instance spec-class :name name)))))
+(defun compute-specs (class slot direct-specs)
+  (let* ((result direct-specs))
     (loop for class in (c2mop:class-direct-superclasses class)
           when (typep class 'qt-class)
           do
           (loop for object in (slot-value class slot)
-                ;; Search among raw-specs and not just rely on
-                ;; pushnew, because raw-specs may override the
-                ;; inclusion of a spec
-                unless (find (name object) raw-specs
-                             :key #'car :test #'equal)
                 do (pushnew object result
                             :test #'equal
                             :key #'name)))
-    (setf (slot-value class slot) result)))
+    (setf (slot-value class slot)
+          (remove-if #'inhibit result))))
 
 (defun make-override-table (specs)
   (coerce specs 'vector))
 
 (defun make-lisp-side-override-table (specs)
-  (let ((ht (make-hash-table :test #'equal)))
-    (loop for spec in specs
-          do (setf (gethash (name spec) ht)
-                   (spec-function spec)))
-    ht))
+  (when specs
+    (let ((ht (make-hash-table :test #'equal)))
+      (loop for spec in specs
+            do (setf (gethash (name spec) ht)
+                     (spec-function spec)))
+      ht)))
 
 (defun compute-class-meta-data (class)
   (with-slots (qmetaobject qt-superclass slot-or-signal-table
@@ -190,12 +164,9 @@
           ;; clear out any old QMetaObject, so that ensure-qt-class-caches will
           ;; set up a new one
           nil)
-    (compute-specs class 'signals 'signal-spec
-                   (raw-signal-specs class))
-    (compute-specs class 'slots 'slot-spec
-                   (raw-slot-specs class))
-    (compute-specs class 'overrides 'override-spec
-                   (raw-override-specs class))
+    (compute-specs class 'signals (direct-signals class))
+    (compute-specs class 'slots (direct-slots class))
+    (compute-specs class 'overrides (direct-overrides class))
     (unless (eq (class-name class) 'dynamic-object)
       (setf qt-superclass
             (or qt-superclass
@@ -209,11 +180,13 @@
       (setf lisp-side-override-table
             (make-lisp-side-override-table overrides))
       (setf slot-or-signal-table (concatenate 'vector signals slots)))
-    (loop for sub-class in (c2mop:class-direct-subclasses class)
-          when (and (typep sub-class 'qt-class)
-                    (c2mop:class-finalized-p sub-class))
-          do
-          (compute-class-meta-data sub-class))))
+    (when (reinit class)
+      (setf (reinit class) nil)
+      (loop for sub-class in (c2mop:class-direct-subclasses class)
+            when (and (typep sub-class 'qt-class)
+                      (c2mop:class-finalized-p sub-class))
+            do
+            (compute-class-meta-data sub-class)))))
 
 (defmethod c2mop:finalize-inheritance :after ((class qt-class))
   (dolist (super (c2mop:class-direct-superclasses class))
@@ -325,8 +298,9 @@
              method-id)))
 
 (defun find-method-override-using-class (class method)
-  (gethash (qmethod-name method)
-           (lisp-side-override-table class)))
+  (let ((table (lisp-side-override-table class)))
+    (when table
+      (gethash (qmethod-name method) table))))
 
 (defvar *next-qmethod-trampoline* nil)
 (defvar *next-qmethod* nil)

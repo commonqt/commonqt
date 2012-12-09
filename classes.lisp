@@ -32,15 +32,15 @@
   ((qt-superclass :initarg :qt-superclass
                   :initform nil
                   :accessor class-qt-superclass)
-   (raw-signal-specs :initarg :signals
-                     :initform nil
-                     :accessor raw-signal-specs)
-   (raw-slot-specs :initarg :slots
+   (direct-signals :initarg :signals
                    :initform nil
-                   :accessor raw-slot-specs)
-   (raw-override-specs :initarg :override
-                       :initform nil
-                       :accessor raw-override-specs)
+                   :accessor direct-signals)
+   (direct-slots :initarg :slots
+                 :initform nil
+                 :accessor direct-slots)
+   (direct-overrides :initarg :override
+                     :initform nil
+                     :accessor direct-overrides)
    (signals :initform nil
             :accessor class-signals)
    (slots :initform nil
@@ -62,11 +62,17 @@
    (lisp-side-override-table :initform nil
                              :accessor lisp-side-override-table)
    (binding :initform nil
-            :accessor class-binding)))
+            :accessor class-binding)
+   (reinit :initform nil
+           :accessor reinit)))
 
 (defclass class-parameter-spec ()
   ((name :initarg :name
-         :accessor name)))
+         :accessor name)
+   (inhibit :initarg :inhibit
+            :initform nil
+            :accessor inhibit
+            :documentation "Prevent from ihneriting class specs.")))
 
 (defclass slot-or-signal-spec (class-parameter-spec)
   ((cached-arg-types :accessor cached-arg-types)))
@@ -130,9 +136,39 @@
                         direct-superclasses)
                     (list dynamic-object))))))
 
+(defun parse-function (form)
+  ;; this run-time use of COMPILE is a huge kludge.  We'd just want to hook
+  ;; into the DEFCLASS expansion like slots and init functions can, but
+  ;; those are special built-in features of DEFCLASS which meta classes
+  ;; cannot implement for their own options.  Big oversight in the MOP IMNSHO.
+  (etypecase (macroexpand form)
+    ((or symbol function)
+     form)
+    ((cons (eql lambda) t)
+     (compile nil form))
+    ((cons (eql function) t)
+     (eval form))))
+
+(defun parse-raw-specs (spec-class raw-specs)
+  (loop for (name . value) in raw-specs
+        for inhibit = (and value (not (car value)))
+        for function = (and (car value)
+                            (parse-function (car value)))
+        collect
+        (if function
+            (make-instance spec-class
+                           :name name
+                           :inhibit inhibit
+                           :function function)
+            (make-instance spec-class
+                           :name name
+                           :inhibit inhibit))))
+
 (defun initialize-qt-class
     (class next-method &rest args
      &key name qt-superclass direct-superclasses info
+          slots signals
+          override
      &allow-other-keys)
   (let* ((qt-superclass
            (if qt-superclass
@@ -144,6 +180,9 @@
            (qt-class-compute-superclasses (or name
                                               (class-name class))
                                           direct-superclasses))
+         (slots (parse-raw-specs 'slot-spec slots))
+         (signals (parse-raw-specs 'signal-spec signals))
+         (override (parse-raw-specs 'override-spec override))
          (class-infos
            (iter (for (name value) in info)
              (collect (make-class-info name value)))))
@@ -153,12 +192,16 @@
            :direct-superclasses direct-superclasses
            :qt-superclass qt-superclass
            :info class-infos
+           :slots slots
+           :signals signals
+           :override override
            args)))
 
 (defmethod initialize-instance :around ((class qt-class) &rest args)
   (apply #'initialize-qt-class class #'call-next-method args))
 
 (defmethod reinitialize-instance :around ((class qt-class) &rest args)
+  (setf (reinit class) t)
   (apply #'initialize-qt-class class #'call-next-method args))
 
 ;;;
