@@ -81,19 +81,21 @@
     (let* ((slot-id (dynamic-receiver-next-id receiver))
            (slot-sig (cl-ppcre:regex-replace
                       "^(\\d+)[^(]+" signal-sig
-                      (format nil "\\1dynamicSlot~A" slot-id))))
+                      (format nil "\\1dynamicSlot~A" slot-id)))
+           (spec (make-instance 'slot-spec
+                                :name (subseq slot-sig 1)
+                                :function
+                                (if this-object
+                                    (lambda (this &rest args)
+                                      (declare (ignore this))
+                                      (apply function this-object args))
+                                    (lambda (this &rest args)
+                                      (declare (ignore this))
+                                      (apply function args))))))
       (assert (#_QMetaObject::checkConnectArgs signal-sig slot-sig))
+      (initialize-slot-or-signal spec)
       (setf (gethash slot-id (dynamic-receiver-slots receiver))
-            (make-instance 'slot-spec
-                           :name (subseq slot-sig 1)
-                           :function
-                           (if this-object
-                               #'(lambda (this &rest args)
-                                   (declare (ignore this))
-                                   (apply function this-object args))
-                               #'(lambda (this &rest args)
-                                   (declare (ignore this))
-                                   (apply function args)))))
+            spec)
       (push (make-connection-entry (tg:make-weak-pointer sender) signal-id function slot-id)
             (dynamic-receiver-connections receiver))
       (incf (dynamic-receiver-next-id receiver))
