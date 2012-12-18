@@ -77,6 +77,7 @@
                  (:file "utils")
                  (:file "ffi")
                  (:file "reader")
+                 (:file "meta-classes")
                  (:file "classes")
                  (:file "marshal")
                  (:file "unmarshal")
