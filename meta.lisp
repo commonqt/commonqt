@@ -356,58 +356,63 @@
 (defconstant +MethodCloned+ #x20)
 (defconstant +MethodScriptable+ #x40)
 
-(defun make-metaobject-signature (data class-name class-infos signals slots)
-  (let ((table (make-hash-table)))
-    (with-output-to-string (stream)
-      (labels ((intern-string (s)
-                 (or (gethash s table)
-                     (setf (gethash s table)
-                           (prog1
-                               (file-position stream)
-                             (write-string s stream)
-                             (write-char (code-char 0) stream)))))
-               (add (x) (vector-push-extend x data))
-               (add-string (s) (add (intern-string s))))
-        (add 1)                                ;revision
-        (add (intern-string class-name))       ;class name
-        (add (length class-infos))             ;classinfo
-        (add (if (plusp (length class-infos)) 10 0))
-        (add (+ (length signals) (length slots)))
-        (add (+ 10 (* 2 (length class-infos)))) ;methods
-        (add 0)                                 ;properties
-        (add 0)
-        (add 0)                         ;enums/sets
-        (add 0)
-        (dolist (entry class-infos)
-          (add-string (key entry))
-          (add-string (value entry)))
-        (dolist (entry signals)
-          (add-string (full-name entry))
-          (add-string (remove #\, (full-name entry) :test-not #'eql))
-          (add-string (reply-type entry))
-          (add-string "")               ;tag
-          (add (logior +methodsignal+ +accessprotected+)))
-        (dolist (entry slots)
-          (add-string (full-name entry))
-          (add-string (remove #\, (full-name entry) :test-not #'eql))
-          (add-string (reply-type entry))
-          (add-string "")               ;tag
-          (add (logior +methodslot+ +accesspublic+)))
-        (add 0)))))
+(defun make-metaobject-signature (class-name class-infos signals slots)
+  (let ((table (make-hash-table :test #'equal))
+        data)
+    (values
+     (with-output-to-string (stream)
+       (labels ((intern-string (s)
+                  (or (gethash s table)
+                      (setf (gethash s table)
+                            (prog1
+                                (file-position stream)
+                              (write-string s stream)
+                              (write-char (code-char 0) stream)))))
+                (add (x) (push x data))
+                (add-string (s) (add (intern-string s))))
+         (add 1)                          ;revision
+         (add (intern-string class-name)) ;class name
+         (add (length class-infos))       ;classinfo
+         (add (if (plusp (length class-infos)) 10 0))
+         (add (+ (length signals) (length slots)))
+         (add (+ 10 (* 2 (length class-infos)))) ;methods
+         (add 0)                                 ;properties
+         (add 0)
+         (add 0)                        ;enums/sets
+         (add 0)
+         (dolist (entry class-infos)
+           (add-string (key entry))
+           (add-string (value entry)))
+         (dolist (entry signals)
+           (add-string (full-name entry))
+           (add-string (remove #\, (full-name entry) :test-not #'eql))
+           (add-string (reply-type entry))
+           (add-string "")              ;tag
+           (add (logior +methodsignal+ +accessprotected+)))
+         (dolist (entry slots)
+           (add-string (full-name entry))
+           (add-string (remove #\, (full-name entry) :test-not #'eql))
+           (add-string (reply-type entry))
+           (add-string "")              ;tag
+           (add (logior +methodslot+ +accesspublic+)))
+         (add 0)))
+     (nreverse data))))
 
 (defun make-metaobject (parent class-name class-infos signals slots)
-  (let* ((data (make-array 0 :fill-pointer 0 :adjustable t))
-         (signature (make-metaobject-signature data class-name
-                                               class-infos signals slots))
-         (dataptr (cffi:foreign-alloc :int :count (length data))))
-    (dotimes (i (length data))
-      (setf (cffi:mem-aref dataptr :int i) (elt data i)))
-    (cache!
-     (%qobject (find-qclass "QMetaObject")
-               (sw_make_metaobject (qobject-pointer parent)
-                                   (cffi:foreign-string-alloc
-                                    signature)
-                                   dataptr)))))
+  (multiple-value-bind (signature data)
+      (make-metaobject-signature class-name
+                                 class-infos signals slots)
+    (let ((dataptr (cffi:foreign-alloc :int :count (length data))))
+      (loop for x in data
+            for i from 0
+            do
+            (setf (cffi:mem-aref dataptr :int i) x))
+      (cache!
+       (%qobject (find-qclass "QMetaObject")
+                 (sw_make_metaobject (qobject-pointer parent)
+                                     (cffi:foreign-string-alloc
+                                      signature)
+                                     dataptr))))))
 
 (defun call-with-signal-marshalling (fun types args)
   (let ((arg-count (length args)))
