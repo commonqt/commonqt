@@ -91,5 +91,6 @@
                  (:file "qapp")
                  (:file "connect"))
     :defsystem-depends-on (:trivial-features)
-    :depends-on (:cffi :named-readtables :cl-ppcre :alexandria :closer-mop
-                       :iterate :trivial-garbage #+darwin :bordeaux-threads))
+    :depends-on (:cffi :named-readtables :cl-ppcre :alexandria
+                 #-abcl :closer-mop
+                 :iterate :trivial-garbage #+darwin :bordeaux-threads))

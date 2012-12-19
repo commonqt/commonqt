@@ -190,7 +190,7 @@
     (unless method
       (error "No applicable constructor ~A found for arguments ~S"
              (qclass-name class) args))
-    (assert (eq class (qtype-class (qmethod-return-type method))))
+    (assert (eql class (qtype-class (qmethod-return-type method))))
     (let ((classfn (qclass-trampoline-fun (qmethod-class method)))
           (method-index (qmethod-classfn-index method))
           (binding (binding-for-ctor method instance))

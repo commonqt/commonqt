@@ -229,7 +229,7 @@
       (t (error "Not a type or class: ~A" thing)))))
 
 (defun qsubclassp (a b)
-  (or (eq a b)
+  (or (eql a b)
       (some (lambda (super) (qsubclassp super b))
             (list-qclass-superclasses a))))
 
@@ -294,7 +294,8 @@
 
 (defun cancel-finalization (object)
   (check-type object abstract-qobject)
-  (tg:cancel-finalization object))
+  (when *report-memory-leaks*
+    (tg:cancel-finalization object)))
 
 ;; like the OPTIMIZED macros, this cannot be a function because that would
 ;; foil caching

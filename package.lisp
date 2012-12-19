@@ -95,3 +95,10 @@
   (:use :cl :qt)
   (:export #:*application*
            #:application))
+
+#+abcl
+(defpackage closer-mop
+  (:nicknames :c2mop)
+  (:use :mop)
+  (:export . #. (loop for symbol being the external-symbols of 'mop
+                      collect symbol)))
