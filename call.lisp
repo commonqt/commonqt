@@ -292,6 +292,8 @@
        (qobject-pointer object)))
     (setf (qobject-deleted object) t)))
 
+(defvar *report-memory-leaks* nil)
+
 (defun cancel-finalization (object)
   (check-type object abstract-qobject)
   (when *report-memory-leaks*

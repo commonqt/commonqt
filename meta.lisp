@@ -98,8 +98,6 @@
        (warn "Bug in CommonQt?  ~A still has parent ~A; not deleting"
              object parent)))))
 
-(defvar *report-memory-leaks* nil)
-
 (defun cache! (object)
   (let ((ptr (qobject-pointer object)))
     ;; (assert (null (pointer->cached-object ptr)))
