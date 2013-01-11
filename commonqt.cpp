@@ -43,18 +43,18 @@ public:
 
 		if (*name == '~')
 			callmethod_callback(smoke, method, obj, args);
-		else if (!strcmp(name, "notify")
-			 && (!strcmp(c->className, "QApplication")
-			    || !strcmp(c->className, "QCoreApplication")))
-		{
-			QEvent* e = (QEvent*) args[2].s_voidp;
-			if (e->type() == QEvent::ChildAdded
-			    || e->type() == QEvent::ChildRemoved)
-			{
-				QChildEvent* f = (QChildEvent*) e;
-				child_callback(smoke, f->added(), f->child());
-			}
-		}
+		// else if (!strcmp(name, "notify")
+		// 	 && (!strcmp(c->className, "QApplication")
+		// 	    || !strcmp(c->className, "QCoreApplication")))
+		// {
+		// 	QEvent* e = (QEvent*) args[2].s_voidp;
+		// 	if (e->type() == QEvent::ChildAdded
+		// 	    || e->type() == QEvent::ChildRemoved)
+		// 	{
+		// 		QChildEvent* f = (QChildEvent*) e;
+		// 		child_callback(smoke, f->added(), f->child());
+		// 	}
+		// }
 		return false;
 	}
 
