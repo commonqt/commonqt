@@ -270,13 +270,14 @@
 
 (declaim (inline call-class-fun))
 (defun call-class-fun (function method-index object stack)
-  (cffi:foreign-funcall-pointer
-   function
-   ()
-   :short method-index
-   :pointer object
-   :pointer stack
-   :void))
+  (with-fp-traps-masked
+    (cffi:foreign-funcall-pointer
+     function
+     ()
+     :short method-index
+     :pointer object
+     :pointer stack
+     :void)))
 
 (declaim (inline %%call))
 (defun %%call (casted-instance-pointer

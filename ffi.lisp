@@ -46,7 +46,7 @@
   (let ((windowsp (or #+(or windows mswindows win32) t)))
     (cffi:load-foreign-library
      (if windowsp
-	 ;; just assume it's in $PATH
+         ;; just assume it's in $PATH
          "commonqt.dll"
          (namestring (make-pathname :name "libcommonqt"
                                     :type #+darwin "dylib" #-darwin "so"
@@ -285,6 +285,30 @@
   (classid :short)
   (flags :short))
 
+#+sbcl
+(defvar *floating-point-mode* nil)
+
+(defmacro with-fp-traps-masked (&body body)
+  `(let (#+sbcl
+         (*floating-point-mode* (sb-vm:floating-point-modes)))
+     (#+sbcl sb-int:with-float-traps-masked
+      #+sbcl (:invalid :divide-by-zero)
+      #-sbcl progn
+      ,@body)))
+
+(defmacro with-fp-traps-restored (&body body)
+  #+sbcl
+  (let ((current (gensym "CURRENT")))
+   `(let ((,current (sb-vm:floating-point-modes)))
+      (unwind-protect
+           (progn (when *floating-point-mode*
+                    (setf (sb-vm:floating-point-modes)
+                          *floating-point-mode*))
+                  ,@body)
+        (setf (sb-vm:floating-point-modes) ,current))))
+  #-sbcl
+  `(progn ,@body))
+
 (defvar *callbacks* (make-hash-table :test 'equal))
 
 (defmacro defcallback (name ret (&rest args) &body body)
@@ -308,7 +332,8 @@
      (method :short)
      (obj :pointer)
      (args :pointer))
-  (%method-invocation-callback smoke method obj args))
+  (with-fp-traps-restored
+    (%method-invocation-callback smoke method obj args)))
 
 (defcallback dynamic-invocation-callback
     :char
@@ -317,7 +342,8 @@
      (override-id :short)
      (obj :pointer)
      (args :pointer))
-  (%dynamic-invocation-callback smoke obj method override-id args))
+  (with-fp-traps-restored
+    (%dynamic-invocation-callback smoke obj method override-id args)))
 
 (defcallback child-callback
     :void
