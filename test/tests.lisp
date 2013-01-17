@@ -300,11 +300,11 @@
 ;; TBD: deconstify types when looking for marshaller/unmarshaller, remove (macro-generated) duplicate marshaller definitions
 
 (deftest/qt window-geometry-using-qvariant-and-qbytarray
-  ;; regression test for issue with with qbytearrays unmarshalled as strings
-  (with-object (window (#_new QWidget))
-    (with-object (sx (#_new QSettings "CommonQt test" "CommonQt test"))
-      (#_setValue sx "geometry" (#_new QVariant (#_saveGeometry window)))
-      (#_restoreGeometry window (#_toByteArray (#_value sx "geometry")))))
+    ;; regression test for issue with with qbytearrays unmarshalled as strings
+    (with-object (window (#_new QWidget))
+      (with-object (sx (#_new QSettings "CommonQt test" "CommonQt test"))
+        (#_setValue sx "geometry" (#_saveGeometry window))
+        (#_restoreGeometry window (#_value sx "geometry"))))
   t)
 
 (defclass override-object-name ()
@@ -383,4 +383,30 @@
       (ensure-smoke :qtwebkit)
       (with-object (x (#_new QWebView)))
       t)
+  t)
+
+(deftest/qt qvariant-with-classes
+    (loop for class in '("QBitArray" "QBitmap" "QBrush" "QByteArray" "QChar" "QColor" "QCursor" "QDate"
+                         "QDateTime" "QEasingCurve" "QFont" "QVariantHash" "QIcon" "QImage"
+                         "QKeySequence" "QLine" "QLineF" "QVariantList" "QLocale" "QVariantMap"
+                         "QTransform" "QMatrix4x4" "QPalette" "QPen" "QPixmap" "QPoint" "QPointF"
+                         "QPolygon" "QQuaternion" "QRect" "QRectF" "QRegExp" "QRegion" "QSize" "QSizeF"
+                         "QSizePolicy" "QString" "QStringList" "QTextFormat" "QTextLength" "QTime"
+                         "QUrl" "QVector2D" "QVector3D" "QVector4D")
+          for object = (and (find-qclass class nil)
+                            (interpret-new class))
+          always (or (not object)
+                     (= (qt::qobject-class object)
+                        (qt::qobject-class
+                         (let ((item (#_new QStandardItem)))
+                           (#_setData item object)
+                           (#_data item))))))
+  t)
+
+(deftest/qt qvariant-primitive
+    (loop for object in '(1 1.0 1d0 "string" t nil)
+          always (equalp object
+                         (let ((item (#_new QStandardItem)))
+                           (#_setData item object)
+                           (#_data item))))
   t)
