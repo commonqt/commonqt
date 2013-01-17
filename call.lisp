@@ -230,9 +230,13 @@
       (t (error "Not a type or class: ~A" thing)))))
 
 (defun qsubclassp (a b)
-  (or (eql a b)
-      (some (lambda (super) (qsubclassp super b))
-            (list-qclass-superclasses a))))
+  (block nil
+    (or (eql a b)
+        (map-qclass-direct-superclasses
+         (lambda (superclass)
+           (when (qsubclassp superclass b)
+             (return t)))
+         a))))
 
 ;; for reference results, return new values as multiple return values
 (defun splice-reference-result (result-list newval)
