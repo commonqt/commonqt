@@ -194,19 +194,17 @@
          (every #'type= r s))))
 
 (defun qclass-find-applicable-method (class method-name args fix-types)
-  (let ((methods #+nil (remove-duplicates (recurse class)
-                                          :from-end t
-                                          :test #'method-signature=)
-                 (list-class-all-methods-named class method-name)))
-    (cond
-      ((null methods)
-       nil)
-      ((cdr methods)
-       (find-if (lambda (method)
-                  (method-applicable-p method args fix-types))
-                methods))
-      (t
-       (car methods)))))
+  (labels ((find-applicable (class)
+             (map-class-methods-named
+              (lambda (method)
+                (when (method-applicable-p method args fix-types)
+                  (return-from qclass-find-applicable-method
+                    method)))
+              class method-name))
+           (recurse (class)
+             (or (find-applicable class)
+                 (some #'recurse (list-qclass-superclasses class)))))
+    (recurse class)))
 
 (defun method-applicable-p (method args &optional fix-types)
   (let ((argtypes (list-qmethod-argument-types method)))
