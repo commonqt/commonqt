@@ -194,27 +194,30 @@
          (every #'type= r s))))
 
 (defun qclass-find-applicable-method (class method-name args fix-types)
-  (labels ((find-applicable (class)
-             (map-class-methods-named
-              (lambda (method)
-                (when (method-applicable-p method args fix-types)
-                  (return-from qclass-find-applicable-method
-                    method)))
-              class method-name))
-           (recurse (class)
-             (or (find-applicable class)
-                 (some #'recurse (list-qclass-superclasses class)))))
-    (recurse class)))
+  (block nil
+    (labels ((find-applicable (class)
+               (map-class-methods-named
+                (lambda (method)
+                  (when (method-applicable-p method args fix-types)
+                    (return method)))
+                class method-name))
+             (recurse (class)
+               (or (find-applicable class)
+                   (mapc #'recurse (list-qclass-superclasses class)))))
+      (recurse class))))
 
 (defun method-applicable-p (method args &optional fix-types)
-  (let ((argtypes (list-qmethod-argument-types method)))
-    (and (iter (for method-argtype in argtypes)
-               (for fix-type in fix-types)
-               (always (or (null fix-type)
-                           (eq (qtype-interned-name method-argtype)
-                               fix-type))))
-         (eql (length argtypes) (length args))
-         (every #'can-marshal-p args argtypes))))
+  (block nil
+    (map-qmethod-argument-types
+     (lambda (arg-type)
+       (let ((fix-type (pop fix-types)))
+         (unless (and (or (not fix-type)
+                          (eq (qtype-interned-name arg-type)
+                              fix-type))
+                      (can-marshal-p (pop args) arg-type))
+           (return))))
+     method)
+    (null args)))
 
 (defun qtypep (instance thing)
   (when (stringp thing)
