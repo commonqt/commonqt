@@ -90,7 +90,7 @@
 
 (defun describe-metamethods (object)
   (format t "Metaobject for ~A:~%" object)
-  (describe-metaobject-methods (#_metaObject object)))
+  (describe-metaobject-methods (qobject-metaobject object)))
 
 ;;; (defmacro with-object ((var form) &body body)
 ;;;   `(invoke-with-object (lambda (,var) ,@body) ,form))

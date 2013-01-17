@@ -131,18 +131,18 @@
       (error "No applicable method ~A found on ~A with arguments ~S"
              name instance args))
     (let* ((precompiled-override
-            (when allow-override-p
-              (find-method-override instance method)))
+             (when allow-override-p
+               (find-method-override instance method)))
            (arglist-marshaller
-            (arglist-marshaller args (list-qmethod-argument-types method)))
+             (arglist-marshaller args (list-qmethod-argument-types method)))
            (classfn
-            (qclass-trampoline-fun (qmethod-class method)))
+             (qclass-trampoline-fun (qmethod-class method)))
            (method-index
-            (qmethod-classfn-index method))
+             (qmethod-classfn-index method))
            (rtype
-            (qmethod-return-type method))
+             (qmethod-return-type method))
            (return-value-function
-            (unmarshaller rtype)))
+             (unmarshaller rtype)))
       (cond
         ((integerp instance)
          (unless (qmethod-static-p method)
@@ -162,17 +162,17 @@
            (multiple-value-bind (castfn <to>)
                (resolve-cast <from> (qmethod-class method))
              (let ((cont
-                    (if precompiled-override
-                        (lambda (actual-instance args)
-                          (override precompiled-override
-                                    actual-instance method args))
-                        (lambda (actual-instance args)
-                          (%%call (perform-cast actual-instance castfn <from> <to>)
-                                  args
-                                  arglist-marshaller
-                                  classfn
-                                  method-index
-                                  return-value-function)))))
+                     (if precompiled-override
+                         (lambda (actual-instance args)
+                           (override precompiled-override
+                                     actual-instance method args))
+                         (lambda (actual-instance args)
+                           (%%call (perform-cast actual-instance castfn <from> <to>)
+                                   args
+                                   arglist-marshaller
+                                   classfn
+                                   method-index
+                                   return-value-function)))))
                (if (alexandria:starts-with #\~ (qmethod-name method))
                    (lambda (actual-instance args)
                      (note-deleted actual-instance)

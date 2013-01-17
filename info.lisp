@@ -885,7 +885,6 @@
 (defvar *weakly-cached-objects*)
 (defvar *strongly-cached-objects*)
 (defvar *keep-alive*)
-(defvar *qobject-metaobject* nil)
 (defvar *smoke-instance-list* (list nil nil))
 (defvar *smoke-instances-by-pointer*)
 
@@ -896,7 +895,6 @@
   (setf *weakly-cached-objects* (tg:make-weak-hash-table :weakness :value))
   (setf *strongly-cached-objects* (make-hash-table))
   (setf *keep-alive* (make-hash-table :test #'eq))
-  (setf *qobject-metaobject* nil)
   (unless *library-loaded-p*
     (load-libcommonqt))
   (setf *loaded* t))

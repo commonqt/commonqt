@@ -61,12 +61,14 @@
   (values (gethash id (dynamic-receiver-slots object))))
 
 (defun resolve-signal (sender signal)
-  (let ((signal-sig (#_data (#_QMetaObject::normalizedSignature
-                             (if (alexandria:starts-with #\2 signal)
-                                 (subseq signal 1)
-                                 signal)))))
-    (values (#_indexOfSignal (#_metaObject sender) signal-sig)
-            signal-sig)))
+  (let* ((signal-sig (#_data (#_QMetaObject::normalizedSignature
+                              (if (alexandria:starts-with #\2 signal)
+                                  (subseq signal 1)
+                                  signal))))
+         (index (#_indexOfSignal (qobject-metaobject sender) signal-sig)))
+    (when (minusp index)
+      (error "~s doesn't have a signal named ~s" sender signal))
+    (values index signal-sig)))
 
 (defun sweep-connections (receiver)
   (setf (dynamic-receiver-connections receiver)
@@ -83,7 +85,7 @@
                       "^(\\d+)[^(]+" signal-sig
                       (format nil "\\1dynamicSlot~A" slot-id)))
            (spec (make-instance 'slot-spec
-                                :name (subseq slot-sig 1)
+                                :name slot-sig
                                 :function
                                 (if this-object
                                     (lambda (this &rest args)
@@ -96,11 +98,13 @@
       (initialize-slot-or-signal spec)
       (setf (gethash slot-id (dynamic-receiver-slots receiver))
             spec)
-      (push (make-connection-entry (tg:make-weak-pointer sender) signal-id function slot-id)
+      (push (make-connection-entry (tg:make-weak-pointer sender)
+                                   signal-id function slot-id)
             (dynamic-receiver-connections receiver))
       (incf (dynamic-receiver-next-id receiver))
       (#_QMetaObject::connect sender signal-id receiver
-                              (+ slot-id (#_methodCount (#_metaObject receiver)))))))
+                              (+ slot-id (#_methodCount
+                                          (qobject-metaobject receiver)))))))
 
 (defun dynamic-disconnect (receiver sender signal function)
   (sweep-connections receiver)
@@ -119,7 +123,7 @@
     (#_QMetaObject::disconnect
      sender signal-id receiver
      (+ (connection-entry-slot-id connection)
-        (#_methodCount (#_metaObject receiver))))
+        (#_methodCount (qobject-metaobject receiver))))
     (alexandria:deletef (dynamic-receiver-connections receiver) connection)))
 
 (defun ensure-dynamic-receiver (owner)

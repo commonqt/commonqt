@@ -218,6 +218,11 @@
       (when errorp
         (error "effective-class not cached?"))))
 
+(defun qobject-metaobject (object)
+  (if (typep object 'dynamic-object)
+      (class-qmetaobject (class-of object))
+      (#_metaObject object)))
+
 (defun class-qmetaobject (qt-class)
   (ensure-qt-class-caches qt-class)
   (slot-value qt-class 'qmetaobject))

@@ -30,7 +30,7 @@
 (named-readtables:in-readtable :qt)
 
 (defun object-properties (object)
-  (metaobject-properties (#_metaObject object)))
+  (metaobject-properties (qobject-metaobject object)))
 
 (defun metaobject-properties (meta &optional (include-inherited t))
   (let ((count (#_propertyCount meta))
