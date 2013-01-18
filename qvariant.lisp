@@ -18,6 +18,23 @@
 (defmarshal (value :|const QVariant&|)
   (qvariant value))
 
+;;; QVariant has conversion methods for classes in QtCore
+;;; *UNVARIANT-TYPES* lists such classes and types, they can be
+;;; unvarianted by calling toClass on them.  UNVARIANT-MAP builds an
+;;; array from *UNVARIANT-TYPES*, indexed by QVariant type-codes and
+;;; containing functions which will call appropriate toClass methods.
+;;; 
+;;; Classes which are from QtGui don't have such methods, so they are
+;;; unvarianted by calling constData, constData returns a raw pointer,
+;;; so we need to know which class it belongs to.
+;;; UNVARIANT-NON-CORE-MAP makes an array from
+;;; *UNVARIANT-NON-CORE-TYPES*, it's indexed by the type-code of the
+;;; variant and has classes as elements.
+;;; 
+;;; Making a QVariant from an object is easier, just need to call
+;;; (#_new QVariant type-code object). VARIANT-MAP builds a map from
+;;; classes to type-codes.
+
 (defparameter *unvariant-non-core-types*
   '("Bitmap" "Brush" "Color" "Cursor" "Font" "Icon" "Image" "KeySequence"
     "Matrix4x4" "Palette" "Pen" "Pixmap" "Polygon" "Quaternion" "Region"
