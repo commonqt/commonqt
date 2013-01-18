@@ -50,6 +50,18 @@
       (when object
         (note-deleted object)))))
 
+(defun unmarshal-args (stack <method>)
+  (let ((index 0))
+    (iter
+      (map-qmethod-argument-types
+       (lambda (type)
+         (collect (unmarshal type
+                             (cffi:mem-aref stack
+                                            '|union StackItem|
+                                            (incf index)))))
+       <method>)
+      (finish))))
+
 (defun %method-invocation-callback (smoke method-idx obj stack)
   (with-callback-restart
     (let* ((<module> (module-number smoke))
@@ -57,13 +69,7 @@
            (<method> (bash method-idx <module> +method+))
            (fun (and object (find-method-override object <method>))))
       (if fun
-          (let* ((args
-                   (loop for type in (list-qmethod-argument-types <method>)
-                         for i from 1
-                         for item = (cffi:mem-aref stack
-                                                   '|union StackItem|
-                                                   i)
-                         collect (unmarshal type item)))
+          (let* ((args (unmarshal-args stack <method>))
                  (result (override fun object <method> args))
                  (rtype (qmethod-return-type <method>)))
             (unless (qtype-void-p rtype)
@@ -86,13 +92,7 @@
           ;; we can just return 0 from here and Qt will call the next method
           ;; (stop-overriding) can just throw 0 here
           (catch 'stop-overriding-tag
-            (let* ((args
-                     (loop for type in (list-qmethod-argument-types <method>)
-                           for i from 1
-                           for item = (cffi:mem-aref stack
-                                                     '|union StackItem|
-                                                     i)
-                           collect (unmarshal type item)))
+            (let* ((args (unmarshal-args stack <method>))
                    (result (override (spec-function override)
                                      object (name override) args))
                    (rtype (qmethod-return-type <method>)))
