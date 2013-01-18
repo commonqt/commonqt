@@ -459,6 +459,10 @@
 	(ldb-module <method>)
 	+type+))
 
+(defun qmethod-argument-number (<method>)
+  (cffi:foreign-slot-value (qmethod-struct <method>) '|struct Method|
+                           'numargs))
+
 (declaim (inline map-qmethod-argument-types))
 (defun map-qmethod-argument-types (fun <method>)
   (let* ((<module> (ldb-module <method>))

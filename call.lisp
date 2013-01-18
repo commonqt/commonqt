@@ -191,26 +191,24 @@
        (eq (qtype-interned-name x) (qtype-interned-name y))
        (eq (qtype-stack-item-slot x) (qtype-stack-item-slot y))))
 
-(defun method-signature= (a b)
-  (let ((r (list-qmethod-argument-types a))
-        (s (list-qmethod-argument-types b)))
-    (and (eql (length r) (length s))
-         (every #'type= r s))))
-
 (defun qclass-find-applicable-method (class method-name args fix-types)
-  (block nil
-    (labels ((find-applicable (class)
-               (map-class-methods-named
-                (lambda (method)
-                  (when (method-applicable-p method args fix-types)
-                    (return method)))
-                class method-name))
-             (recurse (class)
-               (find-applicable class)
-               (map nil #'recurse (list-qclass-superclasses class))))
-      (recurse class))))
+  (let ((args-number (length args)))
+    (block nil
+      (labels ((find-applicable (class)
+                 (map-class-methods-named
+                  (lambda (method)
+                    (when (and (= (qmethod-argument-number method) args-number)
+                               (or (zerop args-number)
+                                   (method-applicable-p method args fix-types)))
+                      (return method)))
+                  class method-name))
+               (recurse (class)
+                 (find-applicable class)
+                 (map nil #'recurse (list-qclass-superclasses class))))
+        (recurse class)))))
 
 (defun method-applicable-p (method args &optional fix-types)
+  "Assumes that ARGS has the correct number of arguments"
   (block nil
     (map-qmethod-argument-types
      (lambda (arg-type)
@@ -221,7 +219,7 @@
                       (can-marshal-p (pop args) arg-type))
            (return))))
      method)
-    (null args)))
+    t))
 
 (defun qtypep (instance thing)
   (when (stringp thing)
