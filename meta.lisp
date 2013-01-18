@@ -247,8 +247,17 @@
 
 (defun call-next-qmethod (&rest args)
   (unless *next-qmethod-trampoline*
-    (error "call-next-qmethod used outside of overriding method"))
+    (error "~a used outside of overriding method."
+           'call-next-qmethod))
   (funcall *next-qmethod-trampoline* args))
+
+(defun stop-overriding ()
+  "Like call-next-qmethod, but doesn't return.
+Should be used as an optimization."
+  (unless *next-qmethod-trampoline*
+    (error "~a used outside of overriding method."
+           'stop-overriding))
+  (throw 'stop-overriding-tag 0))
 
 (defun get-next-qmethod ()
   (or *next-qmethod*

@@ -82,19 +82,23 @@
                           (find-dynamic-method-override object
                                                         override-id))))
       (if override
-          (let* ((args
-                   (loop for type in (list-qmethod-argument-types <method>)
-                         for i from 1
-                         for item = (cffi:mem-aref stack
-                                                   '|union StackItem|
-                                                   i)
-                         collect (unmarshal type item)))
-                 (result (override (spec-function override)
-                                   object (name override) args))
-                 (rtype (qmethod-return-type <method>)))
-            (unless (qtype-void-p rtype)
-              (marshal result rtype stack (lambda ())))
-            1)
+          ;; Instead of explicitly calling the next method
+          ;; we can just return 0 from here and Qt will call the next method
+          ;; (stop-overriding) can just throw 0 here
+          (catch 'stop-overriding-tag
+            (let* ((args
+                     (loop for type in (list-qmethod-argument-types <method>)
+                           for i from 1
+                           for item = (cffi:mem-aref stack
+                                                     '|union StackItem|
+                                                     i)
+                           collect (unmarshal type item)))
+                   (result (override (spec-function override)
+                                     object (name override) args))
+                   (rtype (qmethod-return-type <method>)))
+              (unless (qtype-void-p rtype)
+                (marshal result rtype stack (lambda ())))
+              1))
           0))))
 
 (defun %child-callback (added obj)

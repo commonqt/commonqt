@@ -86,7 +86,8 @@
            #:qtypep
            #:connect
            #:disconnect
-           #:with-signals-blocked)
+           #:with-signals-blocked
+           #:stop-overriding)
   (:import-from alexandria named-lambda))
 
 (defpackage :qt-internal)
