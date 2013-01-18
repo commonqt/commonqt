@@ -206,8 +206,8 @@
                     (return method)))
                 class method-name))
              (recurse (class)
-               (or (find-applicable class)
-                   (mapc #'recurse (list-qclass-superclasses class)))))
+               (find-applicable class)
+               (map nil #'recurse (list-qclass-superclasses class))))
       (recurse class))))
 
 (defun method-applicable-p (method args &optional fix-types)
