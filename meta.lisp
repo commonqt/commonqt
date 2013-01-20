@@ -132,13 +132,18 @@
 
 (defun inform-cpp-about-override (qclass binding method-name
                                   override-id)
-  (map-class-methods-named
-   (lambda (<method>)
-     (sw_override binding
-                  (unbash* <method> +method+)
-                  override-id))
-   qclass
-   method-name))
+  (let (once)
+    (map-class-methods-named
+     (lambda (<method>)
+       (setf once t)
+       (sw_override binding
+                    (unbash* <method> +method+)
+                    override-id))
+     qclass
+     method-name)
+    (unless once
+      (warn "~a has no method named ~s, can't override it." (qclass-name qclass)
+            method-name))))
 
 (defun inform-cpp-about-overrides (qt-class)
   (let ((<class> (slot-value qt-class 'effective-class))
