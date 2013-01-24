@@ -133,14 +133,15 @@
 (defun inform-cpp-about-override (qclass binding method-name
                                   override-id)
   (let (once)
-    (map-class-methods-named
-     (lambda (<method>)
-       (setf once t)
-       (sw_override binding
-                    (unbash* <method> +method+)
-                    override-id))
-     qclass
-     method-name)
+    (flet ((inform (class)
+             (map-class-methods-named
+              (lambda (<method>)
+                (setf once t)
+                (sw_override binding
+                             (unbash* <method> +method+)
+                             override-id))
+              class method-name)))
+      (map-qclass-precedence-list #'inform qclass))
     (unless once
       (warn "~a has no method named ~s, can't override it." (qclass-name qclass)
             method-name))))
