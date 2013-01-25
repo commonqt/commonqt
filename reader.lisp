@@ -28,110 +28,59 @@
 
 (in-package :qt)
 
-;; Using uninterned symbols to refer to macros turned out to be unsafe,
-;; as they appear to lose their identity during macroexpansion in SBCL.
-;; Thus we use gentemp with qt-internal package.
-
 (defvar *case-preserving-readtable*
   (let ((table (copy-readtable nil)))
     (setf (readtable-case table) :preserve)
     table))
 
-
-;;; CALL
-
-(defvar *call-macros* (make-hash-table :test 'equal))
-
-(defun call-macro-expander (whole env)
-  (declare (ignore env))
-  (destructuring-bind (sym instance &rest args) whole
-    (let ((method-name (symbol-value sym)))
-      `(optimized-call t ,instance ,method-name ,@args))))
-
-(defun ensure-call-macro (name)
-  (or (gethash name *call-macros*)
-      (setf (gethash name *call-macros*)
-            (let ((sym (gentemp name :qt-internal)))
-              (setf (symbol-value sym) name)
-              (setf (macro-function sym) #'call-macro-expander)
-              sym))))
-
-
-;;; STATIC CALL
-
-(defvar *static-call-macros* (make-hash-table :test 'equal))
-
-(defun static-call-macro-expander (whole env)
-  (declare (ignore env))
-  (destructuring-bind (sym &rest args) whole
-    (destructuring-bind (class-name method-name)
-        (symbol-value sym)
-      `(optimized-call t ,class-name ,method-name ,@args))))
-
-(defun ensure-static-call-macro (class-name method-name)
-  (let ((key (list class-name method-name)))
-    (or (gethash key *static-call-macros*)
-        (setf (gethash key *static-call-macros*)
-              (let ((sym (gentemp
-                          (concatenate 'string class-name "::" method-name)
-                          :qt-internal)))
-                (setf (symbol-value sym) key)
-                (setf (macro-function sym) #'static-call-macro-expander)
-                sym)))))
-
-;;; NEW
-
-(defvar *new-macros* (make-hash-table :test 'equal))
-
-(defun new-macro-expander (whole env)
-  (declare (ignore env))
-  (destructuring-bind (sym &rest args) whole
-    (let ((class-name (symbol-value sym)))
-      `(optimized-new ,class-name ,@args))))
-
-(defun ensure-new-macro (name)
-  (or (gethash name *new-macros*)
-      (setf (gethash name *new-macros*)
-            (let ((sym (gentemp name :qt-internal)))
-              (setf (symbol-value sym) name)
-              (setf (macro-function sym) #'new-macro-expander)
-              sym))))
+(defun read-list-until (char stream)
+  (loop for next-char = (peek-char nil stream t nil t)
+        until (char= char next-char)
+        collect (read stream t nil t)))
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (defun read-smoke-lambda (stream char n &aux it)
-    (declare (ignore n))
-    (check-type char (eql #\_))
-    (let ((method-name
-           (coerce (iter
-                     (let* ((char (peek-char nil stream))
-                            (code (char-code char)))
-                       (if (or (eql char #\_)
-                               (eql char #\:)
-                               (<= 65 code 90)
-                               (<= 97 code 122)
-                               (<= 48 code 57)
-                               (<= 60 code 62)) ; < = >
-                           (collect (read-char stream))
-                           (finish))))
-                   'string)))
-      (if (ppcre:scan "^[<=>]+$" method-name)
-          (setf method-name
-                (concatenate 'string "operator" method-name)))
-      (cond
-        ((equal method-name "delete")
-         'optimized-delete)
-        ((equal method-name "new")
-         (let ((class-name
-                (symbol-name
-                 (let ((*readtable* *case-preserving-readtable*))
-                   (read stream t nil t)))))
-           (ensure-new-macro class-name)))
-        ((setf it (search "::" method-name))
-         (let ((class-name (subseq method-name 0 it))
-               (method-name (subseq method-name (+ it 2))))
-           (ensure-static-call-macro class-name method-name)))
-        (t
-         (ensure-call-macro method-name))))))
+  (defun read-smoke-lambda (stream char n)
+    (declare (ignore char n))
+    (flet ((expand-to (&rest args)
+             `(lambda ()
+                (,@args ,@(read-list-until #\) stream)))))
+      (let ((method-name
+              (coerce (iter
+                        (let ((char (peek-char nil stream t nil t)))
+                          (if (or (char= char #\_)
+                                  (char= char #\:)
+                                  (char<= #\A char #\Z)
+                                  (char<= #\a char #\z)
+                                  (char<= #\0 char #\9)
+                                  (char<= #\< char #\>)) ; < = >
+                              (collect (read-char stream t nil t))
+                              (finish))))
+                      'string)))
+        (if (ppcre:scan "^[<=>]+$" method-name)
+            (setf method-name
+                  (concatenate 'string "operator" method-name)))
+        (cond
+          ((equal method-name "delete")
+           (expand-to 'optimized-delete))
+          ((equal method-name "new")
+           (let ((class-name
+                   (symbol-name
+                    (let ((*readtable* *case-preserving-readtable*))
+                      (read stream t nil t)))))
+             (expand-to 'optimized-new class-name)))
+          ((let ((position (search "::" method-name)))
+             (when position
+               (expand-to
+                'optimized-call t
+                (subseq method-name 0 position)
+                (subseq method-name (+ position 2))))))
+          (t
+           (let ((args (read-list-until #\) stream)))
+            `(lambda ()
+               ,(if (zerop (length args))
+                    `(error "Not enough arguments for ~s: 0." ,method-name)
+                    `(optimized-call t ,(car args) ,method-name
+                                     ,@(cdr args)))))))))))
 
 (named-readtables:defreadtable :qt
     (:merge :standard)
