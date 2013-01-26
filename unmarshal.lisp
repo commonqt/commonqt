@@ -122,3 +122,6 @@
 
 (def-unmarshal (value "QVariant" type)
   (unvariant value type))
+
+(def-unmarshal (value "double&" type)
+  (cffi:mem-ref value :double))
