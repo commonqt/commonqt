@@ -127,6 +127,10 @@
   (reduce #'logior enums
           :key (lambda (x) (if (integerp x) x (primitive-value x)))))
 
+(defun enum-andc (&rest enums)
+  (reduce #'logandc2 enums
+          :key (lambda (x) (if (integerp x) x (primitive-value x)))))
+
 (defclass qthread ()
   ((pointer :initarg :pointer
             :accessor qthread-pointer)))

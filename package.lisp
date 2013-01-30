@@ -82,6 +82,7 @@
            #:*report-memory-leaks*
            #:new
            #:enum-or
+           #:enum-andc
            #:qsubclassp
            #:qtypep
            #:connect
