@@ -62,7 +62,7 @@
                 '(ptr bool char uchar short ushort int
                   uint long ulong float double enum class))))
 
-(defun unmarshal-using-type (type stack-item)
+(defun unmarshal (type stack-item)
   (funcall (unmarshaller type) stack-item))
 
 (defun unmarshaller (type)
@@ -73,34 +73,49 @@
           (lambda (stack-item)
             (funcall thunk (get-value stack-item) type))))))
 
-(defun nonconst-name (type)
-  (cl-ppcre:regex-replace "^const\\s+(.*)\\s*&$" (qtype-name type) "\\1"))
-
 (defun unmarshaller-2 (type)
-  (let ((name (nonconst-name type)))
+  (let ((name (qtype-name type)))
     (or (get-static-unmarshaller name)
         (case (qtype-stack-item-slot type)
-          (class (lambda (value type) (%qobject (qtype-class type) value)))
-          (enum  (lambda (value type) (enum value (qtype-interned-name type))))
-          (t    (lambda (value type)
-                  (declare (ignore type))
-                  value))))))
+          (class
+           (lambda (value type)
+             (%qobject (qtype-class type) value)))
+          (enum
+           (lambda (value type)
+             (enum value (qtype-interned-name type))))
+          (t
+           (lambda (value type)
+             (declare (ignore type))
+             value))))))
 
 (defvar *static-unmarshallers* (make-hash-table :test #'equal))
 
 (defun get-static-unmarshaller (name)
   (gethash name *static-unmarshallers*))
 
-(defmacro def-unmarshal ((var name type) &body body)
-  `(setf (gethash ,name *static-unmarshallers*)
-         (fdefinition
-          (defun ,(intern (format nil "~a-~a" name 'unmarshaller))
-              (,var ,type)
-            (declare (ignorable ,type))
-            ,@body))))
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defun unmarshaller-possible-names (name)
+    (append (list name)
+            (unless (eql (search "const " name) 0)
+              (unmarshaller-possible-names
+               (format nil "const ~a" name)))
+            (when (char/= (char name (1- (length name)))
+                          #\& #\*)
+              (list (format nil "~a&" name))))))
 
-(def-unmarshal (value "const char*" type)
-  (cffi:foreign-string-to-lisp value))
+(defmacro def-unmarshal ((var name type) &body body)
+  (let ((function-name
+          (intern (format nil "~a-~a" name 'unmarshaller))))
+    `(progn
+       (defun ,function-name
+           (,var ,type)
+         (declare (ignorable ,type))
+         ,@body)
+       (let ((fdefinition (fdefinition ',function-name)))
+        ,@(loop for name in (unmarshaller-possible-names name)
+                collect
+                `(setf (gethash ,name *static-unmarshallers*)
+                       fdefinition))))))
 
 (def-unmarshal (value "char*" type)
   (cffi:foreign-string-to-lisp value))

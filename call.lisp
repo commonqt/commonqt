@@ -272,9 +272,6 @@
     (char**-to-string-vector! vector ptr n freep)
     vector))
 
-(defun unmarshal (type stack-item)
-  (unmarshal-using-type type stack-item))
-
 (defun null-qobject-p (object)
   (typep object 'null-qobject))
 

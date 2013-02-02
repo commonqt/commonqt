@@ -167,13 +167,7 @@
 (defmarshal (value :|QString*| :around cont :type string)
   (funcall cont (sw_make_qstring value)))
 
-(defmarshal (value :|const char*| :around cont :type string)
-  (let ((char* (cffi:foreign-string-alloc value)))
-    (unwind-protect
-         (funcall cont char*)
-      (cffi:foreign-free char*))))
-
-(defmarshal (value :|unsigned char*| :around cont :type string)
+(defmarshal (value (:|unsigned char*| :|const char*|) :around cont :type string)
   (let ((char* (cffi:foreign-string-alloc value)))
     (unwind-protect
          (funcall cont char*)
