@@ -200,9 +200,10 @@
   (let ((vars (loop repeat (length objects)
                     collect (gensym))))
     `(let ,(mapcar #'list vars objects)
-       (unwind-protect (progn ,@(loop for var in vars
-                                      collect `(optimized-call nil ,var "blockSignals" t))
-                              ,@body)
+       (unwind-protect
+            (progn ,@(loop for var in vars
+                           collect `(#_blockSignals ,var t))
+                   ,@body)
          (progn
            ,@(loop for var in vars
-                   collect `(optimized-call nil ,var "blockSignals" nil)))))))
+                   collect `(#_blockSignals ,var nil)))))))
