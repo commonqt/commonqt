@@ -80,47 +80,53 @@
 (defun make-optimized (instance method
                        &key instance-resolver args resolver
                             env)
-  (multiple-value-bind (fix-types args) (parse-optimized-call-args args)
-    (let ((argsyms (make-symbols 'arg (length args)))
-          (sigsyms (make-symbols 'sig
-                                 (loop for arg in args
-                                       count (not (constantp arg env))))))
-      `(let* (,@(iter (for arg in args)
-                  (for sym in argsyms)
-                  (unless (constantp arg env)
-                    (collect `(,sym ,arg))))
-              (instance ,(funcall instance-resolver instance))
-              (method ,method)
-              (types ',fix-types)
-              (args ,(if (loop for arg in args
-                               always (constantp arg env))
-                         `',args
-                         `(list ,@(loop for arg in args
-                                        for argsym in argsyms
-                                        collect (if (constantp arg env)
-                                                    arg
-                                                    argsym)))))
-              ,@(loop with sigs = sigsyms
-                      for arg in args
-                      for argsym in argsyms
-                      unless (constantp arg env)
-                      collect `(,(pop sigs) (signature-type ,argsym))))
-         (multiple-value-bind (instance-qclass instance-extra-sig)
-             (typecase instance
-               (integer
-                (values instance :static))
-               (dynamic-object
-                (values (qobject-class instance)
-                        (class-generation (class-of instance))))
-               (t
-                (values (qobject-class instance) :instance)))
-           (cached-values-bind (fun) ,resolver
-               ((instance-qclass :hash t)
-                (instance-extra-sig)
-                (method)
-                ,@(loop for sig in sigsyms
-                        collect `(,sig :hash sxhash)))
-             (funcall fun instance args)))))))
+  (flet ((number-of-non-constantp (list)
+           (loop for x in list
+                 count (not (constantp x env)))))
+   (multiple-value-bind (fix-types args) (parse-optimized-call-args args)
+     (let ((argsyms (make-symbols 'arg (length args)))
+           (sigsyms (make-symbols 'sig (number-of-non-constantp args))))
+       `(let* (,@(iter (for arg in args)
+                   (for sym in argsyms)
+                   (unless (constantp arg env)
+                     (collect `(,sym ,arg))))
+               (instance ,(funcall instance-resolver instance))
+               (method ,method)
+               (types ',fix-types)
+               (args ,(if (zerop (number-of-non-constantp args))
+                          `',args
+                          `(list*
+                            ,@(loop for (arg . rest) on args
+                                    for argsym in argsyms
+                                    collect
+                                    (if (constantp arg env)
+                                        arg
+                                        argsym)
+                                    if (zerop (number-of-non-constantp rest))
+                                    collect `',rest
+                                    and
+                                    do (loop-finish)))))
+               ,@(loop with sigs = sigsyms
+                       for arg in args
+                       for argsym in argsyms
+                       unless (constantp arg env)
+                       collect `(,(pop sigs) (signature-type ,argsym))))
+          (multiple-value-bind (instance-qclass instance-extra-sig)
+              (typecase instance
+                (integer
+                 (values instance :static))
+                (dynamic-object
+                 (values (qobject-class instance)
+                         (class-generation (class-of instance))))
+                (t
+                 (values (qobject-class instance) :instance)))
+            (cached-values-bind (fun) ,resolver
+                ((instance-qclass :hash t)
+                 (instance-extra-sig)
+                 (method)
+                 ,@(loop for sig in sigsyms
+                         collect `(,sig :hash sxhash)))
+              (funcall fun instance args))))))))
 
 (defmacro optimized-call (allow-override-p instance method &rest args
                           &environment env)
