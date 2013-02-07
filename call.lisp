@@ -188,8 +188,8 @@
 
 (defun type= (x y)
   (and (eq (qtype-kind x) (qtype-kind y))
-       (eq (qtype-interned-name x) (qtype-interned-name y))
-       (eq (qtype-stack-item-slot x) (qtype-stack-item-slot y))))
+       (eq (qtype-stack-item-slot x) (qtype-stack-item-slot y))
+       (equal (qtype-name x) (qtype-name y))))
 
 (defun qclass-find-applicable-method (class method-name args fix-types)
   (let ((args-number (length args)))

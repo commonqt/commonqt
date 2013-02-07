@@ -80,9 +80,7 @@
           (class
            (lambda (value type)
              (%qobject (qtype-class type) value)))
-          (enum
-           (lambda (value type)
-             (enum value (qtype-interned-name type))))
+          (enum #'enum)
           (t
            (lambda (value type)
              (declare (ignore type))
