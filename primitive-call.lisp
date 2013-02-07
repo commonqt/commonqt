@@ -197,7 +197,7 @@
                                    classfn
                                    method-index
                                    return-value-function)))))
-               (if (alexandria:starts-with #\~ (qmethod-name method))
+               (if (destructor-qmethod-p method)
                    (lambda (actual-instance args)
                      (note-deleted actual-instance)
                      (funcall cont actual-instance args))

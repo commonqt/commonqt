@@ -424,6 +424,13 @@
   (name-ref (ldb-module <method>)
             (the index (qmethod-name-index <method>))))
 
+(defun destructor-qmethod-p (<method>)
+  (eq (cffi:mem-aref (cffi:mem-aref (data-methodnames (data-ref (ldb-module <method>)))
+                                    :pointer
+                                    (the index (qmethod-name-index <method>)))
+                     :char)
+      #.(char-code #\~)))
+
 (defun qmethod-flags (<method>)
   (cffi:foreign-slot-value (qmethod-struct <method>) '|struct Method| 'flags))
 
