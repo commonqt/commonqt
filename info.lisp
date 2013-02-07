@@ -533,6 +533,20 @@
   (declare (type tagged <type>))
   (cffi:foreign-slot-value (qtype-struct <type>) '|struct Type| 'name))
 
+(defun qtype-name= (<type1> <type2>)
+  (declare (type tagged <type1> <type2>)
+           (optimize speed))
+  (or (= <type1> <type2>)
+      (let ((name1 (cffi:mem-ref (qtype-struct <type1>) :pointer))
+            (name2 (cffi:mem-ref (qtype-struct <type2>) :pointer)))
+        (loop for i from 0
+              for char1 = (cffi:mem-ref name1 :char i)
+              for char2 = (cffi:mem-ref name2 :char i)
+              always (= char1 char2)
+              when (or (zerop char1)
+                       (zerop char2))
+              do (loop-finish)))))
+
 (defun qtype-interned-name (<type>)
   (intern (qtype-name <type>) :keyword))
 

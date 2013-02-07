@@ -175,7 +175,7 @@
                                ,(get (qtype-interned-name <type>)
                                      'lisp-type-for-qtype t)))))
             ((type= (qtype-deconstify <type>)
-                    (with-cache () (qt::find-qtype "QByteArray")))
+                    (with-cache () (find-qtype "QByteArray")))
              (typep lisp-object 'string))))))
 
 (defun find-applicable-method (object name args fix-types)
@@ -189,7 +189,7 @@
 (defun type= (x y)
   (and (eq (qtype-kind x) (qtype-kind y))
        (eq (qtype-stack-item-slot x) (qtype-stack-item-slot y))
-       (equal (qtype-name x) (qtype-name y))))
+       (qtype-name= x y)))
 
 (defun qclass-find-applicable-method (class method-name args fix-types)
   (let ((args-number (length args)))

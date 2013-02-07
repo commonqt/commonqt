@@ -91,8 +91,7 @@
 
 (defun enum= (a b)
   (declare (enum a b))
-  (and (or (eq (enum-type a) (enum-type b))
-           (equal (enum-type-name a) (enum-type-name b)))
+  (and (qtype-name= (enum-type a) (enum-type b))
        (eql (primitive-value a) (primitive-value b))))
 
 (defun enum-or (&rest enums)
