@@ -410,3 +410,23 @@
                            (#_setData item object)
                            (#_data item))))
   t)
+
+(deftest/qt superclass-cast
+    (let ((vbox (#_new QVBoxLayout))
+          (hbox (#_new QHBoxLayout)))
+      (#_addLayout vbox hbox)
+      (assert (not (null-qobject-p
+                    (#_layout (#_itemAt vbox 0)))))
+      (#_addWidget vbox (#_new QPushButton))
+      (assert (not (null-qobject-p
+                    (#_widget (#_itemAt vbox 1)))))
+      t)
+  t)
+
+(deftest/qt indirect-deletion
+    (let* ((a (#_new QObject))
+           (b (#_new QObject a)))
+      (#_delete a)
+      (and (qt::qobject-deleted b)
+           (qt::qobject-deleted a)))
+  t)
