@@ -265,6 +265,33 @@ sw_find_name(Smoke *smoke, char *name)
 	return mi.index;
 }
 
+unsigned
+sw_find_name_index_range(Smoke *smoke, char* name)
+{
+        Smoke::ModuleIndex mi = smoke->idMethodName(name);
+        short number = smoke->numMethodNames;
+        short max;
+        if (mi.index == 0)
+                return 0;
+        for (max = mi.index + 1; max < number; max++) {
+                for (int c = 0;; c++) {
+                        char c1 = name[c];
+                        char c2 = smoke->methodNames[max][c];
+                        if (c1 != c2) {
+                                if (c2 == '$' || c2 == '#' || c2 == '?')
+                                        break;
+                                else
+                                        return mi.index | (max - 1) << 16;
+                        }
+                                
+                                
+                        if (c1 == 0 || c2 == 0)
+                                break;
+                }
+        }
+	return mi.index | (max - 1) << 16;
+}
+
 short
 sw_id_method(Smoke *smoke, short classIndex, short name)
 {

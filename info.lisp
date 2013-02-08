@@ -625,19 +625,12 @@
 (deflistify list-qclass-methodmaps map-class-methodmaps
   <class>)
 
-(defun %find-name-index-range (<module> method-name)
-  (let* ((str-length (length method-name))
-         (from (the index (%find-name (module-ref <module>) method-name)))
-         (to (data-nmethodnames (data-ref <module>))))
-    (declare (type index-iterator to))
-    (when (plusp from)
-      (values from
-              (iter (for current-index from (1+ from) below to)
-                    (let* ((current-name (name-ref <module> current-index))
-                           (mismatch (mismatch current-name method-name)))
-                      (while (and (eql mismatch str-length)
-                                  (find (char current-name str-length) "?#$")))
-                      (finally (return (1- current-index)))))))))
+(defun find-name-index-range (<module> method-name)
+  (let ((index (sw_find_name_index_range (module-ref <module>) method-name)))
+    (declare (type (unsigned-byte 32) index))
+    (when (plusp index)
+      (values (ldb (byte 16 0) index)
+              (ldb (byte 16 16) index)))))
 
 (defun %find-any-methodmap-for-class-and-name-range (<class> min max)
   (declare (type tagged <class>))
@@ -671,7 +664,7 @@
 (defun map-class-methodmaps-named (fun <class> method-name)
   (declare (type tagged <class>))
   (multiple-value-bind (min max)
-      (%find-name-index-range (ldb-module <class>) method-name)
+      (find-name-index-range (ldb-module <class>) method-name)
     (when min
       (let ((any (%find-any-methodmap-for-class-and-name-range
                   <class> min max)))

@@ -144,6 +144,10 @@
   (smoke :pointer)
   (str :string))
 
+(defcfun "sw_find_name_index_range" :unsigned-int
+  (smoke :pointer)
+  (str :string))
+
 (defcfun "sw_find_class" :void
   (name :string)
   (smoke** :pointer)
