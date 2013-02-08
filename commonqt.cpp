@@ -292,10 +292,46 @@ sw_find_name_index_range(Smoke *smoke, char* name)
 	return mi.index | (max - 1) << 16;
 }
 
+inline int leg(short a, short b) {  // ala Perl's <=>
+	if(a == b) return 0;
+	return (a > b) ? 1 : -1;
+}
+
 short
-sw_id_method(Smoke *smoke, short classIndex, short name)
+sw_find_any_methodmap(Smoke *smoke, short classIndex, short min, short max)
 {
-	Smoke::ModuleIndex mi = smoke->idMethod(classIndex, name);
+        short imax = smoke->numMethodMaps;
+        short imin = 1;
+        short icur = -1;
+        int icmp = -1;
+
+        while (imax >= imin) {
+                icur = (imin + imax) / 2;
+                icmp = leg(smoke->methodMaps[icur].classId, classIndex);
+                if (icmp == 0) {
+                        short name = smoke->methodMaps[icur].name;
+
+                        if (min > name)
+                                imin = icur + 1;
+                        else if (max < name)
+                                imax = icur - 1;
+                        else
+                                return icur;
+                        
+                } else if (icmp > 0) {
+                        imax = icur - 1;
+                } else {
+                        imin = icur + 1;
+                }
+        }
+
+        return 0;
+}
+
+short
+sw_id_method(Smoke *smoke, short classIndex, short methodIndex)
+{
+	Smoke::ModuleIndex mi = smoke->idMethod(classIndex, methodIndex);
 	return mi.index;
 }
 

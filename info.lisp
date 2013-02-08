@@ -367,12 +367,12 @@
   (name-ref (ldb-module <methodmap>)
             (the index (methodmap-name-index <methodmap>))))
 
-(defun find-methodmap (<class> name)
+(defun find-methodmap (<class> method)
   (multiple-value-bind (classid <module>)
       (unbash* <class> +class+)
     (let* ((smoke (module-ref <module>))
            (index
-            (the index (sw_id_method smoke classid (%find-name smoke name)))))
+             (the index (sw_id_method smoke classid method))))
       (if (zerop index)
           nil
           (bash index <module> +methodmap+)))))
@@ -632,57 +632,28 @@
       (values (ldb (byte 16 0) index)
               (ldb (byte 16 16) index)))))
 
-(defun %find-any-methodmap-for-class-and-name-range (<class> min max)
-  (declare (type tagged <class>))
-  (let* ((<module> (ldb-module <class>))
-         (from 1)
-         (to (data-nmethodmaps (data-ref <module>))))
-    (declare (type index-iterator from to))
-    (iter (while (<= from to))
-          (let* ((current-index
-                  (truncate (+ from to) 2))
-                 (current-<methodmap>
-                  (bash current-index <module> +methodmap+))
-                 (current-<class>
-                  (methodmap-class current-<methodmap>))
-                 (current-name-index
-                  (methodmap-name-index current-<methodmap>)))
-            (cond
-              ((eql current-<class> <class>)
-               (cond
-                 ((<= min current-name-index max)
-                  (return current-<methodmap>))
-                 ((> current-name-index max)
-                  (setf to (1- current-index)))
-                 (t
-                  (setf from (1+ current-index)))))
-              ((> current-<class> <class>)
-               (setf to (1- current-index)))
-              (t
-               (setf from (1+ current-index))))))))
-
 (defun map-class-methodmaps-named (fun <class> method-name)
   (declare (type tagged <class>))
-  (multiple-value-bind (min max)
-      (find-name-index-range (ldb-module <class>) method-name)
-    (when min
-      (let ((any (%find-any-methodmap-for-class-and-name-range
-                  <class> min max)))
-        (when any
-          (multiple-value-bind (first-idx <module>)
-              (unbash any)
-            (macrolet
-                ((% (from offset)
-                   `(iter (for idx ,from (+ first-idx ,offset))
-                          (declare (type index-iterator idx))
-                          (let ((<methodmap> (bash idx <module> +methodmap+)))
-                            (while (and (eql <class> (methodmap-class <methodmap>))
-                                        (<= min
-                                            (methodmap-name-index <methodmap>)
-                                            max)))
-                            (funcall fun <methodmap>)))))
-              (% from 0)
-              (% downfrom -1))))))))
+  (multiple-value-bind (class-id <module>)
+      (unbash <class>)
+   (multiple-value-bind (min max)
+       (find-name-index-range <module> method-name)
+     (when min
+       (let ((first-idx (sw_find_any_methodmap (module-ref <module>)
+                                               class-id min max)))
+         (when (plusp first-idx)
+           (macrolet
+               ((% (from offset)
+                  `(iter (for idx ,from (+ first-idx ,offset))
+                     (declare (type index-iterator idx))
+                     (let ((<methodmap> (bash idx <module> +methodmap+)))
+                       (while (and (eql <class> (methodmap-class <methodmap>))
+                                   (<= min
+                                       (methodmap-name-index <methodmap>)
+                                       max)))
+                       (funcall fun <methodmap>)))))
+             (% from 0)
+             (% downfrom -1))))))))
 
 (declaim (inline map-class-methodmaps))
 (defun map-class-methods-named (fun <class> name)

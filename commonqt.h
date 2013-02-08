@@ -61,6 +61,7 @@ EXPORT unsigned sw_find_name_index_range(Smoke *, char *);
 EXPORT short sw_id_method(Smoke *, short, short);
 EXPORT short sw_id_type(Smoke *, char *);
 EXPORT short sw_id_class(Smoke *, char *, bool);
+EXPORT short sw_find_any_methodmap(Smoke *, short, short, short);
 
 EXPORT void* sw_qstringlist_new();
 EXPORT void sw_qstringlist_delete(void*);

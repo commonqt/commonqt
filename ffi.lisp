@@ -148,6 +148,12 @@
   (smoke :pointer)
   (str :string))
 
+(defcfun "sw_find_any_methodmap" :short
+  (smoke :pointer)
+  (class :short)
+  (min :short)
+  (max :short))
+
 (defcfun "sw_find_class" :void
   (name :string)
   (smoke** :pointer)
@@ -156,7 +162,7 @@
 (defcfun "sw_id_method" :short
   (smoke :pointer)
   (class :short)
-  (name :short))
+  (method :short))
 
 (defcfun "sw_id_type" :short
   (smoke :pointer)
