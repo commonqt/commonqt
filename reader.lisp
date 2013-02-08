@@ -33,10 +33,10 @@
     (setf (readtable-case table) :preserve)
     table))
 
-(defun read-list-until (char stream)
-  (loop for next-char = (peek-char nil stream t nil t)
+(defun read-list-until (char stream &optional (recursive-p t))
+  (loop for next-char = (peek-char t stream t nil recursive-p)
         until (char= char next-char)
-        collect (read stream t nil t)))
+        collect (read stream t nil recursive-p)))
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defun read-smoke-lambda (stream char n)
