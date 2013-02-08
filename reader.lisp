@@ -29,30 +29,39 @@
 (in-package :qt)
 
 (defvar *case-preserving-readtable*
-  (let ((table (copy-readtable nil)))
+  (let ((table (copy-readtable)))
     (setf (readtable-case table) :preserve)
     table))
 
+;;; To support [#_new QLabel] or <#_new QLabel> read not just until
+;;; the #\) character but until the character with a macro-character
+;;; function equal to #\) macro-character function. The idea is that
+;;; ] will usually be defined as (set-syntax-from-char #\] #\)) or
+;;; (set-macro-character #\} (get-macro-character #\)))
 (defun read-list-until (char stream &optional (recursive-p t))
-  (loop with read
-        for next-char = (peek-char t stream t nil recursive-p)
-        until (char= char next-char)
-        if
-        (let ((macro (get-macro-character next-char)))
-          ;; Need to go through this in order to be able to ignore
-          ;; comments and feature expression at the tail of a list.
-          (cond (macro
-                 (setf read
-                       (multiple-value-list
-                        (funcall macro stream
-                                 (read-char stream t nil recursive-p))))
-                 (when read
-                   (setf read (car read))
-                   t))
-                (t
-                 (setf read (read stream t nil recursive-p))
-                 t)))
-        collect read))
+  (let ((char-macro (get-macro-character char)))
+    (assert char-macro)
+    (loop with read
+          for next-char = (peek-char t stream t nil recursive-p)
+          until (char= char next-char)
+          if
+          (let ((macro (get-macro-character next-char)))
+            ;; Need to go through this in order to be able to ignore
+            ;; comments and feature expression at the tail of a list.
+            (cond ((not macro)
+                   (setf read (read stream t nil recursive-p))
+                   t)
+                  ((eq char-macro macro)
+                   (loop-finish))
+                  (t
+                   (setf read
+                         (multiple-value-list
+                          (funcall macro stream
+                                   (read-char stream t nil recursive-p))))
+                   (when read
+                     (setf read (car read))
+                     t))))
+          collect read)))
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defun read-smoke-lambda (stream char n)
