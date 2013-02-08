@@ -34,9 +34,25 @@
     table))
 
 (defun read-list-until (char stream &optional (recursive-p t))
-  (loop for next-char = (peek-char t stream t nil recursive-p)
+  (loop with read
+        for next-char = (peek-char t stream t nil recursive-p)
         until (char= char next-char)
-        collect (read stream t nil recursive-p)))
+        if
+        (let ((macro (get-macro-character next-char)))
+          ;; Need to go through this in order to be able to ignore
+          ;; comments and feature expression at the tail of a list.
+          (cond (macro
+                 (setf read
+                       (multiple-value-list
+                        (funcall macro stream
+                                 (read-char stream t nil recursive-p))))
+                 (when read
+                   (setf read (car read))
+                   t))
+                (t
+                 (setf read (read stream t nil recursive-p))
+                 t)))
+        collect read))
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defun read-smoke-lambda (stream char n)
@@ -49,6 +65,7 @@
                         (let ((char (peek-char nil stream t nil t)))
                           (if (or (char= char #\_)
                                   (char= char #\:)
+                                  (char= char #\~)
                                   (char<= #\A char #\Z)
                                   (char<= #\a char #\z)
                                   (char<= #\0 char #\9)
