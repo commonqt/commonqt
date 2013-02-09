@@ -284,13 +284,15 @@
   (deftest qclass-constructor-p #x01)
   (deftest qclass-deepcopy-p #x02)
   (deftest qclass-virtual-p #x04)
-  (deftest qclass-undefined-p #x08))
+  (deftest qclass-namespace-p #x08)
+  (deftest qclass-undefined-p #x10))
 
 (defun list-qclass-flags (<class>)
   (let ((x '()))
     (when (qclass-constructor-p <class>) (push :constructor x))
     (when (qclass-deepcopy-p <class>) (push :deepcopy x))
     (when (qclass-virtual-p <class>) (push :virtual x))
+    (when (qclass-namespace-p <class>) (push :namespace x))
     (when (qclass-undefined-p <class>) (push :undefined x))
     x))
 
