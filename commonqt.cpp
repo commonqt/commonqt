@@ -21,6 +21,9 @@ typedef bool (*t_callmethod_callback)(void*, short, void*, void*);
 typedef bool (*t_dynamic_callmethod_callback)(void*, short, short, void*, void*);
 typedef void (*t_child_callback)(void*, bool, void*);
 
+Smoke* smoke_modules[16];
+unsigned char n_smoke_modules = 0;
+
 class Binding : public SmokeBinding
 {
 public:
@@ -39,7 +42,7 @@ public:
         {
 		Smoke::Method* m = &smoke->methods[method];
 		const char* name = smoke->methodNames[m->name];
-		Smoke::Class* c = &smoke->classes[m->classId];
+		// Smoke::Class* c = &smoke->classes[m->classId];
 
 		if (*name == '~')
 			callmethod_callback(smoke, method, obj, args);
@@ -102,6 +105,8 @@ sw_smoke(Smoke* smoke,
 	 void* child_callback)
 {
         Binding* binding = new Binding(smoke);
+        
+        smoke_modules[n_smoke_modules++] = smoke;
 
 	data->name = smoke->moduleName();
 
@@ -242,12 +247,63 @@ sw_delete(void *p)
 
 typedef void (*t_ptr_callback)(void *);
 
+inline short sw_module_index(Smoke* module)
+{
+        for (short i = 0; i < n_smoke_modules; i++) {
+                if (smoke_modules[i] == module)
+                        return i;
+        }
+        return -1;
+}
+
+enum qkind {QCLASS, QMEHTOD, QMETHODMAP, QTYPE};
+
+#define KIND_BITS 2
+#define MODULE_BITS 4
+#define INDEX_BITS 16
+
+inline
+unsigned bash(short index, short moduleIndex, qkind kind)
+{
+        return kind | ((moduleIndex | (index << MODULE_BITS)) << KIND_BITS);
+}
+
+inline
+short unbash(unsigned x, short& module)
+{
+        module = x >> 2 & ((1 << MODULE_BITS) - 1);
+        return x >> (MODULE_BITS + KIND_BITS);
+}
+
 void
 sw_find_class(char *name, Smoke **smoke, short *index)
 {
 	Smoke::ModuleIndex mi = qtcore_Smoke->findClass(name);
 	*smoke = mi.smoke;
 	*index = mi.index;
+}
+
+unsigned sw_resolve_external_qclass(unsigned x)
+{
+        short module;
+        short index = unbash(x, module);
+
+        Smoke* smoke = smoke_modules[module];
+        Smoke::Class qclass = smoke->classes[index];
+        if (qclass.external)
+                return sw_find_class_2(qclass.className);
+        else
+                return x;
+        
+}
+
+unsigned
+sw_find_class_2(const char *name)
+{
+	Smoke::ModuleIndex mi = qtcore_Smoke->findClass(name);
+        if (mi.smoke == NULL)
+                return 0;
+        return bash(mi.index, sw_module_index(mi.smoke), QCLASS);
 }
 
 void

@@ -200,11 +200,6 @@
   (plusp
    (cffi:foreign-slot-value (qclass-struct <class>) '|struct Class| 'external)))
 
-(defun resolve-external-qclass (<class>)
-  (if (qclass-external-p <class>)
-      (find-qclass (qclass-name <class>))
-      <class>))
-
 (defun instance-qclass (ptr &optional (errorp t))
   (or (cffi:with-foreign-object (&smoke :pointer)
         (cffi:with-foreign-object (&index :short)
@@ -218,21 +213,19 @@
         (error "Class not found for ~S" ptr))))
 
 (defun find-qclass (name &optional (errorp t))
+  ;; (when (equal name "QModelIndex")
+  ;;   (break))
   (etypecase name
     (integer
      (assert (eql (ldb-kind name) +class+))
      name)
     (string
-     (or (cffi:with-foreign-object (&smoke :pointer)
-           (cffi:with-foreign-object (&index :short)
-             (sw_find_class name &smoke &index)
-             (let ((smoke (cffi:mem-ref &smoke :pointer)))
-               (unless (cffi:null-pointer-p smoke)
-                 (bash (cffi:mem-ref &index :short)
-                       (module-number smoke)
-                       +class+)))))
-         (when errorp
-           (error "Class not found: ~A" name))))))
+     (let ((index
+             (sw_find_class_2 name)))
+       (cond ((plusp index)
+              index)
+             (errorp
+              (error "Class not found: ~A" name)))))))
 
 (defun find-qclass-in-module (<module> name &optional (allow-external t))
   (declare (type module-number <module>))
@@ -530,10 +523,10 @@
   (declare (type tagged <type>))
   (resolve-external-qclass
    (bash (cffi:foreign-slot-value (qtype-struct <type>)
-				  '|struct Type|
-				  'classid)
-	 (ldb-module <type>)
-	 +class+)))
+                                  '|struct Type|
+                                  'classid)
+         (ldb-module <type>)
+         +class+)))
 
 (declaim (inline qtype-name))
 (defun qtype-name (<type>)

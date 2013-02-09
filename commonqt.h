@@ -55,6 +55,8 @@ EXPORT const void* sw_qstring_to_utf16(void*);
 EXPORT int sw_windows_version();
 
 EXPORT void sw_find_class(char *, Smoke **, short *);
+EXPORT unsigned sw_find_class_2(const char *);
+EXPORT unsigned sw_resolve_external_qclass(unsigned);
 EXPORT void sw_id_instance_class(void *, Smoke **, short *);
 EXPORT short sw_find_name(Smoke *, char *);
 EXPORT unsigned sw_find_name_index_range(Smoke *, char *);

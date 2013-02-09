@@ -159,6 +159,14 @@
   (smoke** :pointer)
   (index** :pointer))
 
+(defcfun "sw_find_class_2" :unsigned-int
+  (name :string))
+
+(cffi:defcfun ("sw_resolve_external_qclass"
+               resolve-external-qclass)
+    :unsigned-int
+  (class :unsigned-int))
+
 (defcfun "sw_id_method" :short
   (smoke :pointer)
   (class :short)
