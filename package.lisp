@@ -47,31 +47,21 @@
            #:qsignal
            #:qslot
            #:find-qclass
-           #:qstring
-           #:int
-           #:uint
-           #:enum
-           #:bool
            #:call-next-qmethod
            #:with-object
            #:primitive-value
            #:emit-signal
            #:qclass-name
-           #:qclass-superclasses
-           #:qclass-prototypes
-           #:qprototype
-           #:qprototype-methods
+           #:list-qclass-superclasses
            #:qmethod-name
            #:dynamic-object
-           #:qmethod-argument-types
-           #:call-without-override
+           #:list-qmethod-argument-types
            #:enable-syntax
            #:note-deleted
            #:note-child-added
            #:note-child-removed
            #:interpret-delete
            #:optimized-delete
-           #:enum=
            #:find-method-override
            #:windows-version
            #:set-nice-theme
@@ -81,6 +71,7 @@
            #:cancel-finalization
            #:*report-memory-leaks*
            #:new
+           #:enum=
            #:enum-or
            #:enum-andc
            #:qsubclassp
