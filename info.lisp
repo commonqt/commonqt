@@ -254,7 +254,7 @@
       (unbash arg)
     (format stream "~D <~D,~D,~D>" arg id <module> kind)))
 
-(declaim (inline map-qclass-superclasses))
+(declaim (inline map-qclass-direct-superclasses))
 (defun map-qclass-direct-superclasses (fun <class>)
   (let* ((<module> (ldb-module <class>))
          (parents (the index-iterator
