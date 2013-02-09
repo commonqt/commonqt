@@ -177,7 +177,7 @@
 
 (defun map-classes-in-module (fun <module> &optional allow-external)
   (let ((n (data-nclasses (data-ref <module>))))
-    (iter (for i from 1 below n)
+    (iter (for i from 1 to n)
           (declare (type index-iterator i))
 	  (let ((<class> (bash i <module> +class+)))
 	    (unless (and (qclass-external-p <class>) (not allow-external))
@@ -504,7 +504,7 @@
 
 (defun map-types-in-module (fun <module>)
   (let ((n (data-ntypes (data-ref <module>))))
-    (iter (for i from 1 below n)
+    (iter (for i from 1 to n)
           (declare (type index i))
 	  (funcall fun (bash i <module> +type+)))))
 
