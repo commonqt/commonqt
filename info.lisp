@@ -391,7 +391,7 @@
 
 (defun map-methods-in-module (fun <module>)
   (let ((n (data-nmethods (data-ref <module>))))
-    (iter (for i from 0 below n)
+    (iter (for i from 1 below n)
           (declare (type index-iterator i))
           (funcall fun (bash i <module> +method+)))))
 
