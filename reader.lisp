@@ -103,10 +103,14 @@
           (t
            (let ((args (read-list-until #\) stream)))
             `(lambda ()
-               ,(if (zerop (length args))
-                    `(error "Not enough arguments for ~s: 0." ,method-name)
-                    `(optimized-call t ,(car args) ,method-name
-                                     ,@(cdr args)))))))))))
+               ,(cond ((equal method-name "")
+                       `(error "Invalid #_ syntax: \"#_\"" ,method-name))
+                      ((zerop (length args))
+                       `(error "Invalid number of arguments for #_~a: 0."
+                               ,method-name))
+                      (t
+                       `(optimized-call t ,(car args) ,method-name
+                                        ,@(cdr args))))))))))))
 
 (named-readtables:defreadtable :qt
     (:merge :standard)
