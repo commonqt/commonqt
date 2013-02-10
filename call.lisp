@@ -356,3 +356,14 @@
      (lambda (<super>)
        (recurse pointer <class> <super>))
      <class>)))
+
+(defun cast (class object)
+  (let* ((qclass (if (integerp class)
+                     class
+                     (find-qclass class)))
+         (casted (%cast (qobject-pointer object)
+                        (qobject-class object)
+                        qclass)))
+    (cache! (make-instance 'qobject
+                           :pointer casted
+                           :class qclass))))
