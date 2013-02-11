@@ -111,6 +111,7 @@
                        for argsym in argsyms
                        unless (constantp arg env)
                        collect `(,(pop sigs) (signature-type ,argsym))))
+          (declare (dynamic-extent args))
           (multiple-value-bind (instance-qclass instance-extra-sig)
               (typecase instance
                 (integer
