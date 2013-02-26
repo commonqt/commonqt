@@ -919,8 +919,8 @@
         (cffi:load-foreign-library
         (format nil
                 #+darwin "libsmoke~A.dylib"
-                #+(or mswindows windows win32) "smoke~A.dll"
-                #-(or mswindows windows win32 darwin) "libsmoke~A.so"
+                #+windows "smoke~A.dll"
+                #-(or windows darwin) "libsmoke~A.so"
                 name))
         (let ((init (cffi:foreign-symbol-pointer
                      (format nil "init_~A_Smoke" name))))
