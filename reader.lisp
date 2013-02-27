@@ -82,9 +82,11 @@
                               (collect (read-char stream t nil t))
                               (finish))))
                       'string)))
-        (if (ppcre:scan "^[<=>]+$" method-name)
-            (setf method-name
-                  (concatenate 'string "operator" method-name)))
+        (when *read-suppress*
+          (return-from read-smoke-lambda nil))
+        (when (ppcre:scan "^[<=>]+$" method-name)
+          (setf method-name
+                (concatenate 'string "operator" method-name)))
         (cond
           ((equal method-name "delete")
            (expand-to 'optimized-delete))
