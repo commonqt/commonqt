@@ -1,6 +1,11 @@
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (asdf:oos 'asdf:load-op :trivial-features))
 
+(defpackage :qt-system
+  (:use :cl :asdf))
+
+(in-package :qt-system)
+
 ;;; .cpp
 
 (defclass cpp->so (source-file)
