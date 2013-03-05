@@ -20,6 +20,7 @@ typedef void (*t_deletion_callback)(void*, void*);
 typedef bool (*t_callmethod_callback)(void*, short, void*, void*);
 typedef bool (*t_dynamic_callmethod_callback)(void*, short, short, void*, void*);
 typedef void (*t_child_callback)(void*, bool, void*);
+typedef bool (*t_metacall_callback)(void*, int, int, void*);
 
 class Binding : public SmokeBinding
 {
@@ -39,7 +40,7 @@ public:
         {
 		Smoke::Method* m = &smoke->methods[method];
 		const char* name = smoke->methodNames[m->name];
-		Smoke::Class* c = &smoke->classes[m->classId];
+		// Smoke::Class* c = &smoke->classes[m->classId];
 
 		if (*name == '~')
 			callmethod_callback(smoke, method, obj, args);
@@ -71,8 +72,15 @@ public:
         QHash<short, short> overridenMethods;
         QMetaObject* metaObject;
         short metaObjectIndex;
-        t_dynamic_callmethod_callback callmethod_callback;
+        Smoke::Index metacallMethod;
+        Smoke::ClassFn metacallClassFn;
+        short metacallIndex;
 
+        t_dynamic_callmethod_callback callmethod_callback;
+        t_metacall_callback metacall_callback;
+
+        int call_metacall(void*, Smoke::Stack);
+        
         bool callMethod(Smoke::Index method, void* obj,
                 Smoke::Stack args, bool)
         {
@@ -80,6 +88,9 @@ public:
                 if (method == metaObjectIndex) {
                         args[0].s_voidp = (void*)metaObject;
                         return true;
+                }
+                if (method == metacallIndex) {
+                        return call_metacall(obj, args);     
                 }
                 else if (overridenMethods.contains(method)) {
                         short override_index = overridenMethods.value(method);
@@ -93,6 +104,24 @@ public:
                 }
         }
 };
+
+int DynamicBinding::call_metacall(void* obj, Smoke::Stack args)
+{
+        metacallClassFn(metacallMethod, obj, args);
+        int slot_or_signal_index = (int)args[0].s_int;
+
+        QMetaObject::Call call = (QMetaObject::Call)args[1].s_enum;
+
+        if (slot_or_signal_index < 0 ||
+            call != QMetaObject::InvokeMetaMethod)
+                return slot_or_signal_index;
+
+        int id = (int)args[2].s_int;
+        void **method_args = (void**)args[3].s_class;
+
+        metacall_callback(obj, id, slot_or_signal_index, method_args);
+        return -1;
+}
 
 void
 sw_smoke(Smoke* smoke,
@@ -146,9 +175,11 @@ void sw_override(DynamicBinding* dynamicBinding, short method,
 void* sw_make_dynamic_binding(Smoke* smoke,
                               QMetaObject* metaObject,
                               short metaObjectIndex,
+                              short metacallIndex,
                               void* deletion_callback,
                               void* method_callback,
-                              void* child_callback) {
+                              void* child_callback,
+                              void* metacall_callback) {
         DynamicBinding* dynamicBinding = new DynamicBinding(smoke);
 
         dynamicBinding->deletion_callback
@@ -159,9 +190,16 @@ void* sw_make_dynamic_binding(Smoke* smoke,
 
 	dynamicBinding->child_callback
 		= (t_child_callback) child_callback;
+        dynamicBinding->metacall_callback
+		= (t_metacall_callback) metacall_callback;
 
         dynamicBinding->metaObject = metaObject;
         dynamicBinding->metaObjectIndex = metaObjectIndex;
+
+        dynamicBinding->metacallIndex = metacallIndex;
+        Smoke::Method* method = smoke->methods + metacallIndex;
+        dynamicBinding->metacallClassFn = smoke->classes[method->classId].classFn;
+        dynamicBinding->metacallMethod = method->method;
         return dynamicBinding;
 }
 

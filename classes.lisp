@@ -146,7 +146,6 @@
 
 (defclass dynamic-object (qobject)
   ()
-  (:override ("qt_metacall" qt_metacall-override))
   (:metaclass qt-class))
 
 (defmethod initialize-instance ((instance dynamic-object) &key)

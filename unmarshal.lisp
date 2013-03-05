@@ -140,3 +140,6 @@
 
 (def-unmarshal (value "double&" type)
   (cffi:mem-ref value :double))
+
+(def-unmarshal (value "int&" type)
+  (cffi:mem-ref value :int))

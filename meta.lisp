@@ -162,6 +162,14 @@
    (slot-value qt-class 'effective-class)
    "metaObject"))
 
+(defun metacall-method-index (qt-class)
+  (map-class-methods-named
+   (lambda (<method>)
+     (return-from metacall-method-index
+       (values (unbash* <method> +method+))))
+   (slot-value qt-class 'effective-class)
+   "qt_metacall"))
+
 (defun set-class-binding (qt-class)
   (multiple-value-bind (idx <module>)
       (unbash* (slot-value qt-class 'effective-class) +class+)
@@ -171,9 +179,11 @@
                                    (qobject-pointer
                                     (slot-value qt-class 'qmetaobject))
                                    (meta-object-method-index qt-class)
+                                   (metacall-method-index qt-class)
                                    (cffi:callback deletion-callback)
                                    (cffi:callback dynamic-invocation-callback)
-                                   (cffi:callback child-callback)))))
+                                   (cffi:callback child-callback)
+                                   (cffi:callback metacall-callback)))))
 
 (defun ensure-qt-class-caches (qt-class)
   (check-type qt-class qt-class)
@@ -284,31 +294,25 @@ Should be used as an optimization."
     (declare (ignore object id))
     nil))
 
-(defun qt_metacall-override (object call id stack)
-  (let ((new-id (call-next-qmethod)))
-    (cond
-      ((or (minusp new-id)
-           (not (eql (primitive-value call)
-                     (primitive-value (#_QMetaObject::InvokeMetaMethod)))))
-       id)
-      (t
-       (let ((member
-              (or
-               (get-slot-or-symbol (class-of object) new-id)
-               (dynamic-slot-or-signal object new-id)
-               (error "QT_METACALL-OVERRIDE: invalid member id ~A" id))))
-         (etypecase member
-           (signal-spec
-            (#_activate (class-qmetaobject (class-of object))
-                         object
-                         id
-                         stack)
-            -1)
-           (slot-spec
-            (apply (spec-function member)
-                   object
-                   (unmarshal-slot-args member stack))
-            -1)))))))
+(defun qt_metacall-override (object-ptr id slot-signal-index stack)
+  (with-callback-restart
+    (let* ((object (pointer->cached-object object-ptr))
+           (member
+             (or
+              (get-slot-or-symbol (class-of object) slot-signal-index)
+              (dynamic-slot-or-signal object slot-signal-index)
+              (error "QT_METACALL-OVERRIDE: invalid member id ~A"
+                     slot-signal-index))))
+      (etypecase member
+        (signal-spec
+         (#_activate (class-qmetaobject (class-of object))
+                     object
+                     id
+                     stack))
+        (slot-spec
+         (apply (spec-function member)
+                object
+                (unmarshal-slot-args member stack)))))))
 
 (defun guess-stack-item-slot (x)
   (case x

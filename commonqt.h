@@ -40,8 +40,8 @@ typedef struct SmokeData {
 EXPORT void sw_init();
 EXPORT void sw_smoke(Smoke *, SmokeData*, void *, void *, void *);
 EXPORT void sw_override(DynamicBinding*, short, short);
-EXPORT void* sw_make_dynamic_binding(Smoke*, QMetaObject*, short,
-                                     void*, void*, void*);
+EXPORT void* sw_make_dynamic_binding(Smoke*, QMetaObject*, short, short,
+                                     void*, void*, void*, void*);
   
 EXPORT void* sw_make_qbytearray(char *);
 EXPORT void sw_delete_qbytearray(void *q);

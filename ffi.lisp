@@ -175,9 +175,11 @@
   (smoke :pointer)
   (meta-object :pointer)
   (meta-object-index :short)
+  (metacall-index :short)
   (deletion-callback :pointer)
   (method-callback :pointer)
-  (child-callback :pointer))
+  (child-callback :pointer)
+  (metacall-callback :pointer))
 
 (defun qlist-function-name (type-name name)
   (alexandria:symbolicate "SW_QLIST_" (string-upcase type-name) "_" (string-upcase name)))
@@ -350,6 +352,15 @@
      (obj :pointer))
   (declare (ignore smoke))
   (%child-callback added obj))
+
+(defcallback metacall-callback
+    :void
+    ((obj :pointer)
+     (id :int)
+     (slot-or-signal-id :int)
+     (args :pointer))
+  (with-fp-traps-restored
+    (qt_metacall-override obj id slot-or-signal-id args)))
 
 (defvar *ptr-callback*)
 
