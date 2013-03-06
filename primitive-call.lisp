@@ -86,6 +86,7 @@
    (multiple-value-bind (fix-types args) (parse-optimized-call-args args)
      (let ((argsyms (make-symbols 'arg (length args)))
            (sigsyms (make-symbols 'sig (number-of-non-constantp args))))
+       ;; FIXME: check evaluation order
        `(let* (,@(iter (for arg in args)
                    (for sym in argsyms)
                    (unless (constantp arg env)

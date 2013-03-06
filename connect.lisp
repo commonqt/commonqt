@@ -60,16 +60,6 @@
 (defmethod dynamic-slot-or-signal ((object dynamic-receiver) id)
   (values (gethash id (dynamic-receiver-slots object))))
 
-(defun resolve-signal (sender signal)
-  (let* ((signal-sig (#_data (#_QMetaObject::normalizedSignature
-                              (if (alexandria:starts-with #\2 signal)
-                                  (subseq signal 1)
-                                  signal))))
-         (index (#_indexOfSignal (qobject-metaobject sender) signal-sig)))
-    (when (minusp index)
-      (error "~s doesn't have a signal named ~s" sender signal))
-    (values index signal-sig)))
-
 (defun sweep-connections (receiver)
   (setf (dynamic-receiver-connections receiver)
         (delete-if-not #'(lambda (item)
@@ -207,3 +197,59 @@
          (progn
            ,@(loop for var in vars
                    collect `(#_blockSignals ,var nil)))))))
+;;;
+
+(defun resolve-signal (sender signal &key args-length)
+  (with-objects ((normalized
+                  (#_QMetaObject::normalizedSignature
+                   (if (alexandria:starts-with #\2 signal)
+                       (subseq signal 1)
+                       signal))))
+    (let* ((signal-sig (#_data normalized))
+           (meta (qobject-metaobject sender))
+           (index (#_indexOfSignal meta signal-sig)))
+      (when (minusp index)
+        (error "~s doesn't have a signal named ~s" sender signal))
+      (values index signal-sig
+              (and args-length
+                   (let ((types ;; FIXME: memory leaking
+                           (mapcar (lambda (x) (find-qtype (#_data x)))
+                                   (#_parameterTypes (#_method meta index)))))
+                     (when (/= args-length (length types))
+                       (error "Invalid number of arguments for signal ~a: ~a"
+                              signal-sig args-length))
+                     types))))))
+
+(defun activate-signal (object index args types)
+  (call-with-signal-marshalling
+   (lambda (stack)
+     (#_QMetaObject::activate object index stack))
+   types
+   args))
+
+(defun emit-signal (object name &rest args)
+  (multiple-value-bind (index signature
+                        types)
+      (resolve-signal object name :args-length (length args))
+    (declare (ignore signature))
+    (activate-signal object index args types)))
+
+(define-compiler-macro emit-signal (object name &rest args)
+  `(let ((instance ,object)
+         (name ,name)
+         (args (list ,@args)))
+     (declare (dynamic-extent args))
+     (multiple-value-bind (instance-qclass instance-extra-sig)
+         (typecase instance
+           (dynamic-object
+            (values (qobject-class instance)
+                    (class-generation (class-of instance))))
+           (t
+            (values (qobject-class instance) :instance)))
+       (cached-values-bind (index signature types)
+           (resolve-signal instance name :args-length ,(length args))
+           ((instance-qclass :hash t)
+            (instance-extra-sig)
+            (name))
+         (declare (ignore signature))
+         (activate-signal instance index args types)))))

@@ -8,7 +8,7 @@
          boolean) t)
     (qobject
      (or (qtypep value "QVariant")
-         (iter (for (code . type) in (variant-map))
+         (iter (for (nil . type) in (variant-map))
            (thereis (qtypep value type)))))
     (t nil)))
 

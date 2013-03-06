@@ -460,21 +460,3 @@ Should be used as an optimization."
                             (t
                              (funcall fun argv)))))
           (iterate 0 types args))))))
-
-(defun emit-signal (object name &rest args)
-  (let* ((meta (class-qmetaobject (class-of object)))
-         (signature (#_data (#_QMetaObject::normalizedSignature name)))
-         (index (#_indexOfSignal meta signature))
-         (types (and (>= index 0)
-                     (mapcar (lambda (x) (find-qtype (#_data x)))
-                             (#_parameterTypes (#_method meta index))))))
-    (when (= index -1)
-      (error "Signal ~a doesn't exist for ~s" signature object))
-    (when (/= (length args) (length types))
-      (error "Invalid number of arguments for signal ~a: ~a"
-             signature (length args)))
-    (call-with-signal-marshalling
-     (lambda (stack)
-       (list (#_QMetaObject::activate object index stack)))
-     types
-     args)))
