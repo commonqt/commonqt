@@ -234,8 +234,10 @@
                         (marshal arg type stack-item
                                  (lambda ()
                                    (setf (cffi:mem-aref argv :pointer (1+ i))
-                                         (if (or (eql slot-type 'ptr)
-                                                 (eql slot-type 'class))
+                                         (if (or (eq slot-type 'ptr)
+                                                 (and
+                                                  (eq slot-type 'class)
+                                                  (eq (qtype-kind type) :stack)))
                                              (cffi:mem-aref stack-item :pointer)
                                              stack-item))
                                    (iterate (1+ i)

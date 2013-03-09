@@ -443,9 +443,10 @@
             ("signal(float)")
             ("signal(double)")
             ("signal(bool)")
+            ("signal(Qt::Axis)")
             ("signal(QModelIndex)")
-            ("signal(QWidget *)")
-            ("signal(Qt::Axis)")))
+            ("signal(QObject *)")
+            ("signal(QStandardItem&)")))
 
 (defmethod initialize-instance :after ((instance signal-marshalling) &key)
   (new instance))
@@ -487,9 +488,8 @@
       (test "signal(bool)" nil)
       (test "signal(QModelIndex)" (#_new QModelIndex))
       (test "signal(Qt::Axis)" (#_Qt::YAxis))
-      ;; doesn't work
-      ;; (test "signal(QWidget *)" (#_new QWidget))
-      )
+      (test "signal(QObject *)" (#_new QObject))
+      (test "signal(QStandardItem &)" (#_new QStandardItem)))
     (loop for e in expected-results
           for r in results
           always (if (typep r 'qt::enum)
