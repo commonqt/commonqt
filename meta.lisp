@@ -351,12 +351,20 @@ Should be used as an optimization."
                   reply-type))))
   (error "Invalid slot or signal signature: ~s" signature))
 
-(defun find-arg-qtypes (arg-types)
-  (mapcar (lambda (name)
-            (or (find-qtype name)
-                (error "No smoke type found for dynamic member arg type ~A.  Giving up."
-                       name)))
-          (cl-ppcre:split "," arg-types)))
+(defparameter *signal-type-translation*
+  '(("uint" . "unsigned int")
+    ("ulong" . "unsigned long")))
+
+(defun find-signal-qtype (name)
+  (let ((name (or (cdr (assoc name *signal-type-translation*
+                              :test #'equal))
+                  name)))
+    (or (find-qtype name)
+        (error "No smoke type found for dynamic member arg type ~A.  Giving up."
+               name))))
+
+(defun find-signal-arg-qtypes (arg-types)
+  (mapcar #'find-signal-qtype (cl-ppcre:split "," arg-types)))
 
 (defun initialize-slot-or-signal (slot-or-signal)
   (unless (full-name slot-or-signal)
@@ -365,7 +373,7 @@ Should be used as an optimization."
       (setf (full-name slot-or-signal) full-name
             (arg-types slot-or-signal) arg-types
             (reply-type slot-or-signal) reply-type
-            (arg-qtypes slot-or-signal) (find-arg-qtypes arg-types))))
+            (arg-qtypes slot-or-signal) (find-signal-arg-qtypes arg-types))))
   slot-or-signal)
 
 (defconstant +AccessPrivate+ #x00)
@@ -436,27 +444,3 @@ Should be used as an optimization."
                                       signature)
                                      dataptr))))))
 
-(defun call-with-signal-marshalling (fun types args)
-  (let ((arg-count (length args)))
-    (cffi:with-foreign-object (argv :pointer (1+ arg-count))
-      (cffi:with-foreign-object (stack '|union StackItem| arg-count)
-        (labels ((iterate (i rest-types rest-args)
-                          (cond
-                            (rest-args
-                             (let* ((stack-item (cffi:mem-aref stack '|union StackItem| i))
-                                    (arg (car rest-args))
-                                    (type (car rest-types))
-                                    (slot-type (qtype-stack-item-slot type)))
-                               (marshal arg type stack-item
-                                        (lambda ()
-                                          (setf (cffi:mem-aref argv :pointer (1+ i))
-                                                (if (or (eql slot-type 'ptr)
-                                                        (eql slot-type 'class))
-                                                    (cffi:mem-aref stack-item :pointer)
-                                                    stack-item))
-                                          (iterate (1+ i)
-                                                   (cdr rest-types)
-                                                   (cdr rest-args))))))
-                            (t
-                             (funcall fun argv)))))
-          (iterate 0 types args))))))

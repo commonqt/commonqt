@@ -89,11 +89,6 @@
   "#000000" "#ffffff")
 
 (deftest/qt test-qpixmap-via-qvariant-marshalling
-    (flet ((convert (p) (cons (#_width p) (#_height p))))
-      (values (remarshal (#_new QPixmap 142 100) "QVariant" t #'convert)))
-  (142 . 100))
-
-(deftest/qt test-qpixmap-via-qvariant-marshalling
     (flet ((convert (p)
              (assert (qtypep p "QPixmap"))
              (cons (#_width p) (#_height p))))
@@ -429,4 +424,75 @@
       (#_delete a)
       (and (qt::qobject-deleted b)
            (qt::qobject-deleted a)))
+  t)
+
+(defclass signal-marshalling ()
+  ()
+  (:metaclass qt-class)
+  (:qt-superclass "QObject")
+  (:signals ("signal()")
+            ("signal(char)")
+            ("signal(unsigned char)")
+            ("signal(int)")
+            ("signal(unsigned int)")
+            ("signal(short)")
+            ("signal(unsigned short)")
+            ("signal(long)")
+            ("signal(unsigned long)")
+            ("signal(QString)")
+            ("signal(float)")
+            ("signal(double)")
+            ("signal(bool)")
+            ("signal(QModelIndex)")
+            ("signal(QWidget *)")
+            ("signal(Qt::Axis)")))
+
+(defmethod initialize-instance :after ((instance signal-marshalling) &key)
+  (new instance))
+
+(deftest/qt signal-marshalling
+  (let ((object (make-instance 'signal-marshalling))
+        expected-results
+        results)
+    (push :no expected-results)
+    (connect object "signal()"
+             (lambda ()
+               (push :no results)))
+    (emit-signal object "signal()")
+    (flet ((test (signal value &optional (expected nil expected-p))
+             (let ((receiver
+                     (lambda (x)
+                       (push x results))))
+               (push (if expected-p
+                         expected
+                         value)
+                     expected-results)
+               (connect object signal receiver)
+               (emit-signal object signal value)
+               (disconnect object signal receiver))))
+      (test "signal(char)" 123)
+      (test "signal(char)" -123)
+      (test "signal(unsigned char)" 123)
+      (test "signal(short)" -123)
+      (test "signal(unsigned short)" 123)
+      (test "signal(int)" (1- (expt 2 31)))
+      (test "signal(unsigned int)" (1- (expt 2 32)))
+      (test "signal(long)" (expt 2 32))
+      (test "signal(unsigned long)" (expt 2 45))
+      (test "signal(QString)" "123")
+      (test "signal(float)" 123.0)
+      (test "signal(double)" 123d0)
+      (test "signal(bool)" t)
+      (test "signal(bool)" 132 t)
+      (test "signal(bool)" nil)
+      (test "signal(QModelIndex)" (#_new QModelIndex))
+      (test "signal(Qt::Axis)" (#_Qt::YAxis))
+      ;; doesn't work
+      ;; (test "signal(QWidget *)" (#_new QWidget))
+      )
+    (loop for e in expected-results
+          for r in results
+          always (if (typep r 'qt::enum)
+                     (enum= e r)
+                     (equal e r))))
   t)

@@ -212,13 +212,38 @@
         (error "~s doesn't have a signal named ~s" sender signal))
       (values index signal-sig
               (and args-length
-                   (let ((types ;; FIXME: memory leaking
-                           (mapcar (lambda (x) (find-qtype (#_data x)))
+                   (let ((types ;; FIXME: possible memory leaking
+                           (mapcar (lambda (x) (find-signal-qtype (#_data x)))
                                    (#_parameterTypes (#_method meta index)))))
                      (when (/= args-length (length types))
                        (error "Invalid number of arguments for signal ~a: ~a"
                               signal-sig args-length))
                      types))))))
+
+(defun call-with-signal-marshalling (fun types args)
+  (let ((arg-count (length args)))
+    (cffi:with-foreign-object (argv :pointer (1+ arg-count))
+      (cffi:with-foreign-object (stack '|union StackItem| arg-count)
+        (labels ((iterate (i rest-types rest-args)
+                   (cond
+                     (rest-args
+                      (let* ((stack-item (cffi:mem-aref stack '|union StackItem| i))
+                             (arg (car rest-args))
+                             (type (car rest-types))
+                             (slot-type (qtype-stack-item-slot type)))
+                        (marshal arg type stack-item
+                                 (lambda ()
+                                   (setf (cffi:mem-aref argv :pointer (1+ i))
+                                         (if (or (eql slot-type 'ptr)
+                                                 (eql slot-type 'class))
+                                             (cffi:mem-aref stack-item :pointer)
+                                             stack-item))
+                                   (iterate (1+ i)
+                                     (cdr rest-types)
+                                     (cdr rest-args))))))
+                     (t
+                      (funcall fun argv)))))
+          (iterate 0 types args))))))
 
 (defun activate-signal (object index args types)
   (call-with-signal-marshalling
@@ -238,7 +263,8 @@
   `(let ((instance ,object)
          (name ,name)
          (args (list ,@args)))
-     (declare (dynamic-extent args))
+     ,@(and (plusp (length args))
+            `((declare (dynamic-extent args))))
      (multiple-value-bind (instance-qclass instance-extra-sig)
          (typecase instance
            (dynamic-object
