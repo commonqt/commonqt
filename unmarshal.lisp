@@ -78,11 +78,15 @@
     (or (get-static-unmarshaller name)
         (case (qtype-stack-item-slot type)
           (class
-           (lambda (value type)
-             (%qobject (qtype-class type) value)))
+           (let ((qtype-class (qtype-class type)))
+             (lambda (value type)
+               (declare (ignore type))
+               (%qobject qtype-class value))))
           (enum
-           (lambda (value type)
-             (enum value (qtype-interned-name type))))
+           (let ((type-name (qtype-interned-name type)))
+             (lambda (value type)
+               (declare (ignore type))
+               (enum value type-name))))
           (t
            (lambda (value type)
              (declare (ignore type))
