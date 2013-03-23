@@ -138,7 +138,7 @@ NIL, meaning the value will not be used in hashing."
                                                         :initial-element nil)))
                   ,@(mapcar #'list key-syms key-values)
                   (,hash ,(cache-hash key-syms key-hash-methods))
-                  (,previous (aref ,places ,hash))
+                  (,previous (svref ,places ,hash))
                   (values
                    (cond
                      ((and ,previous ,check)
@@ -147,7 +147,7 @@ NIL, meaning the value will not be used in hashing."
                       (let ((values ,(if (= (length vars) 1)
                                          value-form
                                          `(multiple-value-list ,value-form))))
-                        (setf (aref ,places ,hash) (list values ,@key-syms))
+                        (setf (svref ,places ,hash) (list values ,@key-syms))
                         values)))))
              ,(if (= (length vars) 1)
                   'values
