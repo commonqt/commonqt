@@ -48,7 +48,6 @@
            #:qslot
            #:find-qclass
            #:call-next-qmethod
-           #:with-object
            #:primitive-value
            #:enum-value
            #:emit-signal
@@ -59,15 +58,12 @@
            #:list-qmethod-argument-types
            #:enable-syntax
            #:note-deleted
-           #:note-child-added
-           #:note-child-removed
            #:interpret-delete
            #:optimized-delete
            #:find-method-override
            #:windows-version
            #:set-nice-theme
            #:rebirth
-           #:with-object
            #:with-objects
            #:cancel-finalization
            #:*report-memory-leaks*

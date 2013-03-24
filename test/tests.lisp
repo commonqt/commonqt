@@ -296,10 +296,10 @@
 
 (deftest/qt window-geometry-using-qvariant-and-qbytarray
     ;; regression test for issue with with qbytearrays unmarshalled as strings
-    (with-object (window (#_new QWidget))
-      (with-object (sx (#_new QSettings "CommonQt test" "CommonQt test"))
-        (#_setValue sx "geometry" (#_saveGeometry window))
-        (#_restoreGeometry window (#_value sx "geometry"))))
+    (with-objects ((window (#_new QWidget))
+                   (sx (#_new QSettings "CommonQt test" "CommonQt test")))
+      (#_setValue sx "geometry" (#_saveGeometry window))
+      (#_restoreGeometry window (#_value sx "geometry")))
   t)
 
 (defclass override-object-name ()
@@ -318,7 +318,7 @@
       (call-next-qmethod)))
 
 (deftest/qt override-object-name
-  (with-object (x (make-instance 'override-object-name))
+  (with-objects ((x (make-instance 'override-object-name)))
     (assert (equal (#_objectName x) ""))
     (setf (test-name x) "test")
     (assert (equal (#_objectName x) "test"))
@@ -336,7 +336,7 @@
   (:override ("objectName" (override/macroexpand "<<<~A>>>"))))
 
 (deftest/qt override/macroexpand
-  (with-object (x (make-instance 'override/macroexpand :name "xyz"))
+  (with-objects ((x (make-instance 'override/macroexpand :name "xyz")))
     (assert (equal (#_objectName x) "<<<xyz>>>"))
     t)
   t)
@@ -368,7 +368,7 @@
 	  (eval form)
 	  (eval `(defmethod initialize-instance :after ((instance ,c) &key)
 		   (new instance)))
-	  (with-object (instance (make-instance c))
+	  (with-objects ((instance (make-instance c)))
 	    (assert (equal (#_objectName instance) "dummy")))
 	  t)))
   t)
@@ -376,7 +376,7 @@
 (deftest/qt new-qwebview
     (progn
       (ensure-smoke :qtwebkit)
-      (with-object (x (#_new QWebView)))
+      (with-objects ((x (#_new QWebView))))
       t)
   t)
 

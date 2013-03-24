@@ -295,7 +295,7 @@
                  (qobject-deleted object))
        (optimized-delete object))))
 
-(defmacro with-object ((var &optional value) &body body)
+(defmacro %with-object ((var &optional value) &body body)
   ;; must not be implemented using a call-with-object function
   (if value
       `(let ((,var ,value))
@@ -311,7 +311,7 @@
 
 (defmacro with-objects ((&rest clauses) &body body)
   (if clauses
-      `(with-object ,(car clauses) (with-objects ,(rest clauses) ,@body))
+      `(%with-object ,(car clauses) (with-objects ,(rest clauses) ,@body))
       `(progn ,@body)))
 
 (defun map-qclass-precedence-list (fun class)
