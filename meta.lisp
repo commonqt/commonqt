@@ -268,14 +268,6 @@ Should be used as an optimization."
                 object
                 (unmarshal-slot-args member stack)))))))
 
-(defun guess-stack-item-slot (x)
-  (case x
-    (:|int| 'int)
-    (:|uint| 'uint)
-    (:|bool| 'bool)
-    (:|QString| 'ptr)
-    (t (error "Don't know how to unmarshal slot argument ~s" x))))
-
 (defun unmarshal-slot-args (member argv)
   (iter (for type in (arg-qtypes member))
         (for i from 1)
