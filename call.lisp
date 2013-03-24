@@ -278,7 +278,7 @@
              (remhash super-addr *cached-objects*))))
        (qobject-class object)
        (qobject-pointer object)))
-    (setf (qobject-deleted object) t)))
+    (setf (qobject-pointer object) :deleted)))
 
 (defvar *report-memory-leaks* nil)
 

@@ -46,9 +46,10 @@
 (defclass qobject (abstract-qobject)
   ((pointer :initarg :pointer
             :initform :unborn
-            :accessor qobject-pointer)
-   (deleted :initform nil
-            :accessor qobject-deleted)))
+            :accessor qobject-pointer)))
+
+(defmethod qobject-deleted ((object qobject))
+  (eq (qobject-pointer object) :deleted))
 
 (defmethod print-object ((instance qobject) stream)
   (print-unreadable-object (instance stream :type nil :identity nil)
