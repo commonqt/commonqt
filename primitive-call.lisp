@@ -35,9 +35,8 @@
 
 ;; old-style NEW usage for INITIALIZE-INSTANCE methods kept around for
 ;; compatibility.
-(defun new (instance &rest args)
-  (check-type instance dynamic-object)
-  (apply #'interpret-new instance args))
+(defmacro new (instance &rest args)
+  `(optimized-new ,instance ,@args))
 
 (defun interpret-new (class-or-instance &rest args)
   (let ((instance (full-resolve-ctor-this class-or-instance)))
