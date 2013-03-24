@@ -381,10 +381,9 @@ Should be used as an optimization."
             for i from 0
             do
             (setf (cffi:mem-aref dataptr :int i) x))
-      (cache!
-       (%qobject (find-qclass "QMetaObject")
-                 (sw_make_metaobject (qobject-pointer parent)
-                                     (cffi:foreign-string-alloc
-                                      signature)
-                                     dataptr))))))
-
+      (make-instance 'qobject
+                     :class (find-qclass "QMetaObject")
+                     :pointer
+                     (sw_make_metaobject (qobject-pointer parent)
+                                         (cffi:foreign-string-alloc signature)
+                                         dataptr)))))
