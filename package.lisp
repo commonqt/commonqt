@@ -50,6 +50,7 @@
            #:call-next-qmethod
            #:with-object
            #:primitive-value
+           #:enum-value
            #:emit-signal
            #:qclass-name
            #:list-qclass-superclasses

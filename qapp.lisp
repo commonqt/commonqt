@@ -77,7 +77,7 @@
               (char**-to-string-vector argv updated-argc nil)))))
 
 (defun describe-metaobject-methods (mo)
-  (let* ((offset (primitive-value (#_methodOffset mo))))
+  (let* ((offset (#_methodOffset mo)))
     (format t "Metaobject ~A~%" mo)
     (format t "  superClass:~%")
     (format t "~10T~A~%" (#_superClass mo))
@@ -85,20 +85,12 @@
     (dotimes (i offset)
       (format t "~10T~A~%" (#_signature (#_method mo i))))
     (format t "  direct methods:~%")
-    (loop for i from offset below (primitive-value (#_methodCount mo)) do
+    (loop for i from offset below (#_methodCount mo) do
       (format t "~10T~A~%" (#_signature (#_method mo i))))))
 
 (defun describe-metamethods (object)
   (format t "Metaobject for ~A:~%" object)
   (describe-metaobject-methods (qobject-metaobject object)))
-
-;;; (defmacro with-object ((var form) &body body)
-;;;   `(invoke-with-object (lambda (,var) ,@body) ,form))
-
-;;; (defun invoke-with-object (fun object)
-;;;   (unwind-protect
-;;;        (funcall fun object)
-;;;     #+nil (#_destroy object)))
 
 (defvar qt-user:*application* nil)
 

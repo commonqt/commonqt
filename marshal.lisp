@@ -109,19 +109,19 @@
                     (integer
                      (lambda (val stack i) (setf (si enum) val)))
                     (enum
-                     (lambda (val stack i) (setf (si enum) (primitive-value val))))))
+                     (lambda (val stack i) (setf (si enum) (enum-value val))))))
                  (int
                   (etypecase obj
                     (integer
                      (lambda (val stack i) (setf (si int) val)))
                     (enum
-                     (lambda (val stack i) (setf (si int) (primitive-value val))))))
+                     (lambda (val stack i) (setf (si int) (enum-value val))))))
                  (uint
                   (etypecase obj
                     (integer
                      (lambda (val stack i) (setf (si uint) val)))
                     (enum
-                     (lambda (val stack i) (setf (si uint) (primitive-value val))))))
+                     (lambda (val stack i) (setf (si uint) (enum-value val))))))
                  (float
                   (lambda (val stack i)
                     (setf (si float) (float val 1.0s0))))

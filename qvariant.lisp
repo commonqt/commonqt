@@ -61,7 +61,7 @@
           for full-name = (format nil "Q~a" type)
           for class = (find-qclass full-name nil)
           when class
-          collect (cons (primitive-value
+          collect (cons (enum-value
                          (interpret-call "QVariant" type))
                         class))))
 
@@ -69,7 +69,7 @@
   (let ((new-map (make-array (1+ (length *unvariant-types*)))))
     (setf (aref new-map 0) #'identity) ;; Leave invalid QVariant as it is
     (loop for type in *unvariant-types*
-          for enum = (primitive-value
+          for enum = (enum-value
                       (interpret-call "QVariant" type))
           do (setf (aref new-map enum)
                    (format nil "to~a" type)))
@@ -79,7 +79,7 @@
   (with-cache ()
     (let ((new-map (make-array 87)))
       (loop for type in *unvariant-non-core-types*
-            for enum = (primitive-value
+            for enum = (enum-value
                         (interpret-call "QVariant" type))
             do (setf (aref new-map enum)
                      (find-qclass (format nil "Q~a" type))))
@@ -108,7 +108,7 @@
 
 (defun unvariant (variant &optional (type (find-qtype "QVariant")))
   (let* ((qobject (%qobject (qtype-class type) variant))
-         (code (primitive-value (#_type qobject)))
+         (code (enum-value (#_type qobject)))
          (unvariant-map (unvariant-map)))
     (if (array-in-bounds-p unvariant-map code)
         (%unvariant unvariant-map qobject code)

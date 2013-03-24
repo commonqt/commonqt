@@ -314,9 +314,9 @@
                          (#_Preferred "QSizePolicy")
                          (#_Fixed "QSizePolicy"))
         (setf (label instance) label)
-        (#_setAlignment label (logior (primitive-value
+        (#_setAlignment label (logior (enum-value
                                        (#_AlignHCenter "Qt"))
-                                      (primitive-value
+                                      (enum-value
                                        (#_AlignTop "Qt"))))
         (let ((layout (#_new QVBoxLayout)))
           (#_addWidget layout lcd)
@@ -368,8 +368,8 @@
             (cf (make-instance 'cannon-field))
             (cannon-box (#_new QFrame)))
         (#_setFrameStyle cannon-box
-                         (logior (primitive-value (#_WinPanel "QFrame"))
-                                 (primitive-value (#_Sunken "QFrame"))))
+                         (logior (enum-value (#_WinPanel "QFrame"))
+                                 (enum-value (#_Sunken "QFrame"))))
         (with-objects ((key (#_new QKeySequence (#_Key_Enter "Qt"))))
           (#_new QShortcut key instance (QSLOT "fire()")))
         (with-objects ((key (#_new QKeySequence (#_Key_Return "Qt"))))

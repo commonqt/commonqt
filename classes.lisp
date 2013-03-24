@@ -70,67 +70,34 @@
     (format stream "~A NULL"
             (qclass-name (qobject-class instance)))))
 
-(defclass primitive ()
-  ((value :initarg :value :accessor primitive-value)))
-
-(defmethod print-object ((instance primitive) stream)
-  (print-unreadable-object (instance stream :type t :identity nil)
-    (format stream "~A" (primitive-value instance))))
-
-(defmacro defprimitive (name (superclass) type)
-  `(progn
-     (defclass ,name (,superclass) ())
-     (defun ,name (value)
-       (check-type value ,type)
-       (make-instance ',name :value value))))
-
-(defclass $ (primitive) ())
-(defclass ? (primitive) ())
-
-;;; (defprimitive int ($) (signed-byte 32))
-;;; (defprimitive uint ($) (unsigned-byte 32))
-;;; (defprimitive bool ($) (signed-byte 32))
-
-;;; (defprimitive char* ($) (satisfies cffi:pointerp))
-;;; (defprimitive char** (?) (satisfies cffi:pointerp))
-;;; (defprimitive qstring ($) string)
-;;; (defprimitive qstringlist (?) (satisfies cffi:pointerp))
-;;; (defprimitive int& ($) (satisfies cffi:pointerp))
-;;; (defprimitive void** (?) (satisfies cffi:pointerp))
-;;; (defprimitive bool* ($) (satisfies cffi:pointerp))
-;;; (defprimitive quintptr (?) (satisfies cffi:pointerp))
-
-(defclass enum ($)
-  ((type-name :initarg :type-name
+(defclass enum ()
+  ((value :initarg :value
+          :accessor primitive-value
+          :accessor enum-value)
+   (type-name :initarg :type-name
               :accessor enum-type-name)))
 
 (defun enum (value type-name)
   (check-type value (signed-byte 32))
   (make-instance 'enum :type-name type-name :value value))
 
-#+nil
-(defmethod print-object ((instance primitive) stream)
-  (print-unreadable-object (instance stream :type t :identity nil)
-    (format stream "~A"
-            (primitive-value instance))))
-
 (defmethod print-object ((instance enum) stream)
   (print-unreadable-object (instance stream :type t :identity nil)
     (format stream "~A ~A"
             (enum-type-name instance)
-            (primitive-value instance))))
+            (enum-value instance))))
 
 (defun enum= (a b)
   (and (eq (enum-type-name a) (enum-type-name b))
-       (eql (primitive-value a) (primitive-value b))))
+       (eql (enum-value a) (enum-value b))))
 
 (defun enum-or (&rest enums)
   (reduce #'logior enums
-          :key (lambda (x) (if (integerp x) x (primitive-value x)))))
+          :key (lambda (x) (if (integerp x) x (enum-value x)))))
 
 (defun enum-andc (&rest enums)
   (reduce #'logandc2 enums
-          :key (lambda (x) (if (integerp x) x (primitive-value x)))))
+          :key (lambda (x) (if (integerp x) x (enum-value x)))))
 
 (defclass qthread ()
   ((pointer :initarg :pointer
