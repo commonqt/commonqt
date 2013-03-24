@@ -316,9 +316,7 @@
 
 (defcallback deletion-callback
     :void
-    ((smoke :pointer)
-     (obj :pointer))
-  (declare (ignore smoke))
+    ((obj :pointer))
   ;; Just dispatch to an ordinary function for debugging purposes.
   ;; Redefinition of a callback wouldn't affect the existing C++ code,
   ;; redefinition of the function does.

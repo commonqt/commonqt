@@ -16,7 +16,7 @@
 
 using namespace std;
 
-typedef void (*t_deletion_callback)(void*, void*);
+typedef void (*t_deletion_callback)(void*);
 typedef bool (*t_callmethod_callback)(void*, short, void*, void*);
 typedef bool (*t_dynamic_callmethod_callback)(void*, short, short, void*, void*);
 typedef bool (*t_metacall_callback)(void*, int, int, void*);
@@ -30,7 +30,7 @@ public:
         t_callmethod_callback callmethod_callback;
 
         void deleted(Smoke::Index, void* obj) {
-                deletion_callback(smoke, obj);
+                deletion_callback(obj);
         }
 
         bool callMethod(Smoke::Index method, void* obj,
