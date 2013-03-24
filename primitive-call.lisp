@@ -200,7 +200,8 @@
                                    return-value-function)))))
                (if (alexandria:starts-with #\~ (qmethod-name method))
                    (lambda (actual-instance args)
-                     (funcall cont actual-instance args))
+                     (prog1 (funcall cont actual-instance args)
+                       (note-deleted actual-instance)))
                    cont)))))))))
 
 (defun resolve-new (instance args &optional fix-types)

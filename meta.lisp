@@ -36,7 +36,8 @@
     ((qobject-deleted object)
      (warn "Not deleting dead object: ~A" object))
     (t
-     (optimized-call nil object (resolve-delete object)))))
+     (optimized-call nil object (resolve-delete object))
+     (note-deleted object))))
 
 #+nil
 (defun resolve-delete (object)
@@ -65,7 +66,8 @@
          ((qobject-deleted object)
           (warn "Not deleting dead object: ~A" object))
          (t
-          (optimized-call nil object dtor))))))
+          (optimized-call nil object dtor)
+          (note-deleted object))))))
 
 (defun cache! (object)
   (let ((ptr (qobject-pointer object)))
