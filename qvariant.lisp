@@ -2,7 +2,6 @@
 (named-readtables:in-readtable :qt)
 
 (define-marshalling-test (value :|QVariant|)
-  ;; FIXME: this belongs to qvariant.lisp but we need it here (and qvariant.lisp needs call stuff)
   (typecase value
     ((or string integer single-float double-float
          boolean) t)

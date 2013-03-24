@@ -112,28 +112,18 @@
                                     class)))
               (make-instance 'qobject :class actual-class :pointer ptr))))))
 
-(flet ((note-lisp-type-for-stack-slot (slot type)
-         (setf (get slot 'lisp-type-for-stack-slot) type)))
-  #+nil (note-lisp-type-for-stack-slot 'class 'abstract-qobject)
-  (note-lisp-type-for-stack-slot 'ptr '(or (satisfies cffi-sys:pointerp)
-                                        string))
-  (note-lisp-type-for-stack-slot 'bool 't #+nil boolean)
-  (note-lisp-type-for-stack-slot 'enum '(or (unsigned-byte 32) enum))
-  (note-lisp-type-for-stack-slot 'uint '(or (unsigned-byte 32) enum))
-  (note-lisp-type-for-stack-slot 'int '(or (signed-byte 32) enum))
-  (note-lisp-type-for-stack-slot 'ulong '(unsigned-byte 64)) ;fixme
-  (note-lisp-type-for-stack-slot 'long '(signed-byte 64))    ;fixme
-  (note-lisp-type-for-stack-slot 'ushort '(unsigned-byte 16))
-  (note-lisp-type-for-stack-slot 'short '(signed-byte 16))
-  (note-lisp-type-for-stack-slot 'float 'number)
-  (note-lisp-type-for-stack-slot 'double 'number))
-
-#+nil
-(flet ((note-lisp-type-for-qtype (interned-type-name type)
-         (setf (get interned-type-name 'lisp-type-for-qtype) type)))
-  (note-lisp-type-for-qtype :|const QString&| 'string)
-  (note-lisp-type-for-qtype :|const char*| 'string)
-  (note-lisp-type-for-qtype :|const QList<int>&| 'qlist<int>))
+(defparameter *lisp-types-for-stack-slots*
+  '(ptr (or cffi:foreign-pointer string)
+    bool t
+    enum (or (unsigned-byte 32) enum)
+    uint (or (unsigned-byte 32) enum)
+    int (or (signed-byte 32) enum)
+    ulong (unsigned-byte 64) ;; FIXME
+    long (signed-byte 64)    ;; FIXME
+    ushort (unsigned-byte 16)
+    short (signed-byte 16)
+    float number
+    double number))
 
 (defvar *marshalling-tests* (make-hash-table))
 
@@ -157,14 +147,9 @@
                           (always (can-marshal-p item element-type))))))
             ((and (not (eq slot 'class))
                   (typep lisp-object
-                         `(and ,(or (get slot 'lisp-type-for-stack-slot)
-                                    (progn
-                                      (warn "slot ~A not implemented"
-                                            (qtype-stack-item-slot <type>))
-                                      nil))
-                               #+nil
-                               ,(get (qtype-interned-name <type>)
-                                     'lisp-type-for-qtype t)))))
+                         (or (getf *lisp-types-for-stack-slots* slot)
+                             (warn "slot ~A not implemented"
+                                   (qtype-stack-item-slot <type>))))))
             ((type= (qtype-deconstify <type>)
                     (with-cache () (qt::find-qtype "QByteArray")))
              (typep lisp-object 'string))))))
