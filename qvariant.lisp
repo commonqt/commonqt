@@ -16,8 +16,7 @@
   (let ((variant (qvariant value)))
     (unwind-protect
          (funcall cont variant)
-      (#_delete variant ))))
-
+      (#_delete variant))))
 
 ;;; QVariant has conversion methods for classes in QtCore
 ;;; *UNVARIANT-TYPES* lists such classes and types, they can be

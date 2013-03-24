@@ -293,6 +293,7 @@
              (map-qclass-direct-superclasses #'recurse c)))
     (recurse class)))
 
+(declaim (inline map-casted-object-pointer))
 (defun map-casted-object-pointer (fun <class> pointer)
   "Cast an object to each of its superclasses and call a function on
    the resulting pointer"
