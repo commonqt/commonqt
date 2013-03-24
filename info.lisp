@@ -887,20 +887,13 @@
 
 ;;;; Startup stuff
 
-
-(defvar *weakly-cached-objects*)
-(defvar *strongly-cached-objects*)
-(defvar *keep-alive*)
-(defvar *smoke-instance-list* (list nil nil))
-(defvar *smoke-instances-by-pointer*)
+(defvar *cached-objects*)
 
 (defun reload ()
   (setf *n-modules* 0)
   (fill *module-table* nil)
   (fill *module-data-table* nil)
-  (setf *weakly-cached-objects* (tg:make-weak-hash-table :weakness :value))
-  (setf *strongly-cached-objects* (make-hash-table))
-  (setf *keep-alive* (make-hash-table :test #'eq))
+  (setf *cached-objects* (make-hash-table))
   (unless *library-loaded-p*
     (load-libcommonqt))
   (setf *loaded* t))
@@ -927,17 +920,16 @@
           (assert init)
           (cffi:foreign-funcall-pointer init () :void))
         (let ((smoke-struct
-               (cffi:mem-ref (cffi:foreign-symbol-pointer
-                              (format nil "~A_Smoke" name))
-                             :pointer))
+                (cffi:mem-ref (cffi:foreign-symbol-pointer
+                               (format nil "~A_Smoke" name))
+                              :pointer))
               (data (cffi:foreign-alloc '|struct SmokeData|)))
           (setf (svref *module-table* idx) smoke-struct)
           (setf (svref *module-data-table* idx) data)
           (sw_smoke smoke-struct
                     data
                     (cffi:callback deletion-callback)
-                    (cffi:callback method-invocation-callback)
-                    (cffi:callback child-callback)))
+                    (cffi:callback method-invocation-callback)))
         (incf *n-modules*)
         idx))))
 

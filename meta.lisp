@@ -36,8 +36,7 @@
     ((qobject-deleted object)
      (warn "Not deleting dead object: ~A" object))
     (t
-     (optimized-call nil object (resolve-delete object))
-     (note-deleted object))))
+     (optimized-call nil object (resolve-delete object)))))
 
 #+nil
 (defun resolve-delete (object)
@@ -66,37 +65,7 @@
          ((qobject-deleted object)
           (warn "Not deleting dead object: ~A" object))
          (t
-          (optimized-call nil object dtor)
-          (note-deleted object))))))
-
-(defun postmortem (ptr class description qobjectp dynamicp)
-  (declare (ignore ptr class))
-  (format t "Finalizer called for ~A (~{~A~^, ~}), possible memory leak.~%"
-          description
-          (append (when dynamicp '("Lisp"))
-                  (when qobjectp '("QObject"))))
-  (force-output)
-  #+(or)
-  (let* ((object (%qobject class ptr))
-         (parent (and qobjectp (#_parent object))))
-    (cond
-      ((or (not qobjectp)
-           (and parent (null-qobject-p parent)))
-       (format t "deleting ~A (~A)~%" object qobjectp)
-       (force-output)
-       (handler-case
-           (if qobjectp
-               (#_deleteLater object)
-               (call object (format nil "~~~A" (qclass-name class))))
-         (error (c)
-           (format t "Error in finalizer: ~A, for object: ~A~%"
-                   c description))))
-      (dynamicp
-       (warn "Bug in CommonQt?  previously dynamic object ~A still has parent ~A, but has been GCed"
-             object parent))
-      (t
-       (warn "Bug in CommonQt?  ~A still has parent ~A; not deleting"
-             object parent)))))
+          (optimized-call nil object dtor))))))
 
 (defun cache! (object)
   (let ((ptr (qobject-pointer object)))
@@ -108,21 +77,7 @@
        (unless (cffi:pointer-eq super-ptr ptr)
          (setf (pointer->cached-object super-ptr) object)))
      (qobject-class object)
-     ptr)
-    (when (typep object 'dynamic-object)
-      (setf (gethash (cffi:pointer-address ptr) *strongly-cached-objects*)
-            object)))
-  (when (and *report-memory-leaks*
-             (or (not (qtypep object (find-qclass "QObject")))
-                 (typep (#_parent object) 'null-qobject)))
-    (tg:finalize object
-		 (let* ((ptr (qobject-pointer object))
-			(class (qobject-class object))
-			(str (princ-to-string object))
-			(qobjectp (qsubclassp class (find-qclass "QObject")))
-			(dynamicp (typep object 'dynamic-object)))
-		   (lambda ()
-		     (postmortem ptr class str qobjectp dynamicp)))))
+     ptr))
   object)
 
 (defun get-slot-or-symbol (qt-class id)
@@ -182,7 +137,6 @@
                                    (metacall-method-index qt-class)
                                    (cffi:callback deletion-callback)
                                    (cffi:callback dynamic-invocation-callback)
-                                   (cffi:callback child-callback)
                                    (cffi:callback metacall-callback)))))
 
 (defun ensure-qt-class-caches (qt-class)
@@ -191,7 +145,7 @@
       qt-class
     (unless (and qmetaobject
 		 effective-class
-		 (eq smoke-generation *weakly-cached-objects*))
+		 (eq smoke-generation *cached-objects*))
       ;; clear everything out to ensure a clean state in case of errors
       ;; in the following forms
       (setf effective-class nil)
@@ -226,7 +180,7 @@
       ;; invalidate call site caches
       (setf generation (gensym))
       ;; mark as fresh
-      (setf (class-smoke-generation qt-class) *weakly-cached-objects*))))
+      (setf (class-smoke-generation qt-class) *cached-objects*))))
 
 (defun class-effective-class (qt-class &optional (errorp t))
   (ensure-qt-class-caches qt-class)
@@ -331,9 +285,7 @@ Should be used as an optimization."
                        ((and
                          (eq (qtype-kind type) :stack)
                          (eq (qtype-stack-item-slot type) 'class))
-                        (unmarshal type (cffi:inc-pointer argv
-                                                          (* i
-                                                             (cffi:foreign-type-size :pointer)))))
+                        (unmarshal type (cffi:mem-aptr argv :pointer i)))
                        (t
                         (unmarshal type (cffi:mem-aref argv :pointer i)))))))
 

@@ -418,12 +418,48 @@
       t)
   t)
 
+(defun cached-p (object)
+  (gethash (cffi:pointer-address (qt::qobject-pointer object))
+           qt::*cached-objects*))
+
+(defclass qobject-test ()
+  ()
+  (:metaclass qt-class)
+  (:qt-superclass "QObject"))
+
+(defmethod initialize-instance :after ((instance qobject-test) &key parent)
+  (if parent
+      (new instance parent)
+      (new instance)))
+
 (deftest/qt indirect-deletion
     (let* ((a (#_new QObject))
            (b (#_new QObject a)))
       (#_delete a)
       (and (qt::qobject-deleted b)
-           (qt::qobject-deleted a)))
+           (qt::qobject-deleted a)
+           (not (cached-p a))
+           (not (cached-p b))))
+  t)
+
+(deftest/qt qobject-deletion
+    (let* ((a (make-instance 'qobject-test))
+           (b (make-instance 'qobject-test :parent a)))
+      (#_delete a)
+      (and (qt::qobject-deleted b)
+           (qt::qobject-deleted a)
+           (not (cached-p a))
+           (not (cached-p b))))
+  t)
+
+(deftest/qt ~-deletion
+    (let* ((a (#_new QObject))
+           (b (make-instance 'qobject-test :parent a)))
+      (#_~QObject a)
+      (and (qt::qobject-deleted b)
+           (qt::qobject-deleted a)
+           (not (cached-p a))
+           (not (cached-p b))))
   t)
 
 (defclass signal-marshalling ()

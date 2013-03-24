@@ -19,7 +19,6 @@ using namespace std;
 typedef void (*t_deletion_callback)(void*, void*);
 typedef bool (*t_callmethod_callback)(void*, short, void*, void*);
 typedef bool (*t_dynamic_callmethod_callback)(void*, short, short, void*, void*);
-typedef void (*t_child_callback)(void*, bool, void*);
 typedef bool (*t_metacall_callback)(void*, int, int, void*);
 
 class Binding : public SmokeBinding
@@ -29,7 +28,6 @@ public:
 
         t_deletion_callback deletion_callback;
         t_callmethod_callback callmethod_callback;
-	t_child_callback child_callback;
 
         void deleted(Smoke::Index, void* obj) {
                 deletion_callback(smoke, obj);
@@ -40,22 +38,10 @@ public:
         {
 		Smoke::Method* m = &smoke->methods[method];
 		const char* name = smoke->methodNames[m->name];
-		// Smoke::Class* c = &smoke->classes[m->classId];
 
 		if (*name == '~')
 			callmethod_callback(smoke, method, obj, args);
-		// else if (!strcmp(name, "notify")
-		// 	 && (!strcmp(c->className, "QApplication")
-		// 	    || !strcmp(c->className, "QCoreApplication")))
-		// {
-		// 	QEvent* e = (QEvent*) args[2].s_voidp;
-		// 	if (e->type() == QEvent::ChildAdded
-		// 	    || e->type() == QEvent::ChildRemoved)
-		// 	{
-		// 		QChildEvent* f = (QChildEvent*) e;
-		// 		child_callback(smoke, f->added(), f->child());
-		// 	}
-		// }
+
 		return false;
 	}
 
@@ -127,8 +113,7 @@ void
 sw_smoke(Smoke* smoke,
 	 SmokeData* data,
 	 void* deletion_callback,
-	 void* method_callback,
-	 void* child_callback)
+	 void* method_callback)
 {
         Binding* binding = new Binding(smoke);
 
@@ -160,9 +145,6 @@ sw_smoke(Smoke* smoke,
         binding->callmethod_callback
                 = (t_callmethod_callback) method_callback;
 
-	binding->child_callback
-		= (t_child_callback) child_callback;
-
         data->binding = binding;
 }
 
@@ -178,7 +160,6 @@ void* sw_make_dynamic_binding(Smoke* smoke,
                               short metacallIndex,
                               void* deletion_callback,
                               void* method_callback,
-                              void* child_callback,
                               void* metacall_callback) {
         DynamicBinding* dynamicBinding = new DynamicBinding(smoke);
 
@@ -188,8 +169,6 @@ void* sw_make_dynamic_binding(Smoke* smoke,
         dynamicBinding->callmethod_callback
                 = (t_dynamic_callmethod_callback) method_callback;
 
-	dynamicBinding->child_callback
-		= (t_child_callback) child_callback;
         dynamicBinding->metacall_callback
 		= (t_metacall_callback) metacall_callback;
 

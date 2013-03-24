@@ -70,8 +70,7 @@
   (smoke :pointer)
   (data :pointer)
   (deletion-callback :pointer)
-  (method-callback :pointer)
-  (child-callback :pointer))
+  (method-callback :pointer))
 
 (defcfun "sw_windows_version" :int)
 
@@ -178,7 +177,6 @@
   (metacall-index :short)
   (deletion-callback :pointer)
   (method-callback :pointer)
-  (child-callback :pointer)
   (metacall-callback :pointer))
 
 (defun qlist-function-name (type-name name)
@@ -344,14 +342,6 @@
      (args :pointer))
   (with-fp-traps-restored
     (%dynamic-invocation-callback smoke obj method override-id args)))
-
-(defcallback child-callback
-    :void
-    ((smoke :pointer)
-     (added :char)                      ;bool
-     (obj :pointer))
-  (declare (ignore smoke))
-  (%child-callback added obj))
 
 (defcallback metacall-callback
     :void

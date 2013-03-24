@@ -30,10 +30,10 @@
 (named-readtables:in-readtable :qt)
 
 (defun pointer->cached-object (ptr)
-  (gethash (cffi:pointer-address ptr) *weakly-cached-objects*))
+  (gethash (cffi:pointer-address ptr) *cached-objects*))
 
 (defun (setf pointer->cached-object) (newval ptr)
-  (setf (gethash (cffi:pointer-address ptr) *weakly-cached-objects*)
+  (setf (gethash (cffi:pointer-address ptr) *cached-objects*)
         newval))
 
 (defmacro with-callback-restart (&body body)
@@ -45,10 +45,9 @@
        0)))
 
 (defun %deletion-callback (obj)
-  (with-callback-restart
-    (let ((object (pointer->cached-object obj)))
-      (when object
-        (note-deleted object)))))
+  (let ((object (pointer->cached-object obj)))
+    (when object
+      (note-deleted object))))
 
 (defun unmarshal-args (stack <method>)
   (let ((index 0))
@@ -100,14 +99,6 @@
                 (marshal result rtype stack (lambda ())))
               1))
           0))))
-
-(defun %child-callback (added obj)
-  (with-callback-restart
-    (let ((object (pointer->cached-object obj)))
-      (when object
-        (if (zerop added)
-            (note-child-removed object)
-            (note-child-added object))))))
 
 (defun %qobject (class ptr)
   (let ((cached (pointer->cached-object ptr)))
@@ -275,23 +266,16 @@
 (defun null-qobject-p (object)
   (typep object 'null-qobject))
 
-#+(or)
-(defun run-pending ()
-  (setf *pending-finalizations*
-        (remove-if #'funcall *pending-finalizations*)))
-
 (defun note-deleted (object)
   (check-type object abstract-qobject)
   (unless (qobject-deleted object)
-    (cancel-finalization object)
     (let ((addr (cffi:pointer-address (qobject-pointer object))))
-      (remhash addr *weakly-cached-objects*)
-      (remhash addr *strongly-cached-objects*)
+      (remhash addr *cached-objects*)
       (map-casted-object-pointer
        (lambda (ptr)
          (let ((super-addr (cffi:pointer-address ptr)))
            (when (/= super-addr addr)
-             (remhash super-addr *weakly-cached-objects*))))
+             (remhash super-addr *cached-objects*))))
        (qobject-class object)
        (qobject-pointer object)))
     (setf (qobject-deleted object) t)))
@@ -329,12 +313,6 @@
   (if clauses
       `(with-object ,(car clauses) (with-objects ,(rest clauses) ,@body))
       `(progn ,@body)))
-
-(defmethod note-child-added ((object qobject))
-  (setf (gethash object *keep-alive*) t))
-
-(defmethod note-child-removed ((object qobject))
-  (remhash object *keep-alive*))
 
 (defun map-qclass-precedence-list (fun class)
   (labels ((recurse (c)
