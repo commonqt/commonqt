@@ -61,64 +61,83 @@
       (resolve-cast <from> <to>)
     (%perform-cast pointer fn <from> <cto>)))
 
-(defun marshal (value type stack-item cont)
-  (funcall (marshaller value type) value stack-item cont))
+(defun marshal (value type stack cont)
+  (funcall (marshaller value type) value stack 0 cont))
 
 (defun marshaller (obj <type>)
   (let* ((set-thunk
-          (macrolet
-              ((si (slot)
-                 `(cffi:foreign-slot-value si '|union StackItem| ',slot))
-               (dispatching ((getter slot) &body body)
-                 `(ecase ,slot
-                    ,@ (mapcar (lambda (slot)
-                                 `((,slot)
-                                   (macrolet ((,getter () `(si ,',slot)))
-                                     ,@body)))
-                               '(ptr bool char uchar short ushort int
-                                 uint long ulong float double enum class)))))
-            (let ((slot (qtype-stack-item-slot <type>)))
-              (case slot
-                (bool  (lambda (val si) (setf (si bool) (if val 1 0))))
-                (class (if (typep obj 'qobject)
-                           (let ((<from> (qobject-class obj)))
-                             (multiple-value-bind (castfn <to>)
-                                 (resolve-cast <from> (qtype-class <type>))
-                               (lambda (val si)
-                                 (setf (si class)
-                                       (perform-cast val castfn <from> <to>)))))
-                           (lambda (val si)
-                             (setf (si class)
-                                   (if (typep val 'cffi:foreign-pointer)
-                                       val
-                                       (qobject-pointer val))))))
-                (enum (etypecase obj
-                        (integer
-                         (lambda (val si) (setf (si enum) val)))
-                        (enum
-                         (lambda (val si) (setf (si enum) (primitive-value val))))))
-                (int (etypecase obj
-                       (integer
-                        (lambda (val si) (setf (si int) val)))
-                       (enum
-                        (lambda (val si) (setf (si int) (primitive-value val))))))
-                (uint (etypecase obj
-                        (integer
-                         (lambda (val si) (setf (si uint) val)))
-                        (enum
-                         (lambda (val si) (setf (si uint) (primitive-value val))))))
-                (float (lambda (val si) (setf (si float) (float val 1.0s0))))
-                (double (lambda (val si) (setf (si double) (float val 1.0d0))))
-                ;; that leaves:
-                ;;   ptr char uchar short ushort int uint long ulong
-                (t
-                 (dispatching (%si slot)
-                              (lambda (val si)
-                                (setf (%si) val))))))))
+           (macrolet
+               ((si (slot)
+                  `(cffi:foreign-slot-value
+                    (cffi:mem-aref stack '|union StackItem|
+                                   (the (unsigned-byte 16) i))
+                    '|union StackItem|
+                    ',slot))
+                (dispatching ((getter slot) &body body)
+                  `(ecase ,slot
+                     ,@ (mapcar (lambda (slot)
+                                  `((,slot)
+                                    (macrolet ((,getter () `(si ,',slot)))
+                                      ,@body)))
+                         '(ptr bool char uchar short ushort int
+                           uint long ulong float double enum class)))))
+             (let ((slot (qtype-stack-item-slot <type>)))
+               (case slot
+                 (bool
+                  (lambda (val stack i) (setf (si bool) (if val 1 0))))
+                 (class
+                  (if (typep obj 'qobject)
+                      (let ((<from> (qobject-class obj)))
+                        (multiple-value-bind (castfn <to>)
+                            (resolve-cast <from> (qtype-class <type>))
+                          (declare (fixnum <from> <to>))
+                          (if (eql <from> <to>)
+                              (lambda (val stack i)
+                                (setf (si class)
+                                      (qobject-pointer val)))
+                              (lambda (val stack i)
+                                (setf (si class)
+                                      (%perform-cast (qobject-pointer val)
+                                                     castfn <from> <to>))))))
+                      (lambda (val stack i)
+                        (setf (si class)
+                              (if (typep val 'cffi:foreign-pointer)
+                                  val
+                                  (qobject-pointer val))))))
+                 (enum
+                  (etypecase obj
+                    (integer
+                     (lambda (val stack i) (setf (si enum) val)))
+                    (enum
+                     (lambda (val stack i) (setf (si enum) (primitive-value val))))))
+                 (int
+                  (etypecase obj
+                    (integer
+                     (lambda (val stack i) (setf (si int) val)))
+                    (enum
+                     (lambda (val stack i) (setf (si int) (primitive-value val))))))
+                 (uint
+                  (etypecase obj
+                    (integer
+                     (lambda (val stack i) (setf (si uint) val)))
+                    (enum
+                     (lambda (val stack i) (setf (si uint) (primitive-value val))))))
+                 (float
+                  (lambda (val stack i)
+                    (setf (si float) (float val 1.0s0))))
+                 (double
+                  (lambda (val stack i)
+                    (setf (si double) (float val 1.0d0))))
+                 ;; that leaves:
+                 ;;   ptr char uchar short ushort int uint long ulong
+                 (t
+                  (dispatching (%si slot)
+                               (lambda (val stack i)
+                                 (setf (%si) val))))))))
          (primary-cons
-          (get (qtype-interned-name <type>) 'marshaller/primary))
+           (get (qtype-interned-name <type>) 'marshaller/primary))
          (around-cons
-          (get (qtype-interned-name <type>) 'marshaller/around))
+           (get (qtype-interned-name <type>) 'marshaller/around))
          (primary-type (car primary-cons))
          (primary-thunk (cdr primary-cons))
          (around-type (car around-cons))
@@ -126,21 +145,19 @@
     (cond
       ((and primary-thunk (typep obj primary-type))
        (assert (null around-thunk))
-       (named-lambda marshal-primary-outer (value stack-item cont)
-         (funcall set-thunk
-                  (funcall primary-thunk value)
-                  stack-item)
+       (named-lambda marshal-primary-outer (value stack i cont)
+         (funcall set-thunk (funcall primary-thunk value) stack i)
          (funcall cont)))
       ((and around-thunk (typep obj around-type))
-       (named-lambda marshal-around-outer (value stack-item cont)
+       (named-lambda marshal-around-outer (value stack i cont)
          (funcall around-thunk
                   value
                   (named-lambda marshal-around-inner (new-value)
-                    (funcall set-thunk new-value stack-item)
+                    (funcall set-thunk new-value stack i)
                     (funcall cont)))))
       (t
-       (named-lambda marshal-default (value stack-item cont)
-         (funcall set-thunk value stack-item)
+       (named-lambda marshal-default (value stack i cont)
+         (funcall set-thunk value stack i)
          (funcall cont))))))
 
 (defmacro defmarshal ((var name &key around (type t)) &body body)

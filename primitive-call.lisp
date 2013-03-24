@@ -329,7 +329,8 @@
         (lambda (stack arglist final-cont)
           (funcall marshal-thunk
                    (car arglist)
-                   (cffi:mem-aref stack '|union StackItem| i)
+                   stack
+                   i
                    (lambda ()
                      (funcall next-thunk
                               stack
@@ -342,6 +343,7 @@
 (defun arglist-marshaller (for-values argtypes)
   (let ((thunk (argstep-marshaller for-values argtypes 1))
         (n (1+ (length argtypes))))
+    (declare ((unsigned-byte 16) n))
     (named-lambda arglist-marshaller (arglist final-cont)
       (cffi:with-foreign-object (stack '|union StackItem| n)
         (funcall thunk stack arglist final-cont)))))
