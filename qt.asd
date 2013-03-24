@@ -93,5 +93,5 @@
      (:file "connect"))))
   :defsystem-depends-on (:trivial-features)
   :depends-on (:cffi :named-readtables :cl-ppcre :alexandria
-               #-abcl :closer-mop
+               :closer-mop
                :iterate :trivial-garbage #+darwin :bordeaux-threads))

@@ -231,11 +231,6 @@
              (return t)))
          a))))
 
-;; for reference results, return new values as multiple return values
-(defun splice-reference-result (result-list newval)
-  (destructuring-bind (primary-return-value &rest rest) result-list
-    (list* primary-return-value newval rest)))
-
 (defun string-vector-to-char**! (ptr vector)
   (loop
      for i from 0
@@ -279,13 +274,6 @@
        (qobject-class object)
        (qobject-pointer object)))
     (setf (qobject-pointer object) :deleted)))
-
-(defvar *report-memory-leaks* nil)
-
-(defun cancel-finalization (object)
-  (check-type object abstract-qobject)
-  (when *report-memory-leaks*
-    (tg:cancel-finalization object)))
 
 ;; like the OPTIMIZED macros, this cannot be a function because that would
 ;; foil caching
