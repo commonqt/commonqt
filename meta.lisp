@@ -203,9 +203,7 @@
       nil))
 
 (defun find-dynamic-method-override (object method-id)
-  (if (typep object 'dynamic-object)
-      (svref (override-table (class-of object))
-             method-id)))
+  (svref (override-table (class-of object)) method-id))
 
 (defun find-method-override-using-class (class method)
   (let ((table (lisp-side-override-table class)))

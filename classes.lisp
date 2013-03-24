@@ -145,8 +145,7 @@
 ;;;
 
 (defclass dynamic-object (qobject)
-  ()
-  (:metaclass qt-class))
+  ())
 
 (defmethod initialize-instance ((instance dynamic-object) &key)
   (multiple-value-prog1

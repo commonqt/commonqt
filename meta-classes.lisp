@@ -123,28 +123,23 @@
 
 (defmethod c2mop:validate-superclass
     ((class qt-class) (superclass standard-class))
-  t
-  ;; (eq superclass (find-class 'dynamic-object))
-  )
+  t)
 
 (defmethod c2mop:validate-superclass
     ((class qt-class) (superclass qt-class))
   t)
 
-(defun qt-class-compute-superclasses (class-name direct-superclasses)
-  (if (eq class-name
-          'dynamic-object)
-      direct-superclasses
-      (let ((qt-class (find-class 'qt-class))
-            (standard-object (find-class 'standard-object))
-            (dynamic-object (find-class 'dynamic-object)))
-        (if (some (lambda (c) (typep c qt-class))
-                  direct-superclasses)
-            direct-superclasses
-            (append (if (equal direct-superclasses (list standard-object))
-                        nil
-                        direct-superclasses)
-                    (list dynamic-object))))))
+(defun qt-class-compute-superclasses (direct-superclasses)
+  (let ((qt-class (find-class 'qt-class))
+        (standard-object (find-class 'standard-object))
+        (dynamic-object (find-class 'dynamic-object)))
+    (if (some (lambda (c) (typep c qt-class))
+              direct-superclasses)
+        direct-superclasses
+        (append (if (equal direct-superclasses (list standard-object))
+                    nil
+                    direct-superclasses)
+                (list dynamic-object)))))
 
 (defun parse-function (form)
   ;; this run-time use of COMPILE is a huge kludge.  We'd just want to hook
@@ -176,9 +171,8 @@
 
 (defun initialize-qt-class
     (class next-method &rest args
-     &key name qt-superclass direct-superclasses info
-          slots signals
-          override
+     &key qt-superclass direct-superclasses info
+          slots signals override
      &allow-other-keys)
   (let* ((qt-superclass
            (if qt-superclass
@@ -187,9 +181,7 @@
                  name)
                nil))
          (direct-superclasses
-           (qt-class-compute-superclasses (or name
-                                              (class-name class))
-                                          direct-superclasses))
+           (qt-class-compute-superclasses direct-superclasses))
          (slots (parse-raw-specs 'slot-spec slots))
          (signals (parse-raw-specs 'signal-spec signals))
          (override (parse-raw-specs 'override-spec override))
@@ -251,19 +243,18 @@
     (compute-specs class 'signals (direct-signals class))
     (compute-specs class 'slots (direct-slots class))
     (compute-specs class 'overrides (direct-overrides class))
-    (unless (eq (class-name class) 'dynamic-object)
-      (setf qt-superclass
-            (or qt-superclass
-                (class-qt-superclass
-                 (or (find-if (lambda (x) (typep x 'qt-class))
-                              (c2mop:class-direct-superclasses class))
-                     (error "No effective Qt class name declared for ~A"
-                            class)))))
-      (setf override-table
-            (make-override-table overrides))
-      (setf lisp-side-override-table
-            (make-lisp-side-override-table overrides))
-      (setf slot-or-signal-table (concatenate 'vector signals slots)))
+    (setf qt-superclass
+          (or qt-superclass
+              (class-qt-superclass
+               (or (find-if (lambda (x) (typep x 'qt-class))
+                            (c2mop:class-direct-superclasses class))
+                   (error "No effective Qt class name declared for ~A"
+                          class)))))
+    (setf override-table
+          (make-override-table overrides))
+    (setf lisp-side-override-table
+          (make-lisp-side-override-table overrides))
+    (setf slot-or-signal-table (concatenate 'vector signals slots))
     (when (reinit class)
       (setf (reinit class) nil)
       (loop for sub-class in (c2mop:class-direct-subclasses class)
