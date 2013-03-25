@@ -223,11 +223,11 @@
 (defun call-with-signal-marshalling (fun types args)
   (let ((arg-count (length args)))
     (cffi:with-foreign-object (argv :pointer (1+ arg-count))
-      (cffi:with-foreign-object (stack '|union StackItem| arg-count)
+      (cffi:with-foreign-object (stack '(:union StackItem) arg-count)
         (labels ((iterate (i rest-types rest-args)
                    (cond
                      (rest-args
-                      (let* ((stack-item (cffi:mem-aref stack '|union StackItem| i))
+                      (let* ((stack-item (cffi:mem-aptr stack '(:union StackItem) i))
                              (arg (car rest-args))
                              (type (car rest-types))
                              (slot-type (qtype-stack-item-slot type)))

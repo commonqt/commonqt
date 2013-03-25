@@ -230,10 +230,10 @@
                binding)))))
 
 (defun set-object-binding (classfn object binding)
-  (cffi:with-foreign-object (stack '|union StackItem| 2)
+  (cffi:with-foreign-object (stack '(:union StackItem) 2)
     (setf (cffi:foreign-slot-value
-           (cffi:mem-aref stack '|union StackItem| 1)
-           '|union StackItem|
+           (cffi:mem-aptr stack '(:union StackItem) 1)
+           '(:union StackItem)
            'ptr)
           binding)
     ;; Method index 0 sets the binding
@@ -249,7 +249,7 @@
           args arglist-marshaller classfn method-index
           (lambda (stack)
             (let ((new-object
-                   (cffi:foreign-slot-value stack '|union StackItem| 'ptr)))
+                   (cffi:foreign-slot-value stack '(:union StackItem) 'ptr)))
               (set-object-binding classfn new-object binding)
               (setf (qobject-pointer instance) new-object))))
   (cache! instance))
@@ -344,7 +344,7 @@
         (n (1+ (length argtypes))))
     (declare ((unsigned-byte 16) n))
     (named-lambda arglist-marshaller (arglist final-cont)
-      (cffi:with-foreign-object (stack '|union StackItem| n)
+      (cffi:with-foreign-object (stack '(:union StackItem) n)
         (funcall thunk stack arglist final-cont)))))
 
 (defun %interpret-call (allow-override-p instance method args)

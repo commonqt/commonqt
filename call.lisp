@@ -55,9 +55,7 @@
       (map-qmethod-argument-types
        (lambda (type)
          (collect (unmarshal type
-                             (cffi:mem-aref stack
-                                            '|union StackItem|
-                                            (incf index)))))
+                             (cffi:mem-aptr stack '(:union StackItem) (incf index)))))
        <method>)
       (finish))))
 

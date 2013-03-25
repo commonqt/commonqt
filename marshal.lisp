@@ -69,9 +69,9 @@
            (macrolet
                ((si (slot)
                   `(cffi:foreign-slot-value
-                    (cffi:mem-aref stack '|union StackItem|
+                    (cffi:mem-aptr stack '(:union StackItem)
                                    (the (unsigned-byte 16) i))
-                    '|union StackItem|
+                    '(:union StackItem)
                     ',slot))
                 (dispatching ((getter slot) &body body)
                   `(ecase ,slot

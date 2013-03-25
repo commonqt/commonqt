@@ -23,7 +23,7 @@
 
 (let ((bad (cons nil nil)))
   (defun marshal-and-test (value type test-fun &optional (unmarshal-type type))
-    (cffi:with-foreign-object (stack-item 'qt::|union StackItem|)
+    (cffi:with-foreign-object (stack-item '(:union qt::StackItem))
       (let ((result bad)
             (<type> (or (qt::find-qtype type)
                         (error "no such type ~s" type)))

@@ -199,7 +199,7 @@
   (define-qlist-marshaller-funcs qmodelindex)
   (define-qlist-marshaller-funcs qkeysequence))
 
-(cffi:defcstruct |struct SmokeData|
+(cffi:defcstruct SmokeData
   (name :string)
   (classes :pointer)
   (nclasses :short)
@@ -221,7 +221,7 @@
              `(progn
                 (declaim (inline ,fun))
                 (defun ,fun (data)
-                  (cffi:foreign-slot-value data '|struct SmokeData| ',slot)))))
+                  (cffi:foreign-slot-value data '(:struct SmokeData) ',slot)))))
   (% data-name name)
   (% data-classes classes)
   (% data-nclasses nclasses)
@@ -239,7 +239,7 @@
   (% data-castFn castFn)
   (% data-binding binding))
 
-(cffi:defcunion |union StackItem|
+(cffi:defcunion StackItem
   (ptr :pointer)
   (bool :char)
   (char :char)
@@ -255,7 +255,7 @@
   (enum :int)
   (class :pointer))
 
-(cffi:defcstruct |struct Method|
+(cffi:defcstruct qMethod
   (classid :short)
   (name :short)
   (args :short)
@@ -264,12 +264,12 @@
   (ret :short)
   (methodForClassFun :short))
 
-(cffi:defcstruct |struct MethodMap|
+(cffi:defcstruct MethodMap
   (classid :short)
   (name :short)
   (methodid :short))
 
-(cffi:defcstruct |struct Class|
+(cffi:defcstruct qClass
   (className :string)
   (external :char)
   (parents :short)
@@ -278,7 +278,7 @@
   (flags :short)
   (size :unsigned-int))
 
-(cffi:defcstruct |struct Type|
+(cffi:defcstruct qType
   (name :string)
   (classid :short)
   (flags :short))

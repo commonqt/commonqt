@@ -233,11 +233,11 @@
 (defvar <marg-qobject-set-parent>)
 
 (defmacro %with-stack ((var accessor size) &body body)
-  `(cffi:with-foreign-object (,var '|union StackItem| ,size)
+  `(cffi:with-foreign-object (,var '(:union StackItem) ,size)
      (macrolet ((,accessor (i slot)
 		  `(cffi:foreign-slot-value
-		    (cffi:mem-aref ,',var '|union StackItem| ,i)
-		    '|union StackItem|
+		    (cffi:mem-aptr ,',var '(:union StackItem) ,i)
+		    '(:union StackItem)
 		    ',slot)))
        ,@body)))
 

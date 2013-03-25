@@ -40,7 +40,7 @@
 ;;;                          `((,slot)
 ;;;                            (lambda (stack-item)
 ;;;                              (cffi:foreign-slot-value stack-item
-;;;                                                       '|union StackItem|
+;;;                                                       '(:union StackItem)
 ;;;                                                       ',slot))))
 ;;;                        '(ptr bool char uchar short ushort int
 ;;;                          uint long ulong float double enum class)))))
@@ -56,7 +56,7 @@
                     (macrolet
                         ((,getter (stack-item)
                            `(cffi:foreign-slot-value ,stack-item
-                                                     '|union StackItem|
+                                                     '(:union StackItem)
                                                      ',',slot)))
                       ,@body)))
                 '(ptr bool char uchar short ushort int

@@ -189,16 +189,16 @@
   (multiple-value-bind (idx <module>)
       (unbash* <class> +class+)
     #+qt::debug (assert (<= 0 idx (data-nclasses (data-ref <module>))))
-    (cffi:mem-aref (data-classes (data-ref <module>))
-                   '|struct Class|
+    (cffi:mem-aptr (data-classes (data-ref <module>))
+                   '(:struct qClass)
                    idx)))
 
 (defun qclass-name (<class>)
-  (cffi:foreign-slot-value (qclass-struct <class>) '|struct Class| 'classname))
+  (cffi:foreign-slot-value (qclass-struct <class>) '(:struct qClass) 'classname))
 
 (defun qclass-external-p (<class>)
   (plusp
-   (cffi:foreign-slot-value (qclass-struct <class>) '|struct Class| 'external)))
+   (cffi:foreign-slot-value (qclass-struct <class>) '(:struct qClass) 'external)))
 
 (defun resolve-external-qclass (<class>)
   (if (qclass-external-p <class>)
@@ -259,7 +259,7 @@
   (let* ((<module> (ldb-module <class>))
          (parents (the index-iterator
                     (cffi:foreign-slot-value (qclass-struct <class>)
-                                             '|struct Class|
+                                             '(:struct qClass)
                                              'parents)))
          (inheritancelist (data-inheritancelist (data-ref <module>))))
     (iter (for i from parents)
@@ -276,7 +276,7 @@
   <class>)
 
 (defun qclass-flags (<class>)
-  (cffi:foreign-slot-value (qclass-struct <class>) '|struct Class| 'flags))
+  (cffi:foreign-slot-value (qclass-struct <class>) '(:struct qClass) 'flags))
 
 (macrolet ((deftest (name mask)
              `(defun ,name (<class>)
@@ -299,12 +299,12 @@
 (declaim (inline qclass-trampoline-fun))
 (defun qclass-trampoline-fun (<class>)
   (declare (type tagged <class>))
-  (cffi:foreign-slot-value (qclass-struct <class>) '|struct Class| 'classfn))
+  (cffi:foreign-slot-value (qclass-struct <class>) '(:struct qClass) 'classfn))
 
 (declaim (inline qclass-enum-fun))
 (defun qclass-enum-fun (<class>)
   (declare (type tagged <class>))
-  (cffi:foreign-slot-value (qclass-struct <class>) '|struct Class| 'enumfn))
+  (cffi:foreign-slot-value (qclass-struct <class>) '(:struct qClass) 'enumfn))
 
 
 ;;;;
@@ -315,15 +315,15 @@
   (multiple-value-bind (idx <module>)
       (unbash* <methodmap> +methodmap+)
     #+qt::debug (assert (<= 0 idx (data-nmethodmaps (data-ref <module>))))
-    (cffi:mem-aref (data-methodmaps (data-ref <module>))
-                   '|struct MethodMap|
+    (cffi:mem-aptr (data-methodmaps (data-ref <module>))
+                   '(:struct MethodMap)
                    idx)))
 
 (declaim (ftype (function (tagged) tagged) methodmap-class))
 (declaim (inline methodmap-class))
 (defun methodmap-class (<methodmap>)
   (bash (cffi:foreign-slot-value (methodmap-struct <methodmap>)
-                                 '|struct MethodMap|
+                                 '(:struct MethodMap)
                                  'classid)
         (ldb-module <methodmap>)
         +class+))
@@ -333,7 +333,7 @@
   (declare (type tagged <methodmap>))
   (let ((<module> (ldb-module <methodmap>))
         (methodid (cffi:foreign-slot-value (methodmap-struct <methodmap>)
-                                           '|struct MethodMap|
+                                           '(:struct MethodMap)
                                            'methodid)))
     (declare (type ambiguous-method-index methodid))
     (if (plusp methodid)
@@ -360,7 +360,7 @@
 (defun methodmap-name-index (<methodmap>)
   (declare (type tagged <methodmap>))
   (cffi:foreign-slot-value (methodmap-struct <methodmap>)
-                           '|struct MethodMap|
+                           '(:struct MethodMap)
                            'name))
 
 (declaim (inline methodmap-name))
@@ -400,15 +400,15 @@
   (multiple-value-bind (idx <module>)
       (unbash* <method> +method+)
     #+qt::debug (assert (<= 0 idx (data-nmethods (data-ref <module>))))
-    (cffi:mem-aref (data-methods (data-ref <module>))
-                   '|struct Method|
+    (cffi:mem-aptr (data-methods (data-ref <module>))
+                   '(:struct qMethod)
                    idx)))
 
 (declaim (inline qmethod-class))
 (defun qmethod-class (<method>)
   (declare (type tagged <method>))
   (bash (cffi:foreign-slot-value (qmethod-struct <method>)
-                                 '|struct Method|
+                                 '(:struct qMethod)
                                  'classid)
         (ldb-module <method>)
         +class+))
@@ -417,7 +417,7 @@
 (defun qmethod-name-index (<method>)
   (declare (type tagged <method>))
   (cffi:foreign-slot-value (qmethod-struct <method>)
-                           '|struct Method|
+                           '(:struct qMethod)
                            'name))
 
 (declaim (inline qmethod-name))
@@ -427,7 +427,7 @@
             (the index (qmethod-name-index <method>))))
 
 (defun qmethod-flags (<method>)
-  (cffi:foreign-slot-value (qmethod-struct <method>) '|struct Method| 'flags))
+  (cffi:foreign-slot-value (qmethod-struct <method>) '(:struct qMethod) 'flags))
 
 (macrolet ((deftest (name mask)
              `(defun ,name (<method>)
@@ -456,13 +456,13 @@
 
 (defun qmethod-return-type (<method>)
   (bash (cffi:foreign-slot-value (qmethod-struct <method>)
-				 '|struct Method|
+				 '(:struct qMethod)
 				 'ret)
 	(ldb-module <method>)
 	+type+))
 
 (defun qmethod-argument-number (<method>)
-  (cffi:foreign-slot-value (qmethod-struct <method>) '|struct Method|
+  (cffi:foreign-slot-value (qmethod-struct <method>) '(:struct qMethod)
                            'numargs))
 
 (declaim (inline map-qmethod-argument-types))
@@ -470,7 +470,7 @@
   (let* ((<module> (ldb-module <method>))
          (argumentlist (data-argumentlist (data-ref <module>))))
     (cffi:with-foreign-slots
-        ((args numargs) (qmethod-struct <method>) |struct Method|)
+        ((args numargs) (qmethod-struct <method>) (:struct qMethod))
       (declare (type index-iterator args numargs))
       (if (plusp numargs)
           (iter (for i from args)
@@ -487,7 +487,7 @@
 
 (defun qmethod-classfn-index (<method>)
   (cffi:foreign-slot-value (qmethod-struct <method>)
-                           '|struct Method|
+                           '(:struct qMethod)
                            'methodForClassFun))
 
 ;;;;
@@ -516,8 +516,8 @@
   (multiple-value-bind (idx <module>)
       (unbash* <type> +type+)
     #+qt::debug (assert (<= 0 idx (data-ntypes (data-ref <module>))))
-    (cffi:mem-aref (data-types (data-ref <module>))
-                   '|struct Type|
+    (cffi:mem-aptr (data-types (data-ref <module>))
+                   '(:struct qType)
                    idx)))
 
 (declaim (inline qtype-class))
@@ -525,7 +525,7 @@
   (declare (type tagged <type>))
   (resolve-external-qclass
    (bash (cffi:foreign-slot-value (qtype-struct <type>)
-				  '|struct Type|
+				  '(:struct qType)
 				  'classid)
 	 (ldb-module <type>)
 	 +class+)))
@@ -533,13 +533,13 @@
 (declaim (inline qtype-name))
 (defun qtype-name (<type>)
   (declare (type tagged <type>))
-  (cffi:foreign-slot-value (qtype-struct <type>) '|struct Type| 'name))
+  (cffi:foreign-slot-value (qtype-struct <type>) '(:struct qType) 'name))
 
 (defun qtype-interned-name (<type>)
   (intern (qtype-name <type>) :keyword))
 
 (defun qtype-flags (<type>)
-  (cffi:foreign-slot-value (qtype-struct <type>) '|struct Type| 'flags))
+  (cffi:foreign-slot-value (qtype-struct <type>) '(:struct qType) 'flags))
 
 (defun qtype-stack-item-slot (<type>)
   (elt #(ptr bool char uchar short ushort int uint long ulong float double
@@ -923,7 +923,7 @@
                 (cffi:mem-ref (cffi:foreign-symbol-pointer
                                (format nil "~A_Smoke" name))
                               :pointer))
-              (data (cffi:foreign-alloc '|struct SmokeData|)))
+              (data (cffi:foreign-alloc '(:struct SmokeData))))
           (setf (svref *module-table* idx) smoke-struct)
           (setf (svref *module-data-table* idx) data)
           (sw_smoke smoke-struct

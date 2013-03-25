@@ -48,7 +48,7 @@
             :initform :unborn
             :accessor qobject-pointer)))
 
-(defmethod qobject-deleted ((object qobject))
+(defun qobject-deleted (object)
   (eq (qobject-pointer object) :deleted))
 
 (defmethod print-object ((instance qobject) stream)
