@@ -76,58 +76,61 @@
           (finally
            (return (values types clean-forms))))))
 
+(deftype cont-fun ()
+  `(function * (values t &optional)))
+
 (defun make-optimized (instance method
                        &key instance-resolver args resolver
                             env)
   (flet ((number-of-non-constantp (list)
            (loop for x in list
                  count (not (constantp x env)))))
-   (multiple-value-bind (fix-types args) (parse-optimized-call-args args)
-     (let ((argsyms (make-symbols 'arg (length args)))
-           (sigsyms (make-symbols 'sig (number-of-non-constantp args))))
-       ;; FIXME: check evaluation order
-       `(let* (,@(iter (for arg in args)
-                   (for sym in argsyms)
-                   (unless (constantp arg env)
-                     (collect `(,sym ,arg))))
-               (instance ,(funcall instance-resolver instance))
-               (method ,method)
-               (types ',fix-types)
-               (args ,(if (zerop (number-of-non-constantp args))
-                          `',args
-                          `(list*
-                            ,@(loop for (arg . rest) on args
-                                    for argsym in argsyms
-                                    collect
-                                    (if (constantp arg env)
-                                        arg
-                                        argsym)
-                                    if (zerop (number-of-non-constantp rest))
-                                    collect `',rest
-                                    and
-                                    do (loop-finish)))))
-               ,@(loop with sigs = sigsyms
-                       for arg in args
-                       for argsym in argsyms
-                       unless (constantp arg env)
-                       collect `(,(pop sigs) (signature-type ,argsym))))
-          (declare (dynamic-extent args))
-          (multiple-value-bind (instance-qclass instance-extra-sig)
-              (typecase instance
-                (integer
-                 (values instance :static))
-                (dynamic-object
-                 (values (qobject-class instance)
-                         (class-generation (class-of instance))))
-                (t
-                 (values (qobject-class instance) :instance)))
-            (cached-values-bind (fun) ,resolver
-                ((instance-qclass :hash t)
-                 (instance-extra-sig)
-                 (method)
-                 ,@(loop for sig in sigsyms
-                         collect `(,sig :hash sxhash)))
-              (funcall fun instance args))))))))
+    (multiple-value-bind (fix-types args) (parse-optimized-call-args args)
+      (let ((argsyms (make-symbols 'arg (length args)))
+            (sigsyms (make-symbols 'sig (number-of-non-constantp args)))
+            (instance-qclass-sym (gensym "INSTANCE-QCLASS"))
+            (instance-extra-sig-sym (gensym "INSTANCE-EXTRA-SIG"))
+            (instance-sym (gensym "INSTANCE")))
+        ;; FIXME: check evaluation order
+        `(multiple-value-bind (,instance-sym
+                               ,instance-qclass-sym
+                               ,instance-extra-sig-sym)
+             ,(funcall instance-resolver instance)
+           (declare (type (unsigned-byte 24) ,instance-qclass-sym))
+           (let* (,@(iter (for arg in args)
+                      (for sym in argsyms)
+                      (unless (constantp arg env)
+                        (collect `(,sym ,arg))))
+                  (method ,method)
+                  (types ',fix-types)
+                  (args ,(if (zerop (number-of-non-constantp args))
+                             `',args
+                             `(list*
+                               ,@(loop for (arg . rest) on args
+                                       for argsym in argsyms
+                                       collect
+                                       (if (constantp arg env)
+                                           arg
+                                           argsym)
+                                       if (zerop (number-of-non-constantp rest))
+                                       collect `',rest
+                                       and
+                                       do (loop-finish)))))
+                  (instance ,instance-sym)
+                  ,@(loop with sigs = sigsyms
+                          for arg in args
+                          for argsym in argsyms
+                          unless (constantp arg env)
+                          collect `(,(pop sigs) (signature-type ,argsym))))
+             (declare (dynamic-extent args))
+             (cached-values-bind (fun) ,resolver
+                 ((,instance-qclass-sym :hash t)
+                  (,instance-extra-sig-sym)
+                  (method)
+                  ,@(loop for sig in sigsyms
+                          collect `(,sig :hash sxhash)))
+               (declare (type cont-fun fun))
+               (funcall fun ,instance-sym args))))))))
 
 (defmacro optimized-call (allow-override-p instance method &rest args
                           &environment env)
@@ -262,35 +265,66 @@
 
 (defun full-resolve-this (instance)
   (etypecase instance
-    (qobject  instance)
-    (integer  instance)
-    (symbol   (class-effective-class (find-class instance)))
-    (qt-class (class-effective-class instance))
-    (string   (find-qclass instance))))
+    (dynamic-object
+     (values instance
+             (qobject-class instance)
+             (class-generation (class-of instance))))
+    (qobject
+     (values instance (qobject-class instance) :instance))
+    (integer
+     (values instance instance :static))
+    (symbol
+     (let ((qclass (class-effective-class (find-class instance))))
+       (values qclass qclass :static)))
+    (qt-class
+     (let ((qclass (class-effective-class instance)))
+       (values qclass qclass :static)))
+    (string
+     (let ((qclass (find-qclass instance)))
+       (values qclass qclass :static)))))
 
 (defun compile-time-resolve-this (instance)
   (etypecase instance
-    (string `(with-cache () (find-qclass ,instance)))
+    (string `(let ((qclass (with-cache ()
+                             (find-qclass ,instance))))
+               (values qclass qclass :static)))
     ((cons (eql quote) (cons symbol null))
-     `(class-effective-class (find-class ,instance)))
+     `(let ((qclass (class-effective-class (find-class ,instance))))
+        (values qclass qclass :static)))
     (t `(full-resolve-this ,instance))))
 
 (defun full-resolve-ctor-this (instance)
-  (typecase instance
+  (etypecase instance
+    (dynamic-object
+     (values instance
+             (qobject-class instance)
+             (class-generation (class-of instance))))
     (qobject
-     instance)
+     (values instance (qobject-class instance) :instance))
     (integer
-     (make-instance 'qobject :class instance :pointer :unborn))
+     (values
+      (make-instance 'qobject :class instance :pointer :unborn)
+      instance
+      :instance))
     (string
-     (make-instance 'qobject :class (find-qclass instance) :pointer :unborn))
+     (let ((qclass (find-qclass instance) ))
+       (values (make-instance 'qobject :class qclass :pointer :unborn)
+               qclass
+               :instance)))
     (qt-class
-     (make-instance instance :pointer :unborn))))
+     (values (make-instance instance :pointer :unborn)
+             (class-effective-class instance)
+             (class-generation instance)))))
 
 (defun compile-time-resolve-ctor-this (instance)
   (etypecase instance
-    (string `(make-instance 'qobject
-                            :class (with-cache () (find-qclass ,instance))
-                            :pointer :unborn))
+    (string
+     `(let ((qclass (with-cache () (find-qclass ,instance))))
+        (values (make-instance 'qobject
+                               :class qclass
+                               :pointer :unborn)
+                qclass
+                :instance)))
     (t `(full-resolve-ctor-this ,instance))))
 
 (declaim (inline call-class-fun))
