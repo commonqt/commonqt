@@ -62,8 +62,9 @@
      (type-of object))))
 
 (defun parse-optimized-call-args (forms)
-  (let ((type nil))
-    (iter (for form in forms)
+  (if (some #'keywordp forms)
+      (let ((type nil))
+        (iter (for form in forms)
           (cond
             ((keywordp form)
              (when type
@@ -74,12 +75,13 @@
              (collect form into clean-forms)
              (setf type nil)))
           (finally
-           (return (values types clean-forms))))))
+           (return (values types clean-forms)))))
+      (values nil forms)))
 
 (deftype cont-fun ()
   `(function * (values t &optional)))
 
-(defun make-optimized (instance method
+(defun make-optimized (instance
                        &key instance-resolver args resolver
                             env)
   (flet ((number-of-non-constantp (list)
@@ -101,7 +103,6 @@
                       (for sym in argsyms)
                       (unless (constantp arg env)
                         (collect `(,sym ,arg))))
-                  (method ,method)
                   (types ',fix-types)
                   (args ,(if (zerop (number-of-non-constantp args))
                              `',args
@@ -126,7 +127,6 @@
              (cached-values-bind (fun) ,resolver
                  ((,instance-qclass-sym :hash t)
                   (,instance-extra-sig-sym)
-                  (method)
                   ,@(loop for sig in sigsyms
                           collect `(,sig :hash sxhash)))
                (declare (type cont-fun fun))
@@ -134,21 +134,21 @@
 
 (defmacro optimized-call (allow-override-p instance method &rest args
                           &environment env)
-  (make-optimized instance method
+  (make-optimized instance
     :instance-resolver #'compile-time-resolve-this
     :args args
-    :resolver `(resolve-call ,allow-override-p instance method args types)
+    :resolver `(resolve-call ,allow-override-p instance ,method args types)
     :env env))
 
 (defmacro optimized-new (class-or-instance &rest args
                          &environment env)
-  (make-optimized class-or-instance nil
+  (make-optimized class-or-instance
     :instance-resolver #'compile-time-resolve-ctor-this
     :args args
     :resolver `(resolve-new instance args types)
     :env env))
 
-(defun resolve-call (allow-override-p instance method args &optional fix-types)
+(defun resolve-call (allow-override-p instance method args fix-types)
   ;; (format *trace-output* "cache miss for ~A::~A~%" instance method)
   (let ((name method)
         (method (etypecase method
@@ -383,6 +383,6 @@
 
 (defun %interpret-call (allow-override-p instance method args)
   (let ((instance (full-resolve-this instance)))
-    (funcall (resolve-call allow-override-p instance method args)
+    (funcall (resolve-call allow-override-p instance method args nil)
              instance
              args)))
