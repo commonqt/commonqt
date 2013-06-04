@@ -99,38 +99,39 @@
                                ,instance-extra-sig-sym)
              ,(funcall instance-resolver instance)
            (declare (type (unsigned-byte 24) ,instance-qclass-sym))
-           (let* (,@(iter (for arg in args)
-                      (for sym in argsyms)
-                      (unless (constantp arg env)
-                        (collect `(,sym ,arg))))
-                  (types ',fix-types)
-                  (args ,(if (zerop (number-of-non-constantp args))
-                             `',args
-                             `(list*
-                               ,@(loop for (arg . rest) on args
-                                       for argsym in argsyms
-                                       collect
-                                       (if (constantp arg env)
-                                           arg
-                                           argsym)
-                                       if (zerop (number-of-non-constantp rest))
-                                       collect `',rest
-                                       and
-                                       do (loop-finish)))))
-                  (instance ,instance-sym)
-                  ,@(loop with sigs = sigsyms
-                          for arg in args
-                          for argsym in argsyms
-                          unless (constantp arg env)
-                          collect `(,(pop sigs) (signature-type ,argsym))))
-             (declare (dynamic-extent args))
-             (cached-values-bind (fun) ,resolver
-                 ((,instance-qclass-sym :hash t)
-                  (,instance-extra-sig-sym)
-                  ,@(loop for sig in sigsyms
-                          collect `(,sig :hash sxhash)))
-               (declare (type cont-fun fun))
-               (funcall fun ,instance-sym args))))))))
+           (let (,@(iter (for arg in args)
+                     (for sym in argsyms)
+                     (unless (constantp arg env)
+                       (collect `(,sym ,arg)))))
+             (let* ((types ',fix-types)
+                    (args ,(if (zerop (number-of-non-constantp args))
+                               `',args
+                               `(list*
+                                 ,@(loop for (arg . rest) on args
+                                         for argsym in argsyms
+                                         collect
+                                         (if (constantp arg env)
+                                             arg
+                                             argsym)
+                                         if (zerop (number-of-non-constantp rest))
+                                         collect `',rest
+                                         and
+                                         do (loop-finish)))))
+                    (instance ,instance-sym)
+                    ,@(loop with sigs = sigsyms
+                            for arg in args
+                            for argsym in argsyms
+                            unless (constantp arg env)
+                            collect `(,(pop sigs) (signature-type ,argsym))))
+               (declare (dynamic-extent args)
+                        (optimize (safety 0)))
+               (cached-values-bind (fun) ,resolver
+                   ((,instance-qclass-sym :hash t)
+                    (,instance-extra-sig-sym)
+                    ,@(loop for sig in sigsyms
+                            collect `(,sig :hash sxhash)))
+                 (declare (type cont-fun fun))
+                 (funcall fun ,instance-sym args)))))))))
 
 (defmacro optimized-call (allow-override-p instance method &rest args
                           &environment env)
