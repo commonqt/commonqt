@@ -61,6 +61,8 @@
 ;;; system
 
 (defsystem :qt
+  :description "Interface for the Qt GUI framework"
+  :license "BSD"
   :components
   (#-windows
    (:module "so"
