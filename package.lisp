@@ -77,7 +77,8 @@
            #:disconnect
            #:with-signals-blocked
            #:stop-overriding
-           #:cast)
+           #:cast
+           #:qobject-deleted)
   (:import-from alexandria named-lambda))
 
 (defpackage :qt-user
