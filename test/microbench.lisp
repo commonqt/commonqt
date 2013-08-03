@@ -44,7 +44,8 @@
    Return the average run time per repetition in microseconds."
   (let ((run0 (get-internal-run-time)))
     (#+ccl ccl::without-gcing
-	   #+sbcl sb-sys:without-gcing
+     #+sbcl sb-sys:without-gcing
+     #-(or ccl sbcl) progn
 	   (dotimes (i repeat)
 	     (funcall fun i)))
     (let* ((run1 (get-internal-run-time))
