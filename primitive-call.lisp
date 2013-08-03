@@ -377,7 +377,7 @@
 (defun arglist-marshaller (for-values argtypes)
   (let ((thunk (argstep-marshaller for-values argtypes 1))
         (n (1+ (length argtypes))))
-    (declare ((unsigned-byte 16) n))
+    (declare (type (unsigned-byte 16) n))
     (named-lambda arglist-marshaller (arglist final-cont)
       (cffi:with-foreign-object (stack '(:union StackItem) n)
         (funcall thunk stack arglist final-cont)))))
