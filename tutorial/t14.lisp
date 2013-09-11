@@ -168,11 +168,7 @@
       (new instance parent)
       (new instance))
   (setf (auto-shoot-timer instance) (#_new QTimer instance))
-  (#_connect "QObject"
-             (auto-shoot-timer instance)
-             (QSIGNAL "timeout()")
-             instance
-             (QSLOT "moveShot()"))
+  (connect (auto-shoot-timer instance) "timeout()" instance "moveShot()")
   (with-objects ((col (#_new QColor 250 250 200))
                  (pal (#_new QPalette col)))
     (#_setPalette instance pal))
@@ -299,16 +295,8 @@
       (setf (slider instance) slider)
       (#_setRange slider 0 99)
       (#_setValue slider 0)
-      (#_connect "QObject"
-                  slider
-                  (QSIGNAL "valueChanged(int)")
-                  lcd
-                  (QSLOT "display(int)"))
-      (#_connect "QObject"
-                  slider
-                  (QSIGNAL "valueChanged(int)")
-                  instance
-                  (QSIGNAL "valueChanged(int)"))
+      (connect slider "valueChanged(int)" lcd "display(int)")
+      (connect slider "valueChanged(int)" instance "valueChanged(int)")
       (let ((label (#_new QLabel)))
         (#_setSizePolicy label
                          (#_Preferred "QSizePolicy")
@@ -349,16 +337,8 @@
       (#_setFont quit font)
       (#_setFont shoot font)
       (#_setFont new-game font)
-      (#_connect "QObject"
-                 new-game
-                 (QSIGNAL "clicked()")
-                 instance
-                 (QSLOT "newGame()"))
-      (#_connect "QObject"
-                 quit
-                 (QSIGNAL "clicked()")
-                 (#_QCoreApplication::instance)
-                 (QSLOT "quit()"))
+      (connect new-game "clicked()" instance "newGame()")
+      (connect quit "clicked()" *qapplication* "quit()")
       (let ((angle (make-instance 'lcd-range :text "ANGLE"))
             (force (make-instance 'lcd-range :text "FORCE"))
             (hits (#_new QLCDNumber 2))
@@ -381,48 +361,16 @@
         (setf (shots-left instance) shots-left)
         (#_setSegmentStyle hits (#_Filled "QLCDNumber"))
         (#_setSegmentStyle shots-left (#_Filled "QLCDNumber"))
-        (#_connect "QObject"
-                   shoot
-                   (QSIGNAL "clicked()")
-                   instance
-                   (QSLOT "fire()"))
-        (#_connect "QObject"
-                   cf
-                   (QSIGNAL "hit()")
-                   instance
-                   (QSLOT "hit()"))
-        (#_connect "QObject"
-                   cf
-                   (QSIGNAL "missed()")
-                   instance
-                   (QSLOT "missed()"))
-        (#_connect "QObject"
-                   cf
-                   (QSIGNAL "canShoot(bool)")
-                   shoot
-                   (QSLOT "setEnabled(bool)"))
+        (connect shoot "clicked()" instance "fire()")
+        (connect cf "hit()" instance "hit()")
+        (connect cf "missed()" instance "missed()")
+        (connect cf "canShoot(bool)" shoot "setEnabled(bool)")
         (set-range angle 5 70)
         (set-range force 10 50)
-        (#_connect "QObject"
-                   angle
-                   (QSIGNAL "valueChanged(int)")
-                   cf
-                   (QSLOT "setAngle(int)"))
-        (#_connect "QObject"
-                   cf
-                   (QSIGNAL "angleChanged(int)")
-                   angle
-                   (QSLOT "setValue(int)"))
-        (#_connect "QObject"
-                   force
-                   (QSIGNAL "valueChanged(int)")
-                   cf
-                   (QSLOT "setForce(int)"))
-        (#_connect "QObject"
-                   cf
-                   (QSIGNAL "forceChanged(int)")
-                   force
-                   (QSLOT "setValue(int)"))
+        (connect angle "valueChanged(int)" cf "setAngle(int)")
+        (connect cf "angleChanged(int)" angle "setValue(int)")
+        (connect force "valueChanged(int)" cf "setForce(int)")
+        (connect cf "forceChanged(int)" force "setValue(int)")
         (let ((left-layout (#_new QVBoxLayout))
               (top-layout (#_new QHBoxLayout))
               (grid (#_new QGridLayout)))
