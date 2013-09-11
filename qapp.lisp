@@ -97,9 +97,6 @@
   (format t "Metaobject for ~A:~%" object)
   (describe-metaobject-methods (qobject-metaobject object)))
 
-(defmacro enable-syntax ()
-  `(named-readtables:in-readtable :qt))
-
 (defun windows-version ()
   (let ((v (sw_windows_version)))
     (if (minusp v) nil v)))

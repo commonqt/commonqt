@@ -56,7 +56,6 @@
            #:qmethod-name
            #:dynamic-object
            #:list-qmethod-argument-types
-           #:enable-syntax
            #:note-deleted
            #:interpret-delete
            #:optimized-delete
