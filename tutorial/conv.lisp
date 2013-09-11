@@ -14,20 +14,20 @@
 (defvar *qapp*)
 
 (defclass my-window()
-    ((dollarAmount :accessor dollarAmount)
-     (conversionRate :accessor conversionRate)
-     (result :accessor result))
+  ((dollarAmount :accessor dollarAmount)
+   (conversionRate :accessor conversionRate)
+   (result :accessor result))
   (:metaclass qt-class)
   (:qt-superclass "QWidget")
   (:slots ("convert()" convert)))
 
-(defmethod convert ((instance my-window) &aux (res 0))
-  ;; Just ignore if input isn't numeric...
-  (handler-case
-      (setf res (* (read-from-string (#_text (dollarAmount instance)))
-		   (read-from-string (#_text (conversionRate instance)))))
-    (t () nil))
-  (#_setText (result instance) (format nil "~A" res)))
+(defmethod convert ((instance my-window))
+  (let ((result (ignore-errors
+                 (* (read-from-string (#_text (dollarAmount instance)))
+                    (read-from-string (#_text (conversionRate instance)))))))
+    (#_setText (result instance) (if result
+                                     (princ-to-string result)
+                                     "ERROR"))))
 
 (defmethod initialize-instance :after ((instance my-window) &key)
   (new instance)
@@ -43,18 +43,16 @@
     (#_move (conversionRate instance) 200 20)
     (#_move (result instance) 200 100)
     (#_move convert 220 130)
-    (#_connect "QObject"
-	       convert (QSIGNAL "clicked()")
-	       instance (QSLOT "convert()"))))
+    (connect convert "clicked()" instance "convert()")))
 
 (defun main (&optional style)
   (when style
-    (#_setStyle "QApplication"
-		(#_create "QStyleFactory" (ecase style
-					    (:cde "CDE")
-					    (:macintosh "Macintosh")
-					    (:windows "Windows")
-					    (:motif "Motif")))))
+    (#_QApplication::setStyle
+     (#_QStyleFactory::create (ecase style
+                                (:cde "CDE")
+                                (:macintosh "Macintosh")
+                                (:windows "Windows")
+                                (:motif "Motif")))))
   (setf *qapp* (make-qapplication))
   (let ((window (make-instance 'my-window)))
     (#_show window)
