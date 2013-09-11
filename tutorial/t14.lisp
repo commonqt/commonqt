@@ -476,11 +476,5 @@
     (new-target cannon-field)))
 
 (defun main ()
-  (let ((qapp (make-qapplication))
-        (window (make-instance 'game-board)))
-    (#_setGeometry window 100 100 500 355)
-    (unwind-protect
-         (progn
-           (#_show window)
-           (#_exec qapp))
-      (#_delete window))))
+  (with-main-window (window (make-instance 'game-board))
+    (#_setGeometry window 100 100 500 355)))

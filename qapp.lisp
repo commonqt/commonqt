@@ -41,6 +41,14 @@
 
 (defvar *qapplication* nil)
 
+(defmacro with-main-window ((window form) &body body)
+  `(progn
+     (make-qapplication)
+     (with-objects ((,window ,form))
+       ,@body
+       (#_show ,window)
+       (#_exec *qapplication*))))
+
 (defun make-qapplication (&rest args)
   (cond (*qapplication*)
         (t

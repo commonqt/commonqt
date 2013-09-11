@@ -78,5 +78,6 @@
            #:with-signals-blocked
            #:stop-overriding
            #:cast
-           #:qobject-deleted)
+           #:qobject-deleted
+           #:with-main-window)
   (:import-from alexandria named-lambda))
