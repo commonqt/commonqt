@@ -475,15 +475,12 @@
     (restart-game cannon-field)
     (new-target cannon-field)))
 
-(defun test ()
-  (let ((window (make-instance 'game-board)))
-    (#_setGeometry window 100 100 500 355)
-    (#_show window)
-    window))
-
 (defun main ()
-  (make-qapplication)
-  (let ((window (test)))
+  (let ((qapp (make-qapplication))
+        (window (make-instance 'game-board)))
+    (#_setGeometry window 100 100 500 355)
     (unwind-protect
-         (#_exec (#_new QEventLoop))
-      (#_hide window))))
+         (progn
+           (#_show window)
+           (#_exec qapp))
+      (#_delete window))))

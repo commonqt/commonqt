@@ -3,7 +3,7 @@
 (named-readtables:in-readtable :qt)
 
 (defmacro with-qapp (&body body)
-  `(let ((qapp (ensure-qapplication)))
+  `(let ((qapp (make-qapplication)))
      (declare (ignorable qapp))
      ,@body))
 

@@ -46,7 +46,7 @@
     (connect convert "clicked()" instance "convert()")))
 
 (defun main (&optional style)
-  (setf *qapp* (make-qapplication))
+  (make-qapplication)
   (when style
     (#_QApplication::setStyle
      (#_QStyleFactory::create (ecase style
@@ -57,5 +57,5 @@
   (let ((window (make-instance 'my-window)))
     (#_show window)
     (unwind-protect
-	 (#_exec *qapp*)
-      (#_hide window))))
+	 (#_exec *qapplication*)
+      (#_delete window))))

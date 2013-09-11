@@ -39,21 +39,18 @@
 ;;; Second return value is an update array of arguments.
 ;;; For example, "-display" "foo" will have been removed afterwards.
 
-(defun ensure-qapplication (&rest args)
-  (apply #'do-make-qapplication nil args))
+(defvar *qapplication* nil)
 
 (defun make-qapplication (&rest args)
-  (apply #'do-make-qapplication t args))
-
-(defun do-make-qapplication (warn-if-exists &rest args)
-  (ensure-smoke :qtcore)
-  (ensure-smoke :qtgui)
-  (let ((instance (#_QCoreApplication::instance)))
-    (cond ((not (null-qobject-p instance))
-           (when warn-if-exists
-             (warn "QCoreApplication is already instantiated."))
-           instance)
-          (t (%make-qapplication (cons "argv0dummy" args))))))
+  (cond (*qapplication*)
+        (t
+         (ensure-smoke :qtcore)
+         (ensure-smoke :qtgui)
+         (let ((instance (#_QCoreApplication::instance)))
+           (setf *qapplication*
+                 (if (null-qobject-p instance)
+                     (%make-qapplication (cons "argv0dummy" args))
+                     instance))))))
 
 (defun %make-qapplication (args &optional (guip t))
   (unless args
@@ -91,13 +88,6 @@
 (defun describe-metamethods (object)
   (format t "Metaobject for ~A:~%" object)
   (describe-metaobject-methods (qobject-metaobject object)))
-
-(defvar qt-user:*application* nil)
-
-(defun qt-user:application (&rest command-line-args)
-  (or qt-user:*application*
-      (setf qt-user:*application*
-            (apply #'make-qapplication command-line-args))))
 
 (defmacro enable-syntax ()
   `(named-readtables:in-readtable :qt))

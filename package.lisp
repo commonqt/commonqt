@@ -31,7 +31,7 @@
   (:export #:ensure-smoke
            #:qapropos
            #:qdescribe
-           #:ensure-qapplication
+           #:*qapplication*
            #:make-qapplication
            #:interpret-call
            #:interpret-call-without-override
@@ -80,9 +80,3 @@
            #:cast
            #:qobject-deleted)
   (:import-from alexandria named-lambda))
-
-(defpackage :qt-user
-  (:use :cl :qt)
-  (:export #:*application*
-           #:application))
-
