@@ -82,11 +82,9 @@
   `(function * (values t &optional)))
 
 (defun make-optimized (instance
-                       &key instance-resolver args resolver
-                            env)
+                       &key instance-resolver args resolver)
   (flet ((number-of-non-constantp (list)
-           (loop for x in list
-                 count (not (constantp x env)))))
+           (count-if-not #'constantp list)))
     (multiple-value-bind (fix-types args) (parse-optimized-call-args args)
       (let ((argsyms (make-symbols 'arg (length args)))
             (sigsyms (make-symbols 'sig (number-of-non-constantp args)))
@@ -101,27 +99,27 @@
            (declare (type (unsigned-byte 24) ,instance-qclass-sym))
            (let (,@(iter (for arg in args)
                      (for sym in argsyms)
-                     (unless (constantp arg env)
+                     (unless (constantp arg)
                        (collect `(,sym ,arg)))))
              (let* ((types ',fix-types)
                     (args ,(if (zerop (number-of-non-constantp args))
-                               `',args
+                               `',(mapcar #'eval args)
                                `(list*
                                  ,@(loop for (arg . rest) on args
                                          for argsym in argsyms
                                          collect
-                                         (if (constantp arg env)
+                                         (if (constantp arg)
                                              arg
                                              argsym)
                                          if (zerop (number-of-non-constantp rest))
-                                         collect `',rest
+                                         collect `',(mapcar #'eval rest)
                                          and
                                          do (loop-finish)))))
                     (instance ,instance-sym)
                     ,@(loop with sigs = sigsyms
                             for arg in args
                             for argsym in argsyms
-                            unless (constantp arg env)
+                            unless (constantp arg)
                             collect `(,(pop sigs) (signature-type ,argsym))))
                (declare (dynamic-extent args)
                         (optimize (safety 0)))
@@ -133,21 +131,17 @@
                  (declare (type cont-fun fun))
                  (funcall fun ,instance-sym args)))))))))
 
-(defmacro optimized-call (allow-override-p instance method &rest args
-                          &environment env)
+(defmacro optimized-call (allow-override-p instance method &rest args)
   (make-optimized instance
     :instance-resolver #'compile-time-resolve-this
     :args args
-    :resolver `(resolve-call ,allow-override-p instance ,method args types)
-    :env env))
+    :resolver `(resolve-call ,allow-override-p instance ,method args types)))
 
-(defmacro optimized-new (class-or-instance &rest args
-                         &environment env)
+(defmacro optimized-new (class-or-instance &rest args)
   (make-optimized class-or-instance
     :instance-resolver #'compile-time-resolve-ctor-this
     :args args
-    :resolver `(resolve-new instance args types)
-    :env env))
+    :resolver `(resolve-new instance args types)))
 
 (defun resolve-call (allow-override-p instance method args fix-types)
   ;; (format *trace-output* "cache miss for ~A::~A~%" instance method)
