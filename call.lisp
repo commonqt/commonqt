@@ -108,7 +108,8 @@
             (let ((actual-class (or (when (qsubclassp class (find-qclass "QObject"))
                                       (instance-qclass ptr nil))
                                     class)))
-              (make-instance 'qobject :class actual-class :pointer ptr))))))
+              (cache! (make-instance 'qobject :class actual-class
+                                              :pointer ptr)))))))
 
 (defparameter *lisp-types-for-stack-slots*
   '(ptr (or cffi:foreign-pointer string)
