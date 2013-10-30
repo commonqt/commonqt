@@ -139,7 +139,8 @@
                                    (metacall-method-index qt-class)
                                    (cffi:callback deletion-callback)
                                    (cffi:callback dynamic-invocation-callback)
-                                   (cffi:callback metacall-callback)))))
+                                   (cffi:callback metacall-callback)
+                                   (cffi:callback child-callback)))))
 
 (defun ensure-qt-class-caches (qt-class)
   (check-type qt-class qt-class)

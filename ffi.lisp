@@ -70,7 +70,8 @@
   (smoke :pointer)
   (data :pointer)
   (deletion-callback :pointer)
-  (method-callback :pointer))
+  (method-callback :pointer)
+  (child-callback :pointer))
 
 (defcfun "sw_windows_version" :int)
 
@@ -177,7 +178,8 @@
   (metacall-index :short)
   (deletion-callback :pointer)
   (method-callback :pointer)
-  (metacall-callback :pointer))
+  (metacall-callback :pointer)
+  (child-callback :pointer))
 
 (defun qlist-function-name (type-name name)
   (alexandria:symbolicate "SW_QLIST_" (string-upcase type-name) "_" (string-upcase name)))
@@ -321,6 +323,12 @@
   ;; Redefinition of a callback wouldn't affect the existing C++ code,
   ;; redefinition of the function does.
   (%deletion-callback obj))
+
+(defcallback child-callback
+    :void
+    ((obj :pointer)
+     (added :boolean))
+  (%child-callback obj added))
 
 (defcallback method-invocation-callback
     :char

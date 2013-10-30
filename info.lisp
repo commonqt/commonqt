@@ -929,7 +929,8 @@
           (sw_smoke smoke-struct
                     data
                     (cffi:callback deletion-callback)
-                    (cffi:callback method-invocation-callback)))
+                    (cffi:callback method-invocation-callback)
+                    (cffi:callback child-callback)))
         (incf *n-modules*)
         idx))))
 

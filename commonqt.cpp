@@ -17,6 +17,7 @@
 using namespace std;
 
 typedef void (*t_deletion_callback)(void*);
+typedef void (*t_child_callback)(void*, bool);
 typedef bool (*t_callmethod_callback)(void*, short, void*, void*);
 typedef bool (*t_dynamic_callmethod_callback)(void*, short, short, void*, void*);
 typedef bool (*t_metacall_callback)(void*, int, int, void*);
@@ -26,21 +27,34 @@ class Binding : public SmokeBinding
 public:
         Binding(Smoke* s) : SmokeBinding(s) {}
 
+        t_child_callback child_callback;
         t_deletion_callback deletion_callback;
         t_callmethod_callback callmethod_callback;
-
+        
         void deleted(Smoke::Index, void* obj) {
                 deletion_callback(obj);
         }
 
         bool callMethod(Smoke::Index method, void* obj,
-                Smoke::Stack args, bool)
+                        Smoke::Stack args, bool)
         {
 		Smoke::Method* m = &smoke->methods[method];
+                Smoke::Class* c = &smoke->classes[m->classId];
 		const char* name = smoke->methodNames[m->name];
 
 		if (*name == '~')
 			callmethod_callback(smoke, method, obj, args);
+		else if (!strcmp(name, "notify")
+			 && (!strcmp(c->className, "QApplication")
+                             || !strcmp(c->className, "QCoreApplication")))
+		{
+			QEvent* e = (QEvent*) args[2].s_voidp;
+			if (e->type() == QEvent::ChildAdded || e->type() == QEvent::ChildRemoved)
+			{
+				QChildEvent* f = (QChildEvent*) e;
+				child_callback(f->child(), f->added());
+			}
+		}
 
 		return false;
 	}
@@ -62,15 +76,19 @@ public:
         Smoke::ClassFn metacallClassFn;
         short metacallIndex;
 
+        t_child_callback child_callback;
         t_dynamic_callmethod_callback callmethod_callback;
         t_metacall_callback metacall_callback;
 
         int call_metacall(void*, Smoke::Stack);
         
         bool callMethod(Smoke::Index method, void* obj,
-                Smoke::Stack args, bool)
+                        Smoke::Stack args, bool)
         {
-                
+                Smoke::Method* m = &smoke->methods[method];
+                Smoke::Class* c = &smoke->classes[m->classId];
+		const char* name = smoke->methodNames[m->name];
+
                 if (method == metaObjectIndex) {
                         args[0].s_voidp = (void*)metaObject;
                         return true;
@@ -85,9 +103,18 @@ public:
                                                    override_index,
                                                    obj, args);
                 }
-                else {
+                else if (!strcmp(name, "notify")
+			 && (!strcmp(c->className, "QApplication")
+                             || !strcmp(c->className, "QCoreApplication")))
+		{
+			QEvent* e = (QEvent*) args[2].s_voidp;
+			if (e->type() == QEvent::ChildAdded || e->type() == QEvent::ChildRemoved) {
+                                QChildEvent* f = (QChildEvent*) e;
+                                child_callback(f->child(), f->added());
+                        }
                         return false;
-                }
+		}
+                return false;
         }
 };
 
@@ -113,7 +140,8 @@ void
 sw_smoke(Smoke* smoke,
 	 SmokeData* data,
 	 void* deletion_callback,
-	 void* method_callback)
+	 void* method_callback,
+         void* child_callback)
 {
         Binding* binding = new Binding(smoke);
 
@@ -139,11 +167,9 @@ sw_smoke(Smoke* smoke,
         data->ambiguousMethodList = smoke->ambiguousMethodList;
         data->castFn = (void *) smoke->castFn;
 
-	binding->deletion_callback
-		= (t_deletion_callback) deletion_callback;
-
-        binding->callmethod_callback
-                = (t_callmethod_callback) method_callback;
+	binding->deletion_callback = (t_deletion_callback) deletion_callback;
+        binding->callmethod_callback = (t_callmethod_callback) method_callback;
+        binding->child_callback = (t_child_callback) child_callback;
 
         data->binding = binding;
 }
@@ -160,26 +186,23 @@ void* sw_make_dynamic_binding(Smoke* smoke,
                               short metacallIndex,
                               void* deletion_callback,
                               void* method_callback,
-                              void* metacall_callback) {
-        DynamicBinding* dynamicBinding = new DynamicBinding(smoke);
+                              void* metacall_callback,
+                              void* child_callback) {
+        DynamicBinding* binding = new DynamicBinding(smoke);
 
-        dynamicBinding->deletion_callback
-		= (t_deletion_callback) deletion_callback;
+        binding->child_callback = (t_child_callback) child_callback;
+        binding->deletion_callback = (t_deletion_callback) deletion_callback;
+        binding->callmethod_callback = (t_dynamic_callmethod_callback) method_callback;
+        binding->metacall_callback = (t_metacall_callback) metacall_callback;
 
-        dynamicBinding->callmethod_callback
-                = (t_dynamic_callmethod_callback) method_callback;
+        binding->metaObject = metaObject;
+        binding->metaObjectIndex = metaObjectIndex;
 
-        dynamicBinding->metacall_callback
-		= (t_metacall_callback) metacall_callback;
-
-        dynamicBinding->metaObject = metaObject;
-        dynamicBinding->metaObjectIndex = metaObjectIndex;
-
-        dynamicBinding->metacallIndex = metacallIndex;
+        binding->metacallIndex = metacallIndex;
         Smoke::Method* method = smoke->methods + metacallIndex;
-        dynamicBinding->metacallClassFn = smoke->classes[method->classId].classFn;
-        dynamicBinding->metacallMethod = method->method;
-        return dynamicBinding;
+        binding->metacallClassFn = smoke->classes[method->classId].classFn;
+        binding->metacallMethod = method->method;
+        return binding;
 }
 
 int
