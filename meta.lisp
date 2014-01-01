@@ -69,17 +69,20 @@
           (optimized-call nil object dtor)
           (note-deleted object))))))
 
+(defvar *inhibit-caching* nil)
+
 (defun cache! (object)
-  (let ((ptr (qobject-pointer object)))
-    ;; (assert (null (pointer->cached-object ptr)))
-    (setf (pointer->cached-object ptr) object)
-    (assert (qobject-class object))
-    (map-casted-object-pointer
-     (lambda (super-ptr)
-       (unless (cffi:pointer-eq super-ptr ptr)
-         (setf (pointer->cached-object super-ptr) object)))
-     (qobject-class object)
-     ptr))
+  (unless *inhibit-caching*
+    (let ((ptr (qobject-pointer object)))
+      ;; (assert (null (pointer->cached-object ptr)))
+      (setf (pointer->cached-object ptr) object)
+      (assert (qobject-class object))
+      (map-casted-object-pointer
+       (lambda (super-ptr)
+         (unless (cffi:pointer-eq super-ptr ptr)
+           (setf (pointer->cached-object super-ptr) object)))
+       (qobject-class object)
+       ptr)))
   object)
 
 (defun get-slot-or-symbol (qt-class id)

@@ -11,12 +11,21 @@
            (thereis (qtypep value type)))))
     (t nil)))
 
-(defmarshal (value (:|QVariant| :|const QVariant&|)
+(defmarshal (value (:|QVariant|)
              :around cont)
-  (let ((variant (qvariant value)))
-    (unwind-protect
-         (funcall cont variant)
-      (#_delete variant))))
+  (funcall cont
+           (if (qtypep value "QVariant")
+               value
+               (qvariant value))))
+
+(defmarshal (value (:|const QVariant&|)
+             :around cont)
+  (if (qtypep value "QVariant")
+      (funcall cont value)
+      (let ((variant (qvariant value)))
+        (unwind-protect
+             (funcall cont variant)
+          (#_delete variant)))))
 
 ;;; QVariant has conversion methods for classes in QtCore
 ;;; *UNVARIANT-TYPES* lists such classes and types, they can be
@@ -84,16 +93,20 @@
       new-map)))
 
 (defun qvariant (value)
-  (etypecase value
-    (string (#_new QVariant :|const QString&| value))
-    (integer (#_new QVariant :|int| value))
-    ((or single-float double-float) (#_new QVariant :|double| value))
-    (boolean (#_new QVariant :|bool| value))
-    (qobject
-     (iter (for (code . type) in (variant-map))
-       (when (qtypep value type)
-         (return (#_new QVariant code (qobject-pointer value))))
-       (finally (return value))))))
+  ;; Memory managment of QVariants is unclear,
+  ;; in some cases it can be deleted automatically, while not in others.
+  ;; Disable caching, otherwise they will be stuck in the cache forever.
+  (let ((*inhibit-caching* t))
+    (etypecase value
+      (string (#_new QVariant :|const QString&| value))
+      (integer (#_new QVariant :|int| value))
+      ((or single-float double-float) (#_new QVariant :|double| value))
+      (boolean (#_new QVariant :|bool| value))
+      (qobject
+       (iter (for (code . type) in (variant-map))
+         (when (qtypep value type)
+           (return (#_new QVariant code (qobject-pointer value))))
+         (finally (return value)))))))
 
 (defun %unvariant (unvariant-map variant type)
   (let ((function (aref unvariant-map type)))
