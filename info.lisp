@@ -242,6 +242,27 @@
                               (if allow-external 1 0)))))
     (and (plusp index) (bash index <module> +class+))))
 
+(defun map-method-in-class-module (function <class> method-name)
+  (multiple-value-bind (class-id <module>) (unbash* <class> +class+)
+    (let* ((name-ref (%find-name (module-ref 0) method-name))
+           (smoke (data-ref <module>))
+           (methods (data-methods smoke))
+           (nmethods (data-nmethods smoke)))
+      (loop for id below nmethods
+            for start-method = (cffi:mem-aptr methods '(:struct qMethod) id)
+            for start-class = (cffi:foreign-slot-value start-method '(:struct qMethod) 'classid)
+            when (and (eql start-class class-id)
+                      (eql (cffi:foreign-slot-value start-method '(:struct qMethod) 'name) name-ref))
+            do
+            (funcall function (bash id <module> +method+))
+            (loop for next-id from (1+ id) below nmethods
+                  for method = (cffi:mem-aptr methods '(:struct qMethod) next-id)
+                  for class = (cffi:foreign-slot-value method '(:struct qMethod) 'classid)
+                  while (and (eql class class-id)
+                             (eql (cffi:foreign-slot-value method '(:struct qMethod) 'name) name-ref))
+                  do (funcall function (bash next-id <module> +method+)))
+            (loop-finish)))))
+
 (defmacro deflistify (list-name map-name &rest args)
   `(defun ,list-name (,@args)
      (iter

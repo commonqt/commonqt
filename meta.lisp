@@ -92,7 +92,8 @@
 
 (defun inform-cpp-about-override (qclass binding method-name
                                   override-id)
-  (let (once)
+  (let (once
+        (original-module (ldb-module qclass)))
     (flet ((inform (class)
              (map-class-methods-named
               (lambda (<method>)
@@ -100,10 +101,20 @@
                 (sw_override binding
                              (unbash* <method> +method+)
                              override-id))
-              class method-name)))
+              class method-name)
+             (unless (eql original-module (ldb-module class))
+               (map-method-in-class-module
+                (lambda (<method>)
+                  (setf once t)
+                  (sw_override binding
+                               (unbash* <method> +method+)
+                               override-id))
+                (find-qclass-in-module original-module (qclass-name class))
+                method-name))))
       (map-qclass-precedence-list #'inform qclass))
     (unless once
-      (warn "~a has no method named ~s, can't override it." (qclass-name qclass)
+      (warn "~a has no method named ~s, can't override it."
+            (qclass-name qclass)
             method-name))))
 
 (defun inform-cpp-about-overrides (qt-class)
