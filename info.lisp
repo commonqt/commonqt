@@ -244,7 +244,7 @@
 
 (defun map-method-in-class-module (function <class> method-name)
   (multiple-value-bind (class-id <module>) (unbash* <class> +class+)
-    (let* ((name-ref (%find-name (module-ref 0) method-name))
+    (let* ((name-ref (%find-name (module-ref <module>) method-name))
            (smoke (data-ref <module>))
            (methods (data-methods smoke))
            (nmethods (data-nmethods smoke)))
