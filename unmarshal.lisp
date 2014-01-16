@@ -107,19 +107,23 @@
                           #\& #\*)
               (list (format nil "~a&" name))))))
 
-(defmacro def-unmarshal ((var name type) &body body)
+(defmacro def-unmarshal ((var name-or-names type) &body body)
   (let ((function-name
-          (intern (format nil "~a-~a" name 'unmarshaller))))
+          (intern (format nil "~a-~a"
+                          (alexandria:ensure-car name-or-names)
+                          'unmarshaller))))
     `(progn
        (defun ,function-name
            (,var ,type)
          (declare (ignorable ,type))
          ,@body)
        (let ((fdefinition (fdefinition ',function-name)))
-        ,@(loop for name in (unmarshaller-possible-names name)
-                collect
-                `(setf (gethash ,name *static-unmarshallers*)
-                       fdefinition))))))
+        ,@(loop for name in (alexandria:ensure-list name-or-names)
+                append
+                (loop for possible-name in (unmarshaller-possible-names name)
+                      collect
+                      `(setf (gethash ,possible-name *static-unmarshallers*)
+                             fdefinition)))))))
 
 (def-unmarshal (value "char*" type)
   (cffi:foreign-string-to-lisp value))
@@ -130,10 +134,7 @@
 (def-unmarshal (value "bool" type)
   (logbitp 0 value))
 
-(def-unmarshal (value "QString" type)
-  (qstring-pointer-to-lisp value))
-
-(def-unmarshal (value "QString*" type)
+(def-unmarshal (value ("QString" "QString*") type)
   (qstring-pointer-to-lisp value))
 
 (def-unmarshal (value "QThread*" type)

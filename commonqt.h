@@ -81,6 +81,7 @@ EXPORT void sw_qlist_void_append(void*, void*);
   EXPORT void sw_qlist_##NAME##_append(void *ptr, void *whatptr);
 
 DECLARE_QLIST_SCALAR_MARSHALLER(int)
+DECLARE_QLIST_SCALAR_MARSHALLER(papersize)
 DECLARE_QLIST_SCALAR_MARSHALLER(qvariant)
 DECLARE_QLIST_SCALAR_MARSHALLER(qbytearray)
 DECLARE_QLIST_SCALAR_MARSHALLER(qmodelindex)

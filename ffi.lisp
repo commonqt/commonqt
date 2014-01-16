@@ -194,6 +194,7 @@
                     (defcfun ,(func-name "append") :void (qlist :pointer) (var :pointer))))))
   (define-qlist-marshaller-funcs void)
   (define-qlist-marshaller-funcs int)
+  (define-qlist-marshaller-funcs papersize)
   (define-qlist-marshaller-funcs qvariant)
   (define-qlist-marshaller-funcs qbytearray)
   (define-qlist-marshaller-funcs qmodelindex)
