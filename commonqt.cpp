@@ -201,6 +201,22 @@ sw_windows_version()
 // }
 
 void*
+sw_make_qvector_uint(unsigned int *data, int size)
+{
+	QVector<unsigned int>* v = new QVector<unsigned int>(size);
+	for (int i = 0; i < size; i++) {
+		(*v)[i] = data[i];
+	}
+	return v;
+}
+
+void
+sw_delete_qvector_uint(void *v)
+{
+	delete (QVector<unsigned int> *) v;
+}
+
+void*
 sw_make_qbytearray(char* str)
 {
         return new QByteArray(str);

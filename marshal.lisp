@@ -195,3 +195,13 @@
     (unwind-protect
          (funcall cont qbytearray)
       (sw_delete_qbytearray qbytearray))))
+
+(deftype qvector-unsigned-int ()
+  `(simple-array (unsigned-byte 32) (*)))
+
+(defmarshal (value (:|QVector<unsigned int>| :|const QVector<unsigned int>|) :around cont :type qvector-unsigned-int)
+  (cffi:with-pointer-to-vector-data (ptr-value value)
+    (let ((qvector-uint (sw_make_qvector_uint ptr-value (length value))))
+      (unwind-protect
+           (funcall cont qvector-uint)
+        (sw_delete_qvector_uint qvector-uint)))))

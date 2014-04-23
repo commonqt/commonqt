@@ -150,7 +150,10 @@
                                    (qtype-stack-item-slot <type>))))))
             ((type= (qtype-deconstify <type>)
                     (with-cache () (qt::find-qtype "QByteArray")))
-             (typep lisp-object 'string))))))
+             (typep lisp-object 'string))
+            ((or (type= <type> (with-cache () (qt::find-qtype "QVector<unsigned int>")))
+                 (type= <type> (with-cache () (qt::find-qtype "const QVector<unsigned int>"))))
+             (typep lisp-object 'qvector-unsigned-int))))))
 
 (defun find-applicable-method (object name args fix-types)
   (qclass-find-applicable-method (if (integerp object)

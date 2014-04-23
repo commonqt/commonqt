@@ -74,6 +74,13 @@
 
 (defcfun "sw_windows_version" :int)
 
+(defcfun "sw_make_qvector_uint" :pointer
+  (uint-data :pointer)
+  (size :int))
+
+(defcfun "sw_delete_qvector_uint" :void
+  (qvector-uint :pointer))
+
 (defcfun "sw_make_qbytearray" :pointer
   (str :string))
 
