@@ -33,8 +33,6 @@
       (class-binding (class-of instance))
       (data-binding (data-ref (ldb-module (qmethod-class method))))))
 
-;; old-style NEW usage for INITIALIZE-INSTANCE methods kept around for
-;; compatibility.
 (defmacro new (instance &rest args)
   `(optimized-new ,instance ,@args))
 
