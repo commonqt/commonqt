@@ -78,5 +78,6 @@
            #:stop-overriding
            #:cast
            #:qobject-deleted
-           #:with-main-window)
+           #:with-main-window
+           #:enum-equal)
   (:import-from alexandria named-lambda))

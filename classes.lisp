@@ -88,8 +88,23 @@
             (enum-value instance))))
 
 (defun enum= (a b)
+  "Compare two enums, to be equal they have to have the same type
+and the same numerical value."
   (and (eq (enum-type-name a) (enum-type-name b))
        (eql (enum-value a) (enum-value b))))
+
+(defun enum-equal (a b)
+  "Compare an enum with another enum or an integer,
+the type of enums is not considered."
+  (flet ((ensure-enum-value (x)
+           (etypecase x
+             (integer
+              x)
+             (enum
+              (enum-value x)))))
+    (declare (inline ensure-enum-value))
+    (eql (ensure-enum-value a)
+         (ensure-enum-value b))))
 
 (defun enum-or (&rest enums)
   (reduce #'logior enums
