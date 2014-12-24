@@ -133,11 +133,12 @@
   ;; handcode instead:
   (let* ((nbytes (cffi::foreign-string-length data :encoding :utf-16))
          (res (make-string (truncate nbytes 2))))
-    (iter (for i from 0 by 2 below nbytes)
-          (for j from 0)
-          (let ((code (cffi:mem-ref data :unsigned-short i)))
-            (until (zerop code))
-            (setf (char res j) (code-char code))))
+    (declare (fixnum nbytes))
+    (loop for i by 2 below nbytes
+          for j fixnum from 0
+          for code = (cffi:mem-ref data :unsigned-short i)
+          until (zerop code)
+          do (setf (char res j) (code-char code)))
     res))
 
 (defun qstring-pointer-to-lisp (raw-ptr)

@@ -36,6 +36,28 @@
   (setf (gethash (cffi:pointer-address ptr) *cached-objects*)
         newval))
 
+(defun map-qclass-precedence-list (fun class)
+  (labels ((recurse (c)
+             (funcall fun c)
+             (map-qclass-direct-superclasses #'recurse c)))
+    (recurse class)))
+
+(declaim (inline map-casted-object-pointer))
+(defun map-casted-object-pointer (fun <class> pointer)
+  "Cast an object to each of its superclasses and call a function on
+   the resulting pointer"
+  (labels ((recurse (pointer <from> <to>)
+             (let ((casted (%cast pointer <from> <to>)))
+               (funcall fun casted)
+               (map-qclass-direct-superclasses
+                (lambda (<super>)
+                  (recurse casted <to> <super>))
+                <to>))))
+    (map-qclass-direct-superclasses
+     (lambda (<super>)
+       (recurse pointer <class> <super>))
+     <class>)))
+
 (defmacro with-callback-restart (&body body)
   `(restart-case
        (progn ,@body)
@@ -287,28 +309,6 @@
   (if clauses
       `(%with-object ,(car clauses) (with-objects ,(rest clauses) ,@body))
       `(progn ,@body)))
-
-(defun map-qclass-precedence-list (fun class)
-  (labels ((recurse (c)
-             (funcall fun c)
-             (map-qclass-direct-superclasses #'recurse c)))
-    (recurse class)))
-
-(declaim (inline map-casted-object-pointer))
-(defun map-casted-object-pointer (fun <class> pointer)
-  "Cast an object to each of its superclasses and call a function on
-   the resulting pointer"
-  (labels ((recurse (pointer <from> <to>)
-             (let ((casted (%cast pointer <from> <to>)))
-               (funcall fun casted)
-               (map-qclass-direct-superclasses
-                (lambda (<super>)
-                  (recurse casted <to> <super>))
-                <to>))))
-    (map-qclass-direct-superclasses
-     (lambda (<super>)
-       (recurse pointer <class> <super>))
-     <class>)))
 
 (defun cast (class object)
   (let* ((qclass (if (integerp class)

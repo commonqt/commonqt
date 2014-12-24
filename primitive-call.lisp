@@ -141,6 +141,31 @@
     :args args
     :resolver `(resolve-new instance args types)))
 
+(declaim (inline call-class-fun))
+(defun call-class-fun (function method-index object stack)
+  (with-fp-traps-masked
+    (cffi:foreign-funcall-pointer
+     function
+     ()
+     :short method-index
+     :pointer object
+     :pointer stack
+     :void)))
+
+(declaim (inline %%call))
+(defun %%call (casted-instance-pointer
+               args
+               arglist-marshaller
+               classfn
+               method-index
+               return-value-function)
+  (funcall arglist-marshaller
+           args
+           (lambda (stack)
+             (call-class-fun classfn method-index casted-instance-pointer
+                             stack)
+             (funcall return-value-function stack))))
+
 (defun resolve-call (allow-override-p instance method args fix-types)
   ;; (format *trace-output* "cache miss for ~A::~A~%" instance method)
   (let ((name method)
@@ -319,31 +344,6 @@
                 qclass
                 :instance)))
     (t `(full-resolve-ctor-this ,instance))))
-
-(declaim (inline call-class-fun))
-(defun call-class-fun (function method-index object stack)
-  (with-fp-traps-masked
-    (cffi:foreign-funcall-pointer
-     function
-     ()
-     :short method-index
-     :pointer object
-     :pointer stack
-     :void)))
-
-(declaim (inline %%call))
-(defun %%call (casted-instance-pointer
-               args
-               arglist-marshaller
-               classfn
-               method-index
-               return-value-function)
-  (funcall arglist-marshaller
-           args
-           (lambda (stack)
-             (call-class-fun classfn method-index casted-instance-pointer
-                             stack)
-             (funcall return-value-function stack))))
 
 (defun argstep-marshaller (for-values argtypes i)
   (if argtypes
