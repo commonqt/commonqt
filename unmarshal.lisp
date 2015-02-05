@@ -148,3 +148,10 @@
 
 (def-unmarshal (value "int&" type)
   (cffi:mem-ref value :int))
+
+(def-unmarshal (value "QVector<unsigned int>" type)
+  (let ((array (make-array (sw_qvector_uint_length value) :element-type '(unsigned-byte 32))))
+    (check-type array qvector-unsigned-int)
+    (cffi:with-pointer-to-vector-data (ptr-array array)
+      (sw_copy_qvector_uint value ptr-array (length array)))
+    array))

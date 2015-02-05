@@ -45,6 +45,8 @@ EXPORT void* sw_make_dynamic_binding(Smoke*, QMetaObject*, short, short,
 
 EXPORT void* sw_make_qvector_uint(unsigned int *, int);
 EXPORT void sw_delete_qvector_uint(void *);
+EXPORT int sw_qvector_uint_length(void *v);
+EXPORT void sw_copy_qvector_uint(void *, unsigned int *, int);
 EXPORT void* sw_make_qbytearray(char *);
 EXPORT void sw_delete_qbytearray(void *q);
 EXPORT void* sw_make_qstring(char *);

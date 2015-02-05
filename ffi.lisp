@@ -81,6 +81,14 @@
 (defcfun "sw_delete_qvector_uint" :void
   (qvector-uint :pointer))
 
+(defcfun "sw_qvector_uint_length" :int
+  (qvector-uint :pointer))
+
+(defcfun "sw_copy_qvector_uint" :void
+  (qvector-uint :pointer)
+  (uint-data :pointer)
+  (size :int))
+
 (defcfun "sw_make_qbytearray" :pointer
   (str :string))
 

@@ -216,6 +216,23 @@ sw_delete_qvector_uint(void *v)
 	delete (QVector<unsigned int> *) v;
 }
 
+int
+sw_qvector_uint_length(void *v)
+{
+        QVector<unsigned int> *ptr = (QVector<unsigned int> *)v;
+        return ptr->size();
+}
+
+void
+sw_copy_qvector_uint(void *v, unsigned int *data, int data_length)
+{
+        QVector<unsigned int> *ptr = (QVector<unsigned int> *)v;
+        int length = min(ptr->size(), data_length);
+        for (int i = 0; i < length; i++) {
+                data[i] = (*ptr)[i];
+        }
+}
+
 void*
 sw_make_qbytearray(char* str)
 {
