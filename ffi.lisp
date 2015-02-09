@@ -44,12 +44,16 @@
   #+(and sbcl (not windows))
   (sb-sys:enable-interrupt sb-unix:sigchld :default)
   (cffi:load-foreign-library
-   #+windows "commonqt.dll" ;; just assume it's in $PATH
-   #-windows
-   (namestring (make-pathname :name "libcommonqt"
-                              :type #+darwin "dylib" #-darwin "so"
-                              :defaults (asdf::component-relative-pathname
-                                         (asdf:find-system :qt)))))
+   (let ((lib (make-pathname :name #-windows "libcommonqt"
+                                   #+windows "commonqt"
+                             :type #+darwin "dylib"
+                                   #+windows "dll"
+                                   #-(or darwin windows) "so"
+                             :defaults #.(or *compile-file-truename*
+                                             *load-truename*))))
+     (if (probe-file lib)
+         (namestring lib)
+         (file-namestring lib))))
   (setf *library-loaded-p* t))
 
 #-(or ccl
