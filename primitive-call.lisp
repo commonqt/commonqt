@@ -228,9 +228,14 @@
 (defun resolve-new (instance args &optional fix-types)
   ;; (format *trace-output* "cache miss for #_new ~A~%" instance)
   (let* ((class (qobject-class instance))
+         (class-name (qclass-name class))
+         (constructor (let ((colonpos (position #\: class-name :from-end T)))
+                        (if colonpos
+                            (subseq class-name (1+ colonpos))
+                            class-name)))
          (method
            (qclass-find-applicable-method class
-                                          (qclass-name class)
+                                          constructor
                                           args
                                           fix-types)))
     (unless method
