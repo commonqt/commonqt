@@ -229,10 +229,12 @@
   ;; (format *trace-output* "cache miss for #_new ~A~%" instance)
   (let* ((class (qobject-class instance))
          (class-name (qclass-name class))
-         (constructor (let ((colonpos (position #\: class-name :from-end T)))
-                        (if colonpos
-                            (subseq class-name (1+ colonpos))
-                            class-name)))
+         (colon (position #\: class-name :from-end t))
+         ;; KLUDGE: Some classes have constructors without namespace prefix
+         ;; e.g. Phonon does that. Might be smoke's fault.
+         (constructor (if colon
+                          (subseq class-name (1+ colon))
+                          class-name))
          (method
            (qclass-find-applicable-method class
                                           constructor
