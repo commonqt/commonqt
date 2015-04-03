@@ -52,7 +52,7 @@
   (when (find-package :qt)
     (set (find-symbol (symbol-name '*loaded*) :qt) nil))
   (unless (zerop (run-shell-command
-                  "qmake ~A~S -o ~S"
+                  "$(hash qmake-qt4 2>/dev/null && echo \"qmake-qt4\" || echo \"qmake\") ~A~S -o ~S"
                   #+darwin "-spec macx-g++ " #-darwin ""
                   (namestring (component-pathname c))
                   (namestring (output-file o c))))
