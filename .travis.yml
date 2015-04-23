@@ -19,4 +19,4 @@ script:
                    (uiop:quit -1)))'
        -e '(ql:quickload :qt)'
        -e '(ql:quickload :qt-test)'
-       -e '(rt:run-tests)'
+       -e '(rt:do-tests)'
