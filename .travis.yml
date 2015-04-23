@@ -16,4 +16,4 @@ script:
                  (lambda (c h)
                    (declare (ignore c h))
                    (uiop:quit -1)))'
-       -e '(ql:quickload :commonqt)'
+       -e '(ql:quickload :qt)'
