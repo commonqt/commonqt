@@ -8,6 +8,8 @@ env:
 install:
   # Install cl-travis
   - curl https://raw.githubusercontent.com/luismbo/cl-travis/master/install.sh | bash
+  # Install Qt dependencies
+  - sudo apt-get install libqt4-dev libsmokeqtgui4-3 libsmokeqt4-dev
 
 script:
   - cl -e '(setf *debugger-hook*
