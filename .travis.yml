@@ -18,3 +18,5 @@ script:
                    (declare (ignore c h))
                    (uiop:quit -1)))'
        -e '(ql:quickload :qt)'
+       -e '(ql:quickload :qt-test)'
+       -e '(rt:run-tests)'
