@@ -56,12 +56,7 @@
          (file-namestring lib))))
   (setf *library-loaded-p* t))
 
-#-(or ccl
-      (and sbcl
-           ;; On SBCL/win32, :LINKAGE-TABLE is on *FEATURES*, but that's
-           ;; a lie, it can't actually process FFI definitions before
-           ;; the library has been loaded.
-           (and linkage-table (not windows))))
+#-(or ccl (and sbcl linkage-table))
 (load-libcommonqt)
 
 (defmacro defcfun (name ret &rest args)
