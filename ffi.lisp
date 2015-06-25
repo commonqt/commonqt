@@ -56,7 +56,7 @@
          (file-namestring lib))))
   (setf *library-loaded-p* t))
 
-#-(or ccl (and sbcl linkage-table))
+#-(or ecl ccl (and sbcl linkage-table))
 (load-libcommonqt)
 
 (defmacro defcfun (name ret &rest args)
