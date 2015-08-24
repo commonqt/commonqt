@@ -133,8 +133,7 @@
               (make-instance 'qobject :class actual-class :pointer ptr))))))
 
 (defparameter *lisp-types-for-stack-slots*
-  '(ptr (or cffi:foreign-pointer string)
-    bool t
+  '(bool t
     enum (or (unsigned-byte 32) enum)
     uint (or (unsigned-byte 32) enum)
     int (or (signed-byte 32) enum)
@@ -164,7 +163,14 @@
                (and element-type
                     (alexandria:proper-list-p lisp-object)
                     (iter (for item in lisp-object)
-                          (always (can-marshal-p item element-type))))))
+                      (always (can-marshal-p item element-type))))))
+            ((eq slot 'ptr)
+             (or (typep lisp-object 'cffi:foreign-pointer)
+                 (let* ((name (qtype-interned-name <type>))
+                        (type (car (or (get name 'marshaller/primary)
+                                       (get name 'marshaller/around)))))
+                   (and type
+                        (typep lisp-object type)))))
             ((and (not (eq slot 'class))
                   (typep lisp-object
                          (or (getf *lisp-types-for-stack-slots* slot)
