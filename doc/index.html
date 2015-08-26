@@ -1,0 +1,492 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<title>CommonQt</title>
+<link rel="stylesheet" type="text/css" href="index.css">
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+</head>
+<body>
+<div class="sidebar">
+<div class="sidebar-title">
+	Contents
+      </div>
+<div class="sidebar-main"><ul class="main">
+<li><a href="#id104851">Download</a></li>
+<li><a href="#support">Support</a></li>
+<li><a href="#cpp-dependecies">Dependencies (C++)</a></li>
+<li><a href="#id105880">Dependencies (Lisp)</a></li>
+<li><a href="#id105941">Installation</a></li>
+
+<li><a href="#id106003">Examples</a></li>
+<li><a href="#id106173">QApplication</a></li>
+<li><a href="#main-window">Creating a main window</a></li>
+<li><a href="#loading-modules">Loading Modules</a></li>
+<li><a href="#id106043">Calling instance methods</a></li>
+<li><a href="#id106091">Calling static methods</a></li>
+<li><a href="#id106105">Instantiating Qt classes</a></li>
+<li><a href="#id106138">Connecting signals and slots</a></li>
+<li><a href="#id106214">Subclassing C++ classes</a></li>
+<li><a href="#id106256">Overriding C++ methods</a></li>
+<li><a href="#id106285">Defining signals and slots</a></li>
+<li><a href="#id106319">QAPROPOS</a></li>
+<li><a href="#id106343">QDESCRIBE for classes</a></li>
+<li><a href="#id106381">QDESCRIBE for methods</a></li>
+<li><a href="#id106402">QDESCRIBE for objects</a></li>
+<li><a href="#known-issues"><strong>Known issues</strong></a></li>
+</ul></div>
+</div>
+<div id="header"><div style="margin-left: 30px"><b><span style="color: #007700">CommonQt</span></b></div></div>
+<div id="homepage" class="main">
+  <p>
+    CommonQt is a Common Lisp binding to the smoke library for Qt.
+  </p>
+
+  <toc></toc>
+
+  <h3>Download<a name="id104851"></a>
+</h3>
+  <p>
+    Get it from git:
+  </p>
+  <pre class="example">git clone git://github.com/commonqt/commonqt.git</pre>
+  Github page: <a href="https://github.com/commonqt/commonqt">https://github.com/commonqt/commonqt</a>.
+  <br/>
+  Mirror: <a href="https://gitlab.common-lisp.net/commonqt/commonqt">https://gitlab.common-lisp.net/commonqt/commonqt</a>.
+    <h3>Support<a name="support"></a></h3>
+    Mailing list: <a href="https://mailman.common-lisp.net/listinfo/commonqt-devel">commonqt-devel@common-lisp.net</a>.
+    <br/>
+    Reporting bugs: <a href="https://github.com/commonqt/commonqt/issues">https://github.com/commonqt/commonqt/issues</a>.
+  <h3>Dependencies (C++)<a name="cpp-dependecies"></a>
+</h3>
+  <p>The easiest way to get all the C++ dependencies is to use a third party project <a href="https://github.com/Shinmera/qt-libs">qt-libs</a>, which ensures all the neccesary libraries are present. It is especially useful on Windows, where it doesn't require anything extra to be installed, (ql:quickload :qt-libs) is enough. For more details see the <a href="https://github.com/Shinmera/qt-libs#about-qt-libs-">README</a>.
+  <p>
+    CommonQt needs:
+  </p>
+  <ul>
+    <li>Qt libraries (tested with 4.8), QT5 is <b>not</b> yet supported.</li>
+    <li>
+      The smoke library for Qt, provided by the KDE bindings project
+      (but KDE itself is not required).
+      <br/>
+      Can be built from from git: <a href="https://projects.kde.org/projects/kde/kdebindings/smoke/smokegen/repository">smokegen</a> first, and then <a href="https://projects.kde.org/projects/kde/kdebindings/smoke/smokeqt/repository">smokeqt</a>.
+      <br/>
+      On Debian testing and Ubuntu:
+      <pre>sudo apt-get install libqt4-dev libsmokeqtgui4-3 libsmokeqt4-dev</pre>
+      On Fedora, the following packages are to be installed:
+     <pre>qt-devel smokeqt-devel</pre>
+    </li>
+    </ul>
+    <h4>Windows</h4>
+    
+    <ul>
+    <li>
+      <a href="http://download.qt-project.org/official_releases/qt/4.8/4.8.5/qt-win-opensource-4.8.5-vs2010.exe">
+	Qt libraries 4.8.5 for Windows (VS 2010, 235 MB)</a>
+    </li>
+    <li>
+      Prebuilt 32-bit binaries: <a href="commonqt-libs-20131109.zip">commonqt-libs-20131109.zip (2 MB)</a>.
+    </li>
+    <li>
+      Both libraries and the /bin/ directory of Qt should be accessible through PATH. 
+    </li>
+    <li>
+      To build from source, Visual Studio is needed (Visual Studio Express is also suitable).
+    </li>
+  </ul>
+
+  <h3>Dependencies (Lisp)<a name="id105880"></a>
+</h3>
+  <p>
+    CommonQt is mostly tested with SBCL and Clozure CL. It have been reported to run on Allegro and LispWorks in the past. And also can run on ABCL and ECL, albeit slower than desired.
+  </p>
+  <h3>Installation<a name="id105941"></a></h3>
+  <p>
+    <a href="http://www.quicklisp.org/beta/">Quicklisp</a> is the preferred way to install commonqt:
+    <pre>(ql:quickload :qt)</pre> 
+
+  <p>
+    The ASDF system runs <tt>make</tt> for you automatically to build
+    the C++ wrapper library <tt>libcommonqt.so</tt> (except on Windows).
+  </p>
+  <p>
+    If loading fails during compilation of libcommonqt.so with something like
+    <pre>OPERATION-ERROR while invoking #&lt;COMPILE-OP &gt; on
+#&lt;CPP-&gt;SO "qt" "so" "commonqt"&gt;</pre>
+    or
+<pre>
+OPERATION-ERROR while invoking  #&lt;COMPILE-OP &gt; on
+#&lt;MAKEFILE "qt" "so" "commonqt.pro"&gt;
+      </pre>
+    run <tt>qmake</tt> followed by <tt>make</tt> inside the source directory for troubleshooting.
+<p>
+To find where the source directory is located use
+<pre>(asdf:system-source-directory 'qt)</pre>
+</p>
+  </p>
+  <p>
+    (On Windows, run <tt>qmake</tt> followed by <tt>vcbuild</tt>.)
+  </p>
+
+  <h3>Examples<a name="id106003"></a> </h3>
+  <ul>
+    <li>
+      Lisp translations of the
+      <a href="http://doc.qt.digia.com/4.3/tutorial.html">Qt
+	tutorial</a>, step 14:
+      <a href="http://doc.qt.digia.com/4.3/tutorial-t14.html">
+	C++ version</a>,
+      <a href="http://gitorious.org/commonqt/commonqt/blobs/master/tutorial/t14.lisp">
+	Lisp version</a>
+    </li>
+    <li>
+      Trivial
+      <a href="http://gitorious.org/commonqt/commonqt/blobs/master/tutorial/conv.lisp">
+	currency conversion dialog</a>
+      (a typical Mac GUI programming example, I'm told)
+    </li>
+  </ul>
+
+  <h3>QApplication<a name="id106173"></a> </h3>
+  <p>
+    The constructor for <tt>QApplication</tt> requires more FFI magic
+    than you would probably want to write yourself, because it is
+    designed to take the <tt>(int* argc, void** argc)</tt> arguments
+    from a <tt>main</tt> function in C.
+  </p>
+  <p>
+    Use the <tt>make-qapplication</tt> function provided by Qt
+    instead, which takes string arguments and converts
+    them. QApplication can be instantiated only once, therefore
+    make-qapplication sets *qapplication* variable to the produced
+    instance, and only creates a new one if *qapplication* is NIL.
+  </p>
+  <p>
+    Examples:
+  </p>
+  <pre class="example">(make-qapplication)</pre>
+  <pre class="example">(make-qapplication "-display" ":0")</pre>
+  <p>
+  </p>
+  
+  <h3>Creating a main window<a name="main-window"></a></h3>
+  with-main-window macro can be used as an entry point of a program:
+  <p>
+  (with-main-window (window (#_new QWidget)))
+  </p>
+  is equivalent to doing
+  <pre class="example">
+
+(make-qapplication)
+(with-objects ((window (#_new QWidget)))
+  (#_show window)
+  (#_exec *qapplication*))
+  </pre>
+  After closing the window it can be executed again.
+  <h3>Loading Modules<a name="loading-modules"></a> </h3>
+  <p>
+    Loading additional modules is done using <tt>ensure-smoke</tt>,
+    (make-qapplication) already loads QtCore and QtGui, anything else
+    has to be loaded explicitly, e.g., <tt>(ensure-smoke :qtsvg)</tt>.
+  </p>
+  <h3>Calling instance methods<a name="id106043"></a>
+</h3>
+  <p>
+    Use the <tt>#_</tt> reader macro to invoke Qt methods easily.
+  </p>
+  <p>
+    Example:
+  </p>
+  <pre class="example">(#_setGeometry window 100 100 500 355)</pre>
+  <pre class="example">(#_show window)</pre>
+  <p>
+    The first argument is the instance to call the method on, the
+    following arguments are passed on to the method.
+  </p>
+  <p>
+    Method names are case sensitive.
+  </p>
+  <p>
+    To enable the reader macro, use <tt>(named-readtables:in-readtable :qt)</tt> at the top
+    of your file.
+  </p>
+
+  <h3>Calling static methods<a name="id106091"></a>
+</h3>
+  <p>
+    Static methods:
+  </p>
+  <p>
+    Example:
+  </p>
+  <pre class="example">(#_Qt::blue)</pre>
+
+  <h3>Instantiating Qt classes<a name="id106105"></a>
+</h3>
+  <p>
+    The reader macro for <tt>#_</tt> has a special case: If it is
+    followed by <tt>new</tt>, it keeps reading to find a class name,
+    then returns a call to a constructor instead.
+  </p>
+  <p>
+    Example:
+  </p>
+  <pre class="example">(#_new QPushButton "Quit")</pre>
+  <p>
+    Class names are case-sensitive.
+  </p>
+  <p>
+    In this case, the macro expands into a use of the <tt>qt:new</tt>
+    function.
+  </p>
+
+  <h3>Connecting signals and slots<a name="id106138"></a>
+</h3>
+  <p>
+    The function CONNECT is used to connect signals and slots in different ways:
+    <ul>
+      <li>(connect sender "signal()" receiver "slot()")</li>
+      <li>(connect sender "signal(int)" (lambda (int) (print int)))</li>
+      <li>(connect sender "signal(int)" receiver (lambda (receiver int) (print int)))</li>
+      <li>(connect sender "signal()" receiver (qsignal "signal()"))</li>
+      </ul>
+  with-signals-blocked macro is used to block the signals emitted by objects
+  to improve performance or avoid endless recursion:
+    <pre class="example">
+(with-signals-blocked (button linedit)
+  ...)
+    </pre>
+  <h3>Subclassing C++ classes<a name="id106214"></a>
+</h3>
+  <p>
+    You can make "subclasses" using smoke like this:
+  </p>
+  <pre class="example">
+(defclass button ()
+    ()
+  (:metaclass qt-class)
+  (:qt-superclass "QPushButton"))
+
+(defmethod initialize-instance :after ((instance button))
+
+  ;; Must call the C++ constructor here first:
+  (new instance "label")
+
+  ;; can call C++ methods on this lisp object afterwards:
+  (connect instance "clicked()" *qapplication* "quit()")
+</pre>
+  <p>
+    Always specify the metaclass.  Specify the <tt>qt-superclass</tt>
+    only when not subclassing another such Lisp class that already has
+    it.  Above we didn't specify a superclass, so it was defaulted to
+    <tt>qt:dynamic-object</tt>, a subclass of <tt>qt:qobject</tt>.
+  </p>
+  <p>
+    Always call the C++ constructor from <tt>initialize-instance</tt>.
+    Note the use of <tt>qt:new</tt> with an existing instance that
+    already knows its class (but doesn't have a pointer slot yet).
+  </p>
+
+  <h3>Overriding C++ methods<a name="id106256"></a>
+</h3>
+  <p>
+    In a subclass (see the example above), you can override C++ methods
+    like this:
+  </p>
+  <pre class="example">
+(defclass canvas ()
+    ()
+  (:metaclass qt-class)
+  (:qt-superclass "QWidget")
+  (:override ("paintEvent" paint-event)))
+
+(defmethod paint-event ((this canvas) paint-event)
+  (declare (ignore paint-event))
+  (let ((painter (#_new QPainter this)))
+    ... paint something ...
+    (#_end painter)))
+  </pre>
+  <p>
+    To call the C++ method in an overridden method,
+    either <tt>call-next-qmethod</tt> can be used, when the return
+    value is needed, or <tt>stop-overriding</tt> can be used, which
+    performs a non local transfer of control and never returns, but is
+    implemented more efficiently.
+
+  </p>
+  <p>
+    Note that we always intercept all methods of the specified name,
+    ignoring their argument type signature.  In this case, there's only
+    one method called paintEvent, so that is safe to do.  If there was a
+    second paintEvent method without arguments, you'd have to use
+    &amp;optional or &amp;rest to avoid errors.
+  </p>
+
+  <h3>Defining signals and slots<a name="id106285"></a>
+</h3>
+  <p>
+    In a subclass (see the example above), you can add signals and slots.
+    Here is a real example from tutorial 13:
+  </p>
+  <pre class="example">
+(defclass cannon-field ()
+    (...)
+  (:metaclass qt-class)
+  (:qt-superclass "QWidget")
+  (:slots ("setAngle(int)" (lambda (this newval)
+                             (setf (current-angle this)
+                                   (min (max 5 newval) 70))))
+          ("setForce(int)" (lambda (this newval)
+                             (setf (current-force this)
+                                   (max 0 newval))))
+          ("void moveShot()" move-shot)
+          ("void shoot()" shoot)
+          ("void setGameOver()" set-game-over)
+          ("void restartGame()" restart-game))
+  (:signals ("angleChanged(int)")
+            ("forceChanged(int)")
+            ("void hit()")
+            ("void missed()")
+            ("void canShoot(bool)")))
+</pre>
+  <p>
+    Note the use of <tt>lambda</tt> to pre-process values and swap
+    arguments in slots that are meant to just call a CLOS accessor
+    eventually, and the use of lisp function names elsewhere.
+  </p>
+  <p>
+    Signals don't have a corresponding Lisp function.  Emit them like this:
+    <tt>(emit-signal object signal-name arguments)</tt>
+  </p>
+  
+  <h3>QAPROPOS<a name="id106319"></a>
+</h3>
+  <p>
+    There a function <tt>qapropos</tt> similar in spirit
+    to <tt>apropos</tt> which looks for Qt classes and methods.
+  </p>
+  <p>
+    Example:
+  </p>
+  <pre class="example">
+QT-USER&gt; (qapropos "sliderposition")
+Method QAbstractSlider::setSliderPosition [660]
+Method QAbstractSlider::sliderPosition [661]
+Method QStyle::sliderPositionFromValue [14984]
+Method QStyle::sliderPositionFromValue [14985]
+Method QStyleOptionSlider::sliderPosition [15351]
+Method QStyleOptionSlider::setSliderPosition [15364]
+  </pre>
+
+  <h3>QDESCRIBE for classes<a name="id106343"></a>
+</h3>
+  <p>
+    There a function <tt>qdescribe</tt> similar in spirit
+    to <tt>describe</tt>.
+  </p>
+  <p>
+    Example for a class name:
+  </p>
+  <pre class="example">
+QT-USER&gt; (qdescribe "QPushButton")
+#&lt;QCLASS QPushButton&gt; is a smoke class
+
+    name: QPushButton
+    flags: VIRTUAL, CONSTRUCTOR
+
+Superclasses:
+    QAbstractButton
+        QWidget
+            QObject
+            QPaintDevice
+
+Methods:
+    paintEvent#               QPushButton::paintEvent [12423]
+    minimumSizeHint           QPushButton::minimumSizeHint [12409]
+    metaObject                QPushButton::metaObject [12399]
+    menu                      QPushButton::menu [12415]
+
+    <i>[long list trimmed here]</i>
+
+    QPushButton               QPushButton::QPushButton [12402]
+
+Use (QDESCRIBE "QPushButton" T) to see inherited methods.
+
+Properties:
+    bool autoDefault                    
+    bool default                        
+    bool flat                           
+
+Use (QDESCRIBE "QPushButton" T) to see inherited properties.
+  </pre>
+
+  <h3>QDESCRIBE for methods<a name="id106381"></a>
+</h3>
+  <p>
+    <tt>qdescribe</tt> can also show methods, if used with a string
+    of the form classname.methodname:
+  </p>
+  <pre class="example">
+QT-USER&gt; (qdescribe "QPushButton::paintEvent")
+#&lt;QMETHOD QPushButton::paintEvent&gt; is a smoke method
+    class: #&lt;QCLASS QPushButton&gt;
+    name: paintEvent
+    return type: NIL
+    flags: PROTECTED
+  argument types:
+    #&lt;QTYPE (QPaintEvent*) kind: POINTER, stack: CLASS, class: #&lt;QCLASS QPaintEvent&gt;&gt;
+  </pre>
+  <p>
+    If there are several methods of that name, it shows each method with
+    its arguments.
+  </p>
+
+  <h3>QDESCRIBE for objects<a name="id106402"></a>
+</h3>
+  <p>
+    <tt>qdescribe</tt> on Qt objects can show their property values at
+    run time:
+  </p>
+  <pre class="example">
+QT-USER&gt; (qdescribe (#_new QPushButton "test"))
+#&lt;QPushButton 0x27A654D0&gt; is a smoke object.
+
+Use (QDESCRIBE "QPushButton") to see details about its C++ class.
+
+Properties:
+    QString objectName                  ""
+    bool modal                          NIL
+    Qt::WindowModality windowModality   #&lt;QVariant 0x27A65100&gt;
+    bool enabled                        T
+    QRect geometry                      #&lt;QRect 0x27443860&gt;
+    QRect frameGeometry                 #&lt;QRect 0x27A66E20&gt;
+    QRect normalGeometry                #&lt;QRect 0x27A63540&gt;
+    int x                               0
+    int y                               0
+    QString text                        "test"
+
+    <i>[long list trimmed here]</i>
+  </pre>
+  <p>
+    If there are several methods of that name, it shows each method with
+    its arguments.
+  </p>
+  <h3>Known issues<a name="known-issues"></a></h3>
+  <h4>Callbacks from threads</h4>
+  <p>Older versions of SBCL had problems with callbacks from foreign threads, e.g. QFileDialog uses them. But since 1.2.9 it works as expected.</p>
+  <h4>Slime on Windows</h4>
+<p>
+      Running from Slime under Windows doesn't appear to work. Specifically, if the implementation is started as the subprocess of Emacs.
+  To work around  the following has to be executed first:
+  <pre class="example">(with-main-window (window (#_new QWidget)) (#_show window) (#_hide window))</pre>
+  All subsequent windows do not need this and everything else should work normally.
+</p>
+<p>
+Another work around, the implementation has to be started from cmd.exe, the swank server created and then Emacs can connect to it. An easy way to achieve that is to find the file start-swank.lisp in the slime directory and do
+<p>
+sbcl --load start-swank.lisp
+</p>
+And then do M-x slime-connect. start-swank.lisp can be edited to change the port and other settings.
+</p>
+</div>
+</body>
+</html>
