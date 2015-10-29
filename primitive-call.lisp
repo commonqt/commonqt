@@ -210,8 +210,16 @@
              (let ((cont
                      (if precompiled-override
                          (lambda (actual-instance args)
-                           (override precompiled-override
-                                     actual-instance method args))
+                           (block nil
+                             (catch 'stop-overriding-tag
+                               (return (override precompiled-override
+                                                 actual-instance method args)))
+                             (%%call (perform-cast actual-instance castfn <from> <to>)
+                                     args
+                                     arglist-marshaller
+                                     classfn
+                                     method-index
+                                     return-value-function)))
                          (lambda (actual-instance args)
                            (%%call (perform-cast actual-instance castfn <from> <to>)
                                    args
