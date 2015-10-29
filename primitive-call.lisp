@@ -205,7 +205,7 @@
                    return-value-function)))
         (t
          (let ((<from> (qobject-class instance)))
-           (multiple-value-bind (castfn <to>)
+           (multiple-value-bind (castfn <from> <to>)
                (resolve-cast <from> (qmethod-class method))
              (let ((cont
                      (if precompiled-override

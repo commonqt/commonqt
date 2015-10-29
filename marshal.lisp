@@ -30,15 +30,22 @@
 (named-readtables:in-readtable :qt)
 
 (defun resolve-cast (<from> <to>)
-  (let* ((module (ldb-module <from>))
-         (compatible-<to>
-          (if (eql module (ldb-module <to>))
-              <to>
-              (find-qclass-in-module module (qclass-name <to>)))))
-    (unless compatible-<to>
-      (error "Casting across modules in several steps not yet supported"))
-    (values (data-castfn (data-ref module))
-            compatible-<to>)))
+  (let ((from-module (ldb-module <from>))
+        (to-module (ldb-module <to>))
+        to from)
+    (cond ((eq from-module to-module)
+           (values (data-castfn (data-ref from-module))
+                   <from> <to>))
+          ((setf to (find-qclass-in-module from-module (qclass-name <to>)))
+           (values (data-castfn (data-ref from-module))
+                   <from> to))
+          ((setf from (find-qclass-in-module to-module (qclass-name <from>)))
+           (values (data-castfn (data-ref to-module))
+                   from <to>))
+          (t
+           (error "Couldn't cast ~s to ~s across modules."
+                  (qclass-name <from>)
+                  (qclass-name <to>))))))
 
 (declaim (inline %perform-cast))
 (defun %perform-cast (object-pointer castfn <from> <to>)
@@ -57,9 +64,8 @@
       (%perform-cast (qobject-pointer obj) castfn <from> <to>)))
 
 (defun %cast (pointer <from> <to>)
-  (multiple-value-bind (fn <cto>)
-      (resolve-cast <from> <to>)
-    (%perform-cast pointer fn <from> <cto>)))
+  (multiple-value-call #'%perform-cast pointer
+    (resolve-cast <from> <to>)))
 
 (defun marshal (value type stack cont)
   (funcall (marshaller value type) value stack 0 cont))
@@ -88,7 +94,7 @@
                  (class
                   (if (typep obj 'qobject)
                       (let ((<from> (qobject-class obj)))
-                        (multiple-value-bind (castfn <to>)
+                        (multiple-value-bind (castfn <from> <to>)
                             (resolve-cast <from> (qtype-class <type>))
                           (declare (fixnum <from> <to>))
                           (if (eql <from> <to>)
