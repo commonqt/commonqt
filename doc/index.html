@@ -266,7 +266,7 @@ To find where the source directory is located use
   (:metaclass qt-class)
   (:qt-superclass "QPushButton"))
 
-(defmethod initialize-instance :after ((instance button))
+(defmethod initialize-instance :after ((instance button) &key)
 
   ;; Must call the C++ constructor here first:
   (new instance "label")
@@ -475,7 +475,7 @@ Properties:
   <p>Older versions of SBCL had problems with callbacks from foreign threads, e.g. QFileDialog uses them. But since 1.2.9 it works as expected.</p>
   <h4>Slime on Windows</h4>
 <p>
-      Running from Slime under Windows doesn't appear to work. Specifically, if the implementation is started as the subprocess of Emacs.
+      Running from Slime under Windows doesn't appear to work. Specifically, if the implementation is started as a subprocess of Emacs.
   To work around  the following has to be executed first:
   <pre class="example">(with-main-window (window (#_new QWidget)) (#_show window) (#_hide window))</pre>
   All subsequent windows do not need this and everything else should work normally.
