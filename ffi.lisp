@@ -298,7 +298,7 @@
   `(let (#+sbcl
          (*floating-point-mode* (sb-vm:floating-point-modes)))
      (#+sbcl sb-int:with-float-traps-masked
-      #+sbcl (:invalid :divide-by-zero)
+      #+sbcl (:invalid :divide-by-zero :underflow :overflow :inexact)
       #-sbcl progn
       ,@body)))
 
