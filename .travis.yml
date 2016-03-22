@@ -9,9 +9,9 @@ install:
   # Install cl-travis
   - curl https://raw.githubusercontent.com/luismbo/cl-travis/master/install.sh | bash
   # Install Qt dependencies
-  - sudo apt-get install libqt4-dev libsmokeqtgui4-3 libsmokeqt4-dev
+  - sudo apt-get -y install libqt4-dev libsmokeqtgui4-3 libsmokeqt4-dev
   # Set up a virtual X framebuffer
-  - sudo apt-get install xvfb
+  - sudo apt-get -y install xvfb
   - export DISPLAY=:99.0
   - sh -e /etc/init.d/xvfb start
   - sleep 3 # give xvfb time to start
