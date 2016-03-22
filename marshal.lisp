@@ -211,3 +211,13 @@
       (unwind-protect
            (funcall cont qvector-uint)
         (sw_delete_qvector_uint qvector-uint)))))
+
+(defmarshal (value :|GLint| :around cont :type integer)
+  (cffi:with-foreign-object (v :int)
+    (setf (cffi:mem-ref v :int) value)
+    (funcall cont v)))
+
+(defmarshal (value :|GLuint| :around cont :type unsigned-byte)
+  (cffi:with-foreign-object (v :unsigned-int)
+    (setf (cffi:mem-ref v :unsigned-int) value)
+    (funcall cont v)))

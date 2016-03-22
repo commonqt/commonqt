@@ -148,3 +148,9 @@
 
 (def-unmarshal (value "int&" type)
   (cffi:mem-ref value :int))
+
+(def-unmarshal (value "GLint" type)
+  (cffi:mem-ref value :int))
+
+(def-unmarshal (value "GLuint" type)
+  (cffi:mem-ref value :unsigned-int))
