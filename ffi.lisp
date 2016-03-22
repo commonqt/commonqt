@@ -62,9 +62,6 @@
 (defmacro defcfun (name ret &rest args)
   `(cffi:defcfun (,name ,(intern (string-upcase name) :qt)) ,ret ,@args))
 
-(cffi:defcvar ("qt_Smoke" qt_Smoke) :pointer)
-(cffi:defcvar ("qtwebkit_Smoke" qtwebkit_Smoke) :pointer)
-
 (defcfun "sw_smoke" :void
   (smoke :pointer)
   (data :pointer)
