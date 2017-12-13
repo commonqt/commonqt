@@ -930,12 +930,7 @@
       (let ((idx *n-modules*))
         (unless (< idx (length *module-table*))
           (error "Sorry, +module-bits+ exceeded"))
-        (cffi:load-foreign-library
-        (format nil
-                #+darwin "libsmoke~A.dylib"
-                #+windows "smoke~A.dll"
-                #-(or windows darwin) "libsmoke~A.so"
-                name))
+        (qt-libs:ensure-lib-loaded (format NIL "smoke~a" name))
         (let ((init (cffi:foreign-symbol-pointer
                      (format nil "init_~A_Smoke" name))))
           (assert init)
