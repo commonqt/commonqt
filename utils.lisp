@@ -29,6 +29,21 @@
 
 (in-package :qt)
 
+(defvar *load-library-function* 'simple-load-library)
+
+(defun simple-load-library (name)
+  (let ((path (make-pathname :name (format NIL #-windows "lib~a" #+windows "~a" name)
+                             :type #+darwin "dylib" #+windows "dll" #-(or darwin windows) "so"
+                             :defaults #.(or *compile-file-truename* *load-truename* *default-pathname-defaults*))))
+    (cffi:load-foreign-library
+     (if (probe-file path)
+         path
+         (file-namestring path)))))
+
+(defun load-library (name)
+  (funcall *load-library-function* name))
+
+
 ;; Cache the result of COMPILATION-BODY as long as KEYS still match.
 ;; This is thread-safe because the cache is replaced atomically.  We will
 ;; lose cache conses if threads replace them simultaneously.  But that's
