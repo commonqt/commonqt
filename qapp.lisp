@@ -40,6 +40,7 @@
 ;;; For example, "-display" "foo" will have been removed afterwards.
 
 (defvar *qapplication* nil)
+(defvar *qapplication-create-hooks* ())
 
 (defmacro with-main-window ((window form) &body body)
   `(progn
@@ -58,7 +59,10 @@
            (setf *qapplication*
                  (if (null-qobject-p instance)
                      (%make-qapplication (cons "argv0dummy" args))
-                     instance))))))
+                     instance)))
+         (dolist (hook *qapplication-create-hooks*)
+           (funcall hook *qapplication*))
+         *qapplication*)))
 
 (defun %make-qapplication (args &optional (guip t))
   (unless args
