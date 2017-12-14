@@ -28,10 +28,13 @@
 
 (defpackage :qt
   (:use :cl :iterate)
-  (:export #:ensure-smoke
+  (:export #:*load-library-function*
+           #:load-library
+           #:ensure-smoke
            #:qapropos
            #:qdescribe
            #:*qapplication*
+           #:*qapplication-create-hooks*
            #:make-qapplication
            #:interpret-call
            #:interpret-call-without-override
