@@ -58,9 +58,7 @@
            (setf *qapplication*
                  (if (null-qobject-p instance)
                      (%make-qapplication (cons "argv0dummy" args))
-                     instance))
-           (qt-libs:fix-qt-plugin-paths)
-           *qapplication*))))
+                     instance))))))
 
 (defun %make-qapplication (args &optional (guip t))
   (unless args
