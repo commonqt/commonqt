@@ -915,8 +915,7 @@
   (fill *module-table* nil)
   (fill *module-data-table* nil)
   (setf *cached-objects* (make-hash-table))
-  (unless *library-loaded-p*
-    (load-libcommonqt))
+  (load-libcommonqt)
   (setf *loaded* t))
 
 (defun ensure-loaded ()
@@ -927,10 +926,17 @@
   (ensure-loaded)
   (let ((name (string-downcase name)))
     (unless (named-module-number name)
+      (unless (< *n-modules* (length *module-table*))
+        (error "Sorry, +module-bits+ exceeded"))
+      (load-library (format NIL "smoke~a" name))
+      (initialize-smoke name))))
+
+(defun initialize-smoke (name)
+  (let ((name (string-downcase name)))
+    (unless (named-module-number name)
       (let ((idx *n-modules*))
         (unless (< idx (length *module-table*))
           (error "Sorry, +module-bits+ exceeded"))
-        (load-library (format NIL "smoke~a" name))
         (let ((init (cffi:foreign-symbol-pointer
                      (format nil "init_~A_Smoke" name))))
           (assert init)
