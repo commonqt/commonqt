@@ -923,15 +923,12 @@
     (reload)))
 
 (defun ensure-smoke (name)
-  (ensure-loaded)
   (let ((name (string-downcase name)))
-    (unless (named-module-number name)
-      (unless (< *n-modules* (length *module-table*))
-        (error "Sorry, +module-bits+ exceeded"))
-      (load-library (format NIL "smoke~a" name))
-      (initialize-smoke name))))
+    (load-library (format NIL "smoke~a" name))
+    (initialize-smoke name)))
 
 (defun initialize-smoke (name)
+  (ensure-loaded)
   (let ((name (string-downcase name)))
     (unless (named-module-number name)
       (let ((idx *n-modules*))
