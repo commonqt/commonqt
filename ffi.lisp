@@ -44,10 +44,6 @@
     ;; See also: src/corelib/io/qprocess_unix.cpp in Qt
     #+(and sbcl (not windows))
     (sb-sys:enable-interrupt sb-unix:sigchld :default)
-    ;; Load the required libraries in their proper order.
-    (load-library #-windows "QtCore" #+windows "QtCore4")
-    (load-library #-windows "QtGui" #+windows "QtGui4")
-    (load-library "smokebase")
     (load-library "commonqt")
     (setf *library-loaded-p* t)))
 
