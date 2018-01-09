@@ -92,7 +92,7 @@
                  (result (override fun object <method> args))
                  (rtype (qmethod-return-type <method>)))
             (unless (qtype-void-p rtype)
-              (marshal result rtype stack (lambda ())))
+              (override-marshaller result rtype stack))
             1)
           0))))
 
@@ -116,7 +116,7 @@
                                      object (name override) args))
                    (rtype (qmethod-return-type <method>)))
               (unless (qtype-void-p rtype)
-                (marshal result rtype stack (lambda ())))
+                (override-marshaller result rtype stack))
               1))
           0))))
 

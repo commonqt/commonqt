@@ -11,21 +11,24 @@
            (thereis (qtypep value type)))))
     (t nil)))
 
-(defmarshal (value (:|QVariant|)
-             :around cont)
+(defmarshal (value :|QVariant| :around cont)
   (funcall cont
            (if (qtypep value "QVariant")
                value
                (qvariant value))))
 
-(defmarshal (value (:|const QVariant&|)
-             :around cont)
+(defmarshal (value :|const QVariant&| :around cont)
   (if (qtypep value "QVariant")
       (funcall cont value)
       (let ((variant (qvariant value)))
         (unwind-protect
              (funcall cont variant)
           (#_delete variant)))))
+
+(defmarshal-override (value (:|QVariant| :|const QVariant&|))
+  (if (qtypep value "QVariant")
+      value
+      (qvariant value)))
 
 ;;; QVariant has conversion methods for classes in QtCore
 ;;; *UNVARIANT-TYPES* lists such classes and types, they can be
