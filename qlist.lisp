@@ -136,6 +136,8 @@
 (define-object-ptr-list-unmarshaller "QGraphicsTransform")
 
 (define-object-list-unmarshaller "QPrinterInfo")
+(define-copyable-object-list-marshaller "QTextEdit::ExtraSelection")
+(define-object-list-unmarshaller "QTextEdit::ExtraSelection")
 
 
 (defmacro define-copyable-object-list-unmarshaller (type-name)
@@ -144,11 +146,11 @@
         (at-func (qlist-function-name type-name 'at)))
     `(def-unmarshal (value ,list-type type)
        (iter (for i below (,size-func value))
-             ;; clone objects so that the pointers don't become invalid
-             ;; when the list is destroyed or they're removed from it
-             (collect (optimized-new
-                       ,type-name
-                       (%qobject (find-qclass ,type-name) (,at-func value i))))))))
+         ;; clone objects so that the pointers don't become invalid
+         ;; when the list is destroyed or they're removed from it
+         (collect (optimized-new
+                   ,type-name
+                   (%qobject (find-qclass ,type-name) (,at-func value i))))))))
 
 (define-copyable-object-list-unmarshaller "QModelIndex")
 (define-copyable-object-list-unmarshaller "QKeySequence")

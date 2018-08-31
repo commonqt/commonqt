@@ -175,7 +175,14 @@
   (metacall-callback :pointer))
 
 (defun qlist-function-name (type-name name)
-  (alexandria:symbolicate "SW_QLIST_" (string-upcase type-name) "_" (string-upcase name)))
+  (alexandria:symbolicate "SW_QLIST_"
+                          (let* ((name (string-upcase type-name))
+                                (colons (search "::" name)))
+                            (if colons
+                                (subseq name (+ colons 2))
+                                name))
+                          "_"
+                          (string-upcase name)))
 
 (macrolet ((define-qlist-marshaller-funcs (type-name)
                (flet ((func-name (name)
@@ -193,7 +200,8 @@
   (define-qlist-marshaller-funcs qvariant)
   (define-qlist-marshaller-funcs qbytearray)
   (define-qlist-marshaller-funcs qmodelindex)
-  (define-qlist-marshaller-funcs qkeysequence))
+  (define-qlist-marshaller-funcs qkeysequence)
+  (define-qlist-marshaller-funcs extraselection))
 
 (cffi:defcstruct SmokeData
   (name :string)
