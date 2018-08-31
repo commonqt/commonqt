@@ -68,20 +68,19 @@
     (declare (ignore char n))
     (flet ((expand-to (&rest args)
              `(lambda ()
-                (,@args ,@(read-list-until #\) stream)))))
-      (let ((method-name
-              (coerce (iter
-                        (let ((char (peek-char nil stream t nil t)))
-                          (if (or (char= char #\_)
-                                  (char= char #\:)
-                                  (char= char #\~)
-                                  (char<= #\A char #\Z)
-                                  (char<= #\a char #\z)
-                                  (char<= #\0 char #\9)
-                                  (char<= #\< char #\>)) ; < = >
-                              (collect (read-char stream t nil t))
-                              (finish))))
-                      'string)))
+                (,@args ,@(read-list-until #\) stream))))
+           (read-name ()
+             (coerce (loop for char = (peek-char nil stream t nil t)
+                           while (or (char= char #\_)
+                                     (char= char #\:)
+                                     (char= char #\~)
+                                     (char<= #\A char #\Z)
+                                     (char<= #\a char #\z)
+                                     (char<= #\0 char #\9)
+                                     (char<= #\< char #\>)) ; < = >
+                           collect (read-char stream t nil t))
+                     'string)))
+      (let ((method-name (read-name)))
         (when *read-suppress*
           (return-from read-smoke-lambda nil))
         (when (ppcre:scan "^[<=>]+$" method-name)
@@ -91,11 +90,8 @@
           ((equal method-name "delete")
            (expand-to 'optimized-delete))
           ((equal method-name "new")
-           (let ((class-name
-                   (symbol-name
-                    (let ((*readtable* *case-preserving-readtable*))
-                      (read stream t nil t)))))
-             (expand-to 'optimized-new class-name)))
+           (peek-char t stream t nil t)
+           (expand-to 'optimized-new (read-name)))
           ((let ((position (search "::" method-name)))
              (when position
                (expand-to
