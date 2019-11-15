@@ -36,7 +36,7 @@
     (load-library "commonqt")
     (setf *library-loaded-p* t)))
 
-#-(or ecl ccl (and sbcl linkage-table))
+#-(or ecl ccl (and sbcl linkage-table) allegro)
 (load-libcommonqt)
 
 (defmacro defcfun (name ret &rest args)
