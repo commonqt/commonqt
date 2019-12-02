@@ -116,11 +116,11 @@ the type of enums is not considered."
 
 (defclass qthread ()
   ((pointer :initarg :pointer
-            :accessor qthread-pointer)))
+            :accessor qobject-pointer)))
 
 (defmethod print-object ((instance qthread) stream)
   (print-unreadable-object (instance stream :type t :identity nil)
-    (format stream "~X" (cffi:pointer-address (qthread-pointer instance)))))
+    (format stream "~X" (cffi:pointer-address (qobject-pointer instance)))))
 
 (defun qobject= (x y)
   (cffi-sys:pointer-eq (qobject-pointer x) (qobject-pointer y)))
