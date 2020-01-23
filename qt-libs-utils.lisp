@@ -27,11 +27,5 @@
 ;;; SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 (in-package :qt)
-(named-readtables:in-readtable :qt)
 
-(defun fix-qt-plugin-paths (qapplication)
-  (declare (ignore qapplication))
-  (#_QCoreApplication::setLibraryPaths
-   (list (uiop:native-namestring (merge-pathnames "plugins/" qt-libs:*standalone-libs-dir*)))))
-
-(pushnew 'fix-qt-plugin-paths *qapplication-create-hooks*)
+(setf *load-library-function* 'qt-libs:ensure-lib-loaded)

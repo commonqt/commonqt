@@ -5,6 +5,7 @@
   :components
   ((:file "package")
    (:file "utils")
+   (:file "qt-libs-utils")
    (:file "ffi")
    (:file "reader")
    (:file "meta-classes")
