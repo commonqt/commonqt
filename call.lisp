@@ -253,7 +253,7 @@
      for elt across vector
      do
        (setf (cffi:mem-aref ptr :pointer i)
-             (cffi:foreign-string-alloc elt))))
+             (cffi:foreign-string-alloc elt :encoding :utf-8))))
 
 (defun string-vector-to-char** (vector)
   (let ((ptr (cffi:foreign-alloc :pointer :count (length vector))))
@@ -265,7 +265,7 @@
      for i from 0 below n
      do
        (setf (elt vector i)
-             (cffi:mem-aref ptr :string i))
+             (cffi:mem-aref ptr '(:string :encoding :utf-8) i))
        (when freep
          (cffi:foreign-free (cffi:mem-aref ptr :pointer i)))))
 

@@ -399,5 +399,5 @@ Should be used as an optimization."
                      :class (find-qclass "QMetaObject")
                      :pointer
                      (sw_make_metaobject (qobject-pointer parent)
-                                         (cffi:foreign-string-alloc signature)
+                                         (cffi:foreign-string-alloc signature :encoding :ascii)
                                          dataptr)))))

@@ -374,7 +374,7 @@
   (declare (type module-number <module>))
   (declare (type index idx))
   (cffi:mem-aref (data-methodnames (data-ref <module>))
-                 :string
+                 '(:string :encoding :ascii)
                  idx))
 
 (declaim (inline methodmap-name-index))

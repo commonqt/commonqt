@@ -7,7 +7,7 @@
     (unwind-protect
          (progn
            (dolist (str value)
-             (let ((char* (cffi:foreign-string-alloc str)))
+             (let ((char* (cffi:foreign-string-alloc str :encoding :utf-8)))
                (unwind-protect
                     (sw_qstringlist_append qstringlist char*)
                  (cffi:foreign-free char*))))

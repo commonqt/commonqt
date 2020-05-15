@@ -214,13 +214,13 @@
   (funcall cont (sw_make_qstring value)))
 
 (defmarshal (value (:|unsigned char*| :|const char*|) :around cont :type string)
-  (let ((char* (cffi:foreign-string-alloc value)))
+  (let ((char* (cffi:foreign-string-alloc value :encoding :utf-8)))
     (unwind-protect
          (funcall cont char*)
       (cffi:foreign-free char*))))
 
 (defmarshal-override (value (:|unsigned char*| :|const char*|) :type string)
-  (cffi:foreign-string-alloc value))
+  (cffi:foreign-string-alloc value :encoding :utf-8))
 
 (defmarshal (value (:|QByteArray| :|const QByteArray&|) :around cont :type string)
   (let ((qbytearray (sw_make_qbytearray value)))
