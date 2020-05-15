@@ -126,7 +126,7 @@
                              fdefinition)))))))
 
 (def-unmarshal (value "char*" type)
-  (cffi:foreign-string-to-lisp value))
+  (cffi:foreign-string-to-lisp value :encoding :utf-8))
 
 (def-unmarshal (value "void**" type)
   value)

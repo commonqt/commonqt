@@ -58,13 +58,13 @@
   (qvector-uint :pointer))
 
 (defcfun "sw_make_qbytearray" :pointer
-  (str :string))
+  (str (:string :encoding :utf-8)))
 
 (defcfun "sw_delete_qbytearray" :void
-  (str :string))
+  (str :pointer))
 
 (defcfun "sw_make_qstring" :pointer
-  (str :string))
+  (str (:string :encoding :utf-8)))
 
 (defcfun "sw_delete_qstring" :void
   (qstring :pointer))
@@ -76,7 +76,7 @@
 
 (defcfun "sw_qstringlist_append" :void
   (qstringlist :pointer)
-  (str :string))
+  (str (:string :encoding :utf-8)))
 
 (defcfun "sw_qstringlist_size" :int
   (qstringlist :pointer))
@@ -123,10 +123,10 @@
 
 (defcfun "sw_find_name" :short
   (smoke :pointer)
-  (str :string))
+  (str (:string :encoding :ascii)))
 
 (defcfun "sw_find_class" :void
-  (name :string)
+  (name (:string :encoding :ascii))
   (smoke** :pointer)
   (index** :pointer))
 
@@ -137,11 +137,11 @@
 
 (defcfun "sw_id_type" :short
   (smoke :pointer)
-  (name :string))
+  (name (:string :encoding :ascii)))
 
 (defcfun "sw_id_class" :short
   (smoke :pointer)
-  (name :string)
+  (name (:string :encoding :ascii))
   (external :char))                     ;bool
 
 (defcfun "sw_id_instance_class" :short
@@ -193,7 +193,7 @@
   (define-qlist-marshaller-funcs extraselection))
 
 (cffi:defcstruct SmokeData
-  (name :string)
+  (name (:string :encoding :ascii))
   (classes :pointer)
   (nclasses :short)
   (methods :pointer)
@@ -263,7 +263,7 @@
   (methodid :short))
 
 (cffi:defcstruct qClass
-  (className :string)
+  (className (:string :encoding :ascii))
   (external :char)
   (parents :short)
   (classfn :pointer) ;; void (*classfn)(Index method, void *obj, Stack args)
@@ -272,7 +272,7 @@
   (size :unsigned-int))
 
 (cffi:defcstruct qType
-  (name :string)
+  (name (:string :encoding :ascii))
   (classid :short)
   (flags :short))
 
