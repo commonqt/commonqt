@@ -909,12 +909,22 @@
 ;;;; Startup stuff
 
 (defvar *cached-objects*)
+#-(or sbcl ccl)
+(defvar *cached-objects-lock*)
+
+(defmacro with-synchronized-cached-objects (() &body body)
+  #+(or sbcl ccl) `(progn ,@body)
+  #-(or sbcl ccl) `(bt:with-lock-held (*cached-objects-lock*) ,@body))
 
 (defun reload ()
   (setf *n-modules* 0)
   (fill *module-table* nil)
   (fill *module-data-table* nil)
-  (setf *cached-objects* (make-hash-table))
+  ;; This hash-table can be modified from multiple threads. CCL's hash-tables
+  ;; are thread-safe by default, SBCL's are if request. Use an explicit lock
+  ;; elsewhere.
+  #-(or sbcl ccl) (setf *cached-objects-lock* (bt:make-lock "qt:*cached-objects-lock*"))
+  (setf *cached-objects* (make-hash-table #+sbcl :synchronized #+sbcl t))
   (load-libcommonqt)
   (setf *loaded* t))
 

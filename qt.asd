@@ -99,4 +99,5 @@
   :defsystem-depends-on (:trivial-features)
   :depends-on (:cffi :named-readtables :cl-ppcre :alexandria
                :closer-mop
-               :iterate :trivial-garbage #+darwin :bordeaux-threads))
+	       :iterate :trivial-garbage
+	       #+(or darwin (not (or sbcl ccl))) :bordeaux-threads))
