@@ -11,4 +11,4 @@
     :components ((:file "package")
                  (:file "tests")
                  (:file "microbench"))
-    :depends-on (:qt :alexandria :iterate :trivial-garbage :rt))
+    :depends-on (:qt :alexandria :iterate :trivial-garbage :rt :bordeaux-threads))

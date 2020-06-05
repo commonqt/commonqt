@@ -537,3 +537,12 @@
                      (enum= e r)
                      (equal e r))))
   t)
+
+(deftest/qt multithreading
+    (flet ((make-events ()
+	     (ignore-errors
+	      (loop repeat 10000 do (#_delete (#_new QEvent (#_QEvent::User))))
+	      t)))
+      (let ((threads (loop repeat 20 collect (bt:make-thread #'make-events))))
+	(notany #'null (mapcar #'bt:join-thread threads))))
+  t)

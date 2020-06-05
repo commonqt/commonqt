@@ -30,11 +30,13 @@
 (named-readtables:in-readtable :qt)
 
 (defun pointer->cached-object (ptr)
-  (gethash (cffi:pointer-address ptr) *cached-objects*))
+  (with-synchronized-cached-objects ()
+    (gethash (cffi:pointer-address ptr) *cached-objects*)))
 
 (defun (setf pointer->cached-object) (newval ptr)
-  (setf (gethash (cffi:pointer-address ptr) *cached-objects*)
-        newval))
+  (with-synchronized-cached-objects ()
+    (setf (gethash (cffi:pointer-address ptr) *cached-objects*)
+          newval)))
 
 (defun map-qclass-precedence-list (fun class)
   (labels ((recurse (c)
@@ -281,12 +283,14 @@
   (check-type object abstract-qobject)
   (unless (qobject-deleted object)
     (let ((addr (cffi:pointer-address (qobject-pointer object))))
-      (remhash addr *cached-objects*)
+      (with-synchronized-cached-objects ()
+        (remhash addr *cached-objects*))
       (map-casted-object-pointer
        (lambda (ptr)
          (let ((super-addr (cffi:pointer-address ptr)))
            (when (/= super-addr addr)
-             (remhash super-addr *cached-objects*))))
+             (with-synchronized-cached-objects ()
+               (remhash super-addr *cached-objects*)))))
        (qobject-class object)
        (qobject-pointer object)))
     (setf (qobject-pointer object) :deleted)))
