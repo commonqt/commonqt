@@ -89,6 +89,7 @@
 
 (define-copyable-object-list-marshaller "QModelIndex")
 (define-copyable-object-list-marshaller "QKeySequence")
+(define-copyable-object-list-marshaller "QTextEdit::ExtraSelection")
 
 ;;; unmarshalling
 
@@ -136,7 +137,6 @@
 (define-object-ptr-list-unmarshaller "QGraphicsTransform")
 
 (define-object-list-unmarshaller "QPrinterInfo")
-(define-copyable-object-list-marshaller "QTextEdit::ExtraSelection")
 (define-object-list-unmarshaller "QTextEdit::ExtraSelection")
 
 
