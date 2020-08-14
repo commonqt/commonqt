@@ -1,4 +1,5 @@
 (in-package :qt)
+(named-readtables:in-readtable :qt)
 
 ;;; marshalling
 
@@ -93,21 +94,37 @@
 
 ;;; unmarshalling
 
-(def-unmarshal (value "QStringList" type)
-  (iter (for i below (sw_qstringlist_size value))
-        (collect (convert-qstring-data (sw_qstringlist_at value i)))))
+(def-unmarshal (value "QStringList" type delete)
+  (unwind-protect
+      (iter (for i below (sw_qstringlist_size value))
+        (collect (convert-qstring-data (sw_qstringlist_at value i))))
+    (when delete
+      (sw_qstringlist_delete value))))
 
-(def-unmarshal (value "QList<int>" type)
-  (iter (for i below (sw_qlist_int_size value))
-        (collect (cffi:mem-ref (sw_qlist_int_at value i) :int))))
+(def-unmarshal (value "QList<int>" type delete)
+  (unwind-protect
+      (iter (for i below (sw_qlist_int_size value))
+        (collect (cffi:mem-ref (sw_qlist_int_at value i) :int)))
+    (when delete
+      (sw_qlist_int_delete value))))
 
 (defmacro define-object-ptr-list-unmarshaller (type-name)
   (let ((list-type (format nil "QList<~A*>" type-name)))
-    `(def-unmarshal (value ,list-type type)
-       (iter (for i below (sw_qlist_void_size value))
+    `(def-unmarshal (value ,list-type type delete)
+       (declare (ignore delete))
+       (unwind-protect
+           (iter (for i below (sw_qlist_void_size value))
              (collect (%qobject (with-cache () (find-qclass ,type-name))
-                                (sw_qlist_void_at value i)))))))
+                                (sw_qlist_void_at value i))))
+         ;; this throws an exception for some reason, possibly related to
+         ;; <https://github.com/commonqt/commonqt/issues/43>
+         #+#:disabled
+         (when delete
+           (sw_qlist_void_delete value))))))
 
+;; XXX: we're leaking the QList object here, but we can't delete it immediately
+;; since that would delete its elements as well. Should probably use
+;; `define-copyable-object-list-unmarshaller' instead?
 (defmacro define-object-list-unmarshaller (type-name)
   (let ((list-type (format nil "QList<~A>" type-name)))
     `(def-unmarshal (value ,list-type type)
@@ -115,6 +132,8 @@
          (collect (%qobject (with-cache () (find-qclass ,type-name))
                             (sw_qlist_void_at value i)))))))
 
+;; XXX: we're leaking the QList object. Should we use the
+;; `define-copyable-object-list-unmarshaller' strategy instead?
 (def-unmarshal (value "QList<QByteArray>" type)
   (iter (for i below (sw_qlist_qbytearray_size value))
         (collect (%qobject (find-qclass "QByteArray") (sw_qlist_qbytearray_at value i)))))
@@ -143,24 +162,39 @@
 (defmacro define-copyable-object-list-unmarshaller (type-name)
   (let ((list-type (format nil "QList<~A>" type-name))
         (size-func (qlist-function-name type-name 'size))
-        (at-func (qlist-function-name type-name 'at)))
-    `(def-unmarshal (value ,list-type type)
-       (iter (for i below (,size-func value))
-         ;; clone objects so that the pointers don't become invalid
-         ;; when the list is destroyed or they're removed from it
-         (collect (optimized-new
-                   ,type-name
-                   (%qobject (find-qclass ,type-name) (,at-func value i))))))))
+        (at-func (qlist-function-name type-name 'at))
+        (delete-func (qlist-function-name type-name 'delete)))
+    `(def-unmarshal (value ,list-type type delete)
+       (unwind-protect
+           (iter (for i below (,size-func value))
+             ;; clone objects so that the pointers don't become invalid
+             ;; when the list is destroyed or they're removed from it
+             (collect (optimized-new
+                       ,type-name
+                       (%qobject (find-qclass ,type-name) (,at-func value i)))))
+         (when delete
+           (,delete-func value))))))
 
 (define-copyable-object-list-unmarshaller "QModelIndex")
 (define-copyable-object-list-unmarshaller "QKeySequence")
 
-(def-unmarshal (value "QList<QVariant>" type)
+;; XXX: this leaks the QList (and sometimes QVariant) objects.
+(def-unmarshal (value "QList<QVariant>" type delete)
   (iter (for i below (sw_qlist_qvariant_size value))
-        (collect (unvariant (sw_qlist_qvariant_at value i)))))
+    (for qvariant = (sw_qlist_qvariant_at value i))
+    (for (values object deletable) = (unvariant qvariant))
+    (collect (unwind-protect
+                 object
+               (when (and delete deletable)
+                 (#_delete qvariant))))))
 
 (def-unmarshal (value ("QList<QPrinter::PageSize>"
-                       "QList<QPrinter::PaperSize>") type)
-  (iter (for i below (sw_qlist_papersize_size value))
-    (collect (enum (cffi:mem-ref (sw_qlist_papersize_at value i) :int)
-                   :|QPrinter::PaperSize|))))
+                       "QList<QPrinter::PaperSize>")
+                      type
+                      delete)
+  (unwind-protect
+      (iter (for i below (sw_qlist_papersize_size value))
+        (collect (enum (cffi:mem-ref (sw_qlist_papersize_at value i) :int)
+                       :|QPrinter::PaperSize|)))
+    (when delete
+      (sw_qlist_papersize_delete value))))
