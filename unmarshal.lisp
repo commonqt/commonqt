@@ -135,8 +135,14 @@
 (def-unmarshal (value "bool" type)
   (logbitp 0 value))
 
-(def-unmarshal (value ("QString" "QString*") type)
+(def-unmarshal (value "QString*" type)
   (qstring-pointer-to-lisp value))
+
+(def-unmarshal (value "QString" type delete)
+  (unwind-protect
+      (qstring-pointer-to-lisp value)
+    (when delete
+      (sw_delete_qstring value))))
 
 (def-unmarshal (value "QThread*" type)
   (make-instance 'qthread :pointer value))
