@@ -164,7 +164,7 @@
            (lambda (stack)
              (call-class-fun classfn method-index casted-instance-pointer
                              stack)
-             (funcall return-value-function stack))))
+             (funcall return-value-function stack t))))
 
 (defun resolve-call (allow-override-p instance method args fix-types)
   ;; (format *trace-output* "cache miss for ~A::~A~%" instance method)
@@ -283,7 +283,8 @@
               binding)
   (%%call (cffi:null-pointer)
           args arglist-marshaller classfn method-index
-          (lambda (stack)
+          (lambda (stack delete)
+            (declare (ignore delete))
             (let ((new-object
                    (cffi:foreign-slot-value stack '(:union StackItem) 'ptr)))
               (set-object-binding classfn new-object binding)
