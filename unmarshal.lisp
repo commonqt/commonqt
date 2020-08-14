@@ -62,16 +62,16 @@
                 '(ptr bool char uchar short ushort int
                   uint long ulong float double enum class))))
 
-(defun unmarshal (type stack-item)
-  (funcall (unmarshaller type) stack-item))
+(defun unmarshal (type stack-item &key delete)
+  (funcall (unmarshaller type) stack-item delete))
 
 (defun unmarshaller (type)
   (if (qtype-void-p type)
       (constantly nil)
       (let ((thunk (unmarshaller-2 type)))
         (dispatching-on-stack-item (get-value (qtype-stack-item-slot type))
-          (lambda (stack-item)
-            (funcall thunk (get-value stack-item) type))))))
+          (lambda (stack-item delete)
+            (funcall thunk (get-value stack-item) type delete))))))
 
 (defun unmarshaller-2 (type)
   (let ((name (qtype-name type)))
@@ -79,17 +79,17 @@
         (case (qtype-stack-item-slot type)
           (class
            (let ((qtype-class (qtype-class type)))
-             (lambda (value type)
-               (declare (ignore type))
+             (lambda (value type delete)
+               (declare (ignore type delete))
                (%qobject qtype-class value))))
           (enum
            (let ((type-name (qtype-interned-name type)))
-             (lambda (value type)
-               (declare (ignore type))
+             (lambda (value type delete)
+               (declare (ignore type delete))
                (enum value type-name))))
           (t
-           (lambda (value type)
-             (declare (ignore type))
+           (lambda (value type delete)
+             (declare (ignore type delete))
              value))))))
 
 (defvar *static-unmarshallers* (make-hash-table :test #'equal))
@@ -107,15 +107,16 @@
                           #\& #\*)
               (list (format nil "~a&" name))))))
 
-(defmacro def-unmarshal ((var name-or-names type) &body body)
+(defmacro def-unmarshal ((var name-or-names type &optional (delete (gensym "DELETE")))
+                         &body body)
   (let ((function-name
           (intern (format nil "~a-~a"
                           (alexandria:ensure-car name-or-names)
                           'unmarshaller))))
     `(progn
        (defun ,function-name
-           (,var ,type)
-         (declare (ignorable ,type))
+           (,var ,type ,delete)
+         (declare (ignorable ,type ,delete))
          ,@body)
        (let ((fdefinition (fdefinition ',function-name)))
         ,@(loop for name in (alexandria:ensure-list name-or-names)
