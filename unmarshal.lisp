@@ -147,8 +147,14 @@
 (def-unmarshal (value "QThread*" type)
   (make-instance 'qthread :pointer value))
 
-(def-unmarshal (value "QVariant" type)
-  (unvariant value type))
+(def-unmarshal (value "QVariant" type delete)
+  (multiple-value-bind (object deletable)
+      (unvariant value type)
+    (unwind-protect
+        object
+      (when (and delete deletable)
+        ;; XXX: this probably doesn't play well with caching.
+        (#_delete value)))))
 
 (def-unmarshal (value "double&" type)
   (cffi:mem-ref value :double))

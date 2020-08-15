@@ -120,15 +120,18 @@
             (aref unvariant-map type) function))
     (funcall function variant)))
 
+;; Secondary value denotes whether we were able to extract the inner object from
+;; QVariant so that the unmarshaller knows whether it's safe to delete it.
 (defun unvariant (variant &optional (type (find-qtype "QVariant")))
   (let* ((qobject (%qobject (qtype-class type) variant))
          (code (enum-value (#_type qobject)))
          (unvariant-map (unvariant-map)))
     (if (array-in-bounds-p unvariant-map code)
-        (%unvariant unvariant-map qobject code)
+        (values (%unvariant unvariant-map qobject code) t)
         (let* ((unvariant-map (unvariant-non-core-map))
                (class (and (array-in-bounds-p unvariant-map code)
                            (aref unvariant-map code))))
           (if class
-              (%qobject class  (#_constData qobject))
-              qobject)))))
+	      ;; XXX: here, we leak the QVariant object.
+              (values (%qobject class (#_constData qobject)) nil)
+              (values qobject nil))))))
