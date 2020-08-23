@@ -1,3 +1,4 @@
+
 // -*- c-basic-offset: 8; indent-tabs: nil -*-
 //
 // See LICENSE for details.
@@ -7,6 +8,8 @@
 #include <QtCore>
 #include <QtGui>
 #include "commonqt.h"
+#include <QTextEdit>
+#include <private/qmetaobjectbuilder_p.h>
 
 // #define DEBUG 1
 
@@ -225,20 +228,20 @@ sw_make_qbytearray(char* str)
 void
 sw_delete_qbytearray(void *q)
 {
-        delete (QByteArray*) q;
+  delete (QByteArray*) q;
 }
 
 void*
 sw_make_qstring(char *str)
 {
-        return new QString(QString::fromUtf8(str));
+ return new QString(QString::fromUtf8(str));
 }
 
 void*
 sw_qstring_to_utf8(void* s)
 {
-        QString* str = (QString*) s;
-        return new QByteArray(str->toUtf8());
+  QString* str = (QString*) s;
+  return new QByteArray(str->toUtf8());
 }
 
 const void*
@@ -254,16 +257,36 @@ sw_delete_qstring(void *q)
         delete (QString*) q;
 }
 
-void*
-sw_make_metaobject(void *p, char *strings, int *d)
+//https://www.kdab.com/~volker/devdays/2014/QtDevDays2014-DIY-moc.pdf
+void*    
+sw_make_metaobject(void *p, char *strings, void *classinfos, void *sig, void *sls)
 {
-        QMetaObject* parent = (QMetaObject*) p;
-        const uint* data = (const uint*) d;
+ QMetaObject* parent = (QMetaObject*)p;
+ QList<char*>* classInfos = static_cast<QList<char*>*>(classinfos);
+ QList<char*>* Signals = static_cast<QList<char*>*>(sig);
+ QList<char*>* Slots = static_cast<QList<char*>*>(sls);
+  
+ QMetaObjectBuilder b;
+ b.setClassName(strings);
+ b.setSuperClass(parent);
 
-        QMetaObject tmp = { { parent, strings, data, 0 } };
-        QMetaObject* ptr = new QMetaObject;
-        *ptr = tmp;
-        return ptr;
+ for (int i = 0; i < classInfos->size(); i = i+2) 
+	 b.addClassInfo(classInfos->at(i),classInfos->at(i+1)); 
+ delete classInfos;
+ classInfos = nullptr; 
+
+ for (int i = 0; i < Signals->size(); ++i) 
+	 b.addSignal(Signals->at(i));
+ delete Signals;
+ Signals = nullptr; 
+ 
+ for (int i = 0; i < Slots->size(); ++i) 
+	 b.addSlot(Slots->at(i));
+ delete Slots;
+ Slots = nullptr;
+ 
+ QMetaObject *mo = b.toMetaObject();
+ return mo;
 }
 
 void
@@ -385,6 +408,21 @@ sw_qlist_void_append(void *ptr, void *whatptr)
 	qlist->append(whatptr);
 }
 
+// QList<char*>  for sw_make_metaobject
+void*
+sw_qlist_string_new()
+{
+  return new QList<char*>;
+}
+
+void
+sw_qlist_string_append(void *ptr, char *str)
+{
+	QList<char*>* qlist = static_cast<QList<char*>*>(ptr);
+	qlist->append(str);
+}
+
+
 // QList<scalar> marshalling
 
 #define DEFINE_QLIST_SCALAR_MARSHALLER(ELEMENT_TYPE, NAME) \
@@ -419,7 +457,7 @@ sw_qlist_void_append(void *ptr, void *whatptr)
   }
 
 DEFINE_QLIST_SCALAR_MARSHALLER(int, int)
-DEFINE_QLIST_SCALAR_MARSHALLER(QPrinter::PageSize,papersize)
+DEFINE_QLIST_SCALAR_MARSHALLER(QPagedPaintDevice::PageSize,papersize)
 DEFINE_QLIST_SCALAR_MARSHALLER(QVariant, qvariant)
 DEFINE_QLIST_SCALAR_MARSHALLER(QByteArray, qbytearray)
 DEFINE_QLIST_SCALAR_MARSHALLER(QModelIndex, qmodelindex)

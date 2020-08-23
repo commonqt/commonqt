@@ -1,0 +1,59 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index a86008a..1b09f70 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -73,6 +73,7 @@ llvm_map_components_to_libnames(
+     core
+     mc
+     mcparser
++	FrontendOpenMP
+     option
+     profiledata
+     support
+diff --git a/astvisitor.cpp b/astvisitor.cpp
+index e3a0431..bf3672a 100644
+--- a/astvisitor.cpp
++++ b/astvisitor.cpp
+@@ -576,7 +576,7 @@ void SmokegenASTVisitor::addQPropertyAnnotations(const clang::CXXRecordDecl* D)
+                             auto lookup = D->lookup(Name);
+                             for (clang::NamedDecl* namedDecl : lookup) {
+                                 if (clang::CXXMethodDecl* method = clang::dyn_cast<clang::CXXMethodDecl>(namedDecl)) {
+-                                    auto annotate = clang::AnnotateAttr(clang::SourceRange(), *ctx, llvm::StringRef("qt_property"), 0).clone(*ctx);
++									auto annotate = clang::AnnotateAttr(*ctx, clang::AttributeCommonInfo(clang::SourceRange()), llvm::StringRef("qt_property")).clone(*ctx);
+                                     method->addAttr(annotate);
+                                 }
+                             }
+@@ -588,7 +588,7 @@ void SmokegenASTVisitor::addQPropertyAnnotations(const clang::CXXRecordDecl* D)
+                             auto lookup = D->lookup(Name);
+                             for (clang::NamedDecl* namedDecl : lookup) {
+                                 if (clang::CXXMethodDecl* method = clang::dyn_cast<clang::CXXMethodDecl>(namedDecl)) {
+-                                    auto annotate = clang::AnnotateAttr(clang::SourceRange(), *ctx, llvm::StringRef("qt_property"), 0).clone(*ctx);
++									auto annotate = clang::AnnotateAttr(*ctx, clang::AttributeCommonInfo(clang::SourceRange()), llvm::StringRef("qt_property")).clone(*ctx);
+                                     method->addAttr(annotate);
+                                 }
+                             }
+diff --git a/frontendaction.cpp b/frontendaction.cpp
+index cf7599c..7f7fbc8 100644
+--- a/frontendaction.cpp
++++ b/frontendaction.cpp
+@@ -10,5 +10,5 @@ SmokegenFrontendAction::CreateASTConsumer(clang::CompilerInstance &CI, clang::St
+     CI.getFrontendOpts().SkipFunctionBodies = true;
+     CI.getDiagnostics().setSeverity(clang::diag::warn_undefined_inline, clang::diag::Severity::Ignored, clang::SourceLocation());
+ 
+-    return llvm::make_unique<SmokegenASTConsumer>(CI);
++    return std::make_unique<SmokegenASTConsumer>(CI);
+ }
+diff --git a/main.cpp b/main.cpp
+index 142ae51..694a7ff 100644
+--- a/main.cpp
++++ b/main.cpp
+@@ -244,8 +244,7 @@ int main(int argc, char **argv)
+ 
+         clang::FileManager FM({"."});
+         FM.Retain();
+-
+-        clang::tooling::ToolInvocation inv(Argv, new SmokegenFrontendAction, &FM);
++		clang::tooling::ToolInvocation inv(Argv, std::unique_ptr<clang::FrontendAction>(new SmokegenFrontendAction), &FM);
+ 
+         const EmbeddedFile* f = EmbeddedFiles;
+         while (f->filename) {

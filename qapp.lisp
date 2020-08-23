@@ -55,7 +55,9 @@
         (t
          (ensure-smoke :qtcore)
          (ensure-smoke :qtgui)
+	 (ensure-smoke :qtwidgets)
          (let ((instance (#_QCoreApplication::instance)))
+	   (#_QCoreApplication::setAttribute (#_Qt::AA_ShareOpenGLContexts) t)
            (setf *qapplication*
                  (if (null-qobject-p instance)
                      (%make-qapplication (cons "argv0dummy" args))
@@ -120,6 +122,7 @@
   ;;
   (ensure-smoke :qtcore)
   (ensure-smoke :qtgui)
+  (ensure-smoke :qtwidgets)
   (let ((v (windows-version)))
     (when (and v (< v +vista+))
       (#_QApplication::setStyle "Plastique"))))

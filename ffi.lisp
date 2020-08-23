@@ -87,8 +87,10 @@
 
 (defcfun "sw_make_metaobject" :pointer
   (parent :pointer)
-  (str :pointer)
-  (data :pointer))
+  (str (:string :encoding :ascii))
+  (class-infos :pointer)
+  (signals :pointer)
+  (slots :pointer))
 
 (defcfun "sw_delete" :void
   (stack :pointer))
@@ -116,6 +118,14 @@
           until (zerop code)
           do (setf (char res j) (code-char code)))
     res))
+
+;; QList<char*>  for sw_make_metaobject
+(defcfun "sw_qlist_string_new" :pointer)
+
+(defcfun "sw_qlist_string_append" :void
+  (ptr :pointer)
+  (str (:string :encoding :ascii)))
+;;
 
 (defun qstring-pointer-to-lisp (raw-ptr)
   (declare (optimize speed))

@@ -1,6 +1,6 @@
 ;;; -*- show-trailing-whitespace: t; indent-tabs-mode: nil -*-
 
-;;; http://doc.trolltech.com/4.3/tutorial-t14.html
+;;; https://doc.qt.io/archives/qtextended4.4/tutorials-tutorial-t14.html
 
 (defpackage :qt-tutorial-14
   (:use :cl :qt)
@@ -158,7 +158,7 @@
          (emit-signal instance "missed()")
          (emit-signal instance "canShoot(bool)" t))
         (t
-         (let ((new (#_unite old new)))
+         (let ((new (#_united old new)))
            (#_delete old)
            (setf old new)))))
     (#_update instance old)))
@@ -296,7 +296,7 @@
       (#_setRange slider 0 99)
       (#_setValue slider 0)
       (connect slider "valueChanged(int)" lcd "display(int)")
-      (connect slider "valueChanged(int)" instance "valueChanged(int)")
+      (connect slider "valueChanged(int)" instance (qsignal "valueChanged(int)"))
       (let ((label (#_new QLabel)))
         (#_setSizePolicy label
                          (#_Preferred "QSizePolicy")

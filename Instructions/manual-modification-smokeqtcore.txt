@@ -1,0 +1,122 @@
+smokeqtcore
+
+x_1.cpp
+- x[0].s_enum = (long)QAbstractItemModel::NoOption; 
++ x[0].s_enum = (long)QAbstractItemModel::CheckIndexOption::NoOption;
+
+- x[0].s_enum = (long)QAbstractItemModel::IndexIsValid; 
++ x[0].s_enum = (long)QAbstractItemModel::CheckIndexOption::IndexIsValid;
+
+- x[0].s_enum = (long)QAbstractItemModel::DoNotUseParent; 
++ x[0].s_enum = (long)QAbstractItemModel::CheckIndexOption::DoNotUseParent;
+
+- x[0].s_enum = (long)QAbstractItemModel::ParentIsInvalid; 
++ x[0].s_enum = (long)QAbstractItemModel::CheckIndexOption::ParentIsInvalid;
+
+x_3.cpp
+- x[0].s_enum = (long)QByteArray::Ok;  
++ x[0].s_enum = (long)QByteArray::Base64DecodingStatus::Ok;
+
+- x[0].s_enum = (long)QByteArray::IllegalInputLength; 
++ x[0].s_enum = (long)QByteArray::Base64DecodingStatus::IllegalInputLength;
+
+- x[0].s_enum = (long)QByteArray::IllegalCharacter; 
++ x[0].s_enum = (long)QByteArray::Base64DecodingStatus::IllegalCharacter;
+
+- x[0].s_enum = (long)QByteArray::IllegalPadding; 
++ x[0].s_enum = (long)QByteArray::Base64DecodingStatus::IllegalPadding;
+
+x_4.cpp
+- x[0].s_enum = (long)QDateTime::First; 
++ x[0].s_enum = (long)QDateTime::YearRange::First;
+
+- x[0].s_enum = (long)QDateTime::Last; 
++ x[0].s_enum = (long)QDateTime::YearRange::Last;
+
+x_11.cpp
+
+ change the following code:
+
+class x_QMetaType : public QMetaType {
+    SmokeBinding* _binding;
+public:
+    .
+    .
+    .
+    void x_27(Smoke::Stack x) {
+        //QByteArray name() const
+        QByteArray xret  = ((const x_QMetaType*)ptr)->QMetaType::name();  
+        x[0].s_class = (void*)new QByteArray(xret);
+  }
+    .
+    .
+    .
+};
+
+ to
+
+void* tmpname (void* ptr);        
+
+class x_QMetaType : public QMetaType {
+    SmokeBinding* _binding;
+public:
+    .
+    .
+    .
+    void x_27(Smoke::Stack x) {
+        // QByteArray name() const
+        //QQByteArray xret  = ((const x_QMetaType*)ptr)->QMetaType::name();  
+        //x[0].s_class = (void*)new QByteArray(xret);
+	x[0].s_class = tmpname(this);
+  }
+    .
+    .
+    .
+};
+
+void* tmpname (void* ptr) {
+	QByteArray xret  = ((const x_QMetaType*)ptr)->QMetaType::name();   
+	return (void*)new QByteArray(xret);	
+}
+
+
+x_20.cpp
+
+- x[0].s_enum = (long)Qt::Unset; 
++ x[0].s_enum = (long)Qt::HighDpiScaleFactorRoundingPolicy::Unset;
+
+- x[0].s_enum = (long)Qt::Round; 
++ x[0].s_enum = (long)Qt::HighDpiScaleFactorRoundingPolicy::Round;
+
+- x[0].s_enum = (long)Qt::Ceil; 
++ x[0].s_enum = (long)Qt::HighDpiScaleFactorRoundingPolicy::Ceil;
+
+- x[0].s_enum = (long)Qt::Floor; 
++ x[0].s_enum = (long)Qt::HighDpiScaleFactorRoundingPolicy::Floor;
+
+- x[0].s_enum = (long)Qt::RoundPreferFloor; 
++ x[0].s_enum = (long)Qt::HighDpiScaleFactorRoundingPolicy::RoundPreferFloor;
+
+- x[0].s_enum = (long)Qt::PassThrough; 
++ x[0].s_enum = (long)Qt::HighDpiScaleFactorRoundingPolicy::PassThrough;
+
+
+// static QDataStream& operator>>(QDataStream&, QCborSimpleType&) 
+- QDataStream& xret = operator>>(*(QDataStream*)x[1].s_class,*(QCborSimpleType*)x[2].s_class); 
++ // QDataStream& xret = operator>>(*(QDataStream*)x[1].s_class,*(QCborSimpleType*)x[2].s_class);
+- x[0].s_class = (void*)&xret; 
++ // x[0].s_class = (void*)&xret;
+
+
+// static QDataStream& operator<<(QDataStream&, QCborSimpleType)
+- QDataStream& xret = operator<<(*(QDataStream*)x[1].s_class,(QCborSimpleType)x[2].s_enum); 
++ //QDataStream& xret = operator<<(*(QDataStream*)x[1].s_class,(QCborSimpleType)x[2].s_enum); 
+- x[0].s_class = (void*)&xret; 
++ // x[0].s_class = (void*)&xret;
+
+
+
+
+	   
+	   
+	   

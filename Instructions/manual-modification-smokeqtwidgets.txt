@@ -1,0 +1,16 @@
+x_1.cpp 
+
+// QActionGroup::ExclusionPolicy exclusionPolicy() const
+QActionGroup::ExclusionPolicy xret = ((const x_QActionGroup*)this)->QActionGroup::exclusionPolicy();
+- x[0].s_enum = xret;  
++ x[0].s_enum = (long)xret;
+
+
+- x[0].s_enum = (long)QActionGroup::None; 
++ x[0].s_enum = (long)QActionGroup::ExclusionPolicy::None;
+
+- x[0].s_enum = (long)QActionGroup::Exclusive; 
++ x[0].s_enum = (long)QActionGroup::ExclusionPolicy::Exclusive;
+ 
+- x[0].s_enum = (long)QActionGroup::ExclusiveOptional; 
++ x[0].s_enum = (long)QActionGroup::ExclusionPolicy::ExclusiveOptional;

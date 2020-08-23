@@ -49,7 +49,7 @@ EXPORT void* sw_make_qbytearray(char *);
 EXPORT void sw_delete_qbytearray(void *q);
 EXPORT void* sw_make_qstring(char *);
 EXPORT void sw_delete_qstring(void *);
-EXPORT void* sw_make_metaobject(void *, char *, int *);
+EXPORT void* sw_make_metaobject(void *, char *, void *, void *, void *);
 EXPORT void sw_delete(void *p);
 EXPORT void* sw_qstring_to_utf8(void* s);
 EXPORT const void* sw_qstring_to_utf16(void*);
@@ -74,6 +74,10 @@ EXPORT int sw_qlist_void_size(void*);
 EXPORT void sw_qlist_void_delete(void*);
 EXPORT const void* sw_qlist_void_at(void*, int);
 EXPORT void sw_qlist_void_append(void*, void*);
+
+// QList<char*> for sw_make_metaobject
+EXPORT void* sw_qlist_string_new();
+EXPORT void sw_qlist_string_append(void *, char *);
 
 #define DECLARE_QLIST_SCALAR_MARSHALLER(NAME) \
   EXPORT void* sw_qlist_##NAME##_new(); \
