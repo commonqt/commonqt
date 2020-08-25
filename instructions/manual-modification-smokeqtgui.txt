@@ -1,0 +1,26 @@
+
+
+x_6.cpp
+
+// static Qt::HighDpiScaleFactorRoundingPolicy highDpiScaleFactorRoundingPolicy()
+        Qt::HighDpiScaleFactorRoundingPolicy xret = QGuiApplication::highDpiScaleFactorRoundingPolicy();
+-        x[0].s_enum = xret;    
++        x[0].s_enum = (long)xret;
+
+
+
+
+x_17.cpp
+
+  QTextBlockFormat::MarkerType xret = ((const x_QTextBlockFormat*)this)->QTextBlockFormat::marker();
+- x[0].s_enum = xret; 
++ x[0].s_enum = (long)xret;
+
+- x[0].s_enum = (long)QTextBlockFormat::NoMarker;
++ x[0].s_enum = (long)QTextBlockFormat::MarkerType::NoMarker; 
+
+- x[0].s_enum = (long)QTextBlockFormat::Unchecked;  
++ x[0].s_enum = (long)QTextBlockFormat::MarkerType::Unchecked;
+
+- x[0].s_enum = (long)QTextBlockFormat::Checked;  
++ x[0].s_enum = (long)QTextBlockFormat::MarkerType::Checked;

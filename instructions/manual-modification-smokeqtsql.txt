@@ -1,0 +1,13 @@
+
+
+x_1.cpp
+
+// QSqlField* QSqlField()
+- x_QSqlField* xret = new x_QSqlField((const QString&)QString(),(QVariant::Type){}); 
++ x_QSqlField* xret = new x_QSqlField((const QString&)QString(),{});
+
+
+// QSqlField* QSqlField(const QString&)
+- x_QSqlField* xret = new x_QSqlField(*(const QString*)x[1].s_class,(QVariant::Type){}); 
++ x_QSqlField* xret = new x_QSqlField(*(const QString*)x[1].s_class,{});
+

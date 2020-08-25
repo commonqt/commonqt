@@ -89,6 +89,7 @@
   (unless (boundp '*gui-thread*)
     (ensure-smoke :qtcore)
     (ensure-smoke :qtgui)
+    (ensure-smoke :qtwidgets)
     (setf *notifier* (make-instance 'repl-notifier)
           *gui-thread*
           (let ((global-values (mapcar #'symbol-value *globals*)))

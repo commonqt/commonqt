@@ -87,7 +87,9 @@
 
 (defun unvariant-non-core-map ()
   (with-cache ()
-    (let ((new-map (make-array 87)))
+    ;;increase from 87 to 256 (23-may-2020) by Error: Array index 121 out of
+    ;;bounds for #<SIMPLE-VECTOR 87> . in Qt5
+    (let ((new-map (make-array 256))) 
       (loop for type in *unvariant-non-core-types*
             for enum = (enum-value
                         (interpret-call "QVariant" type))

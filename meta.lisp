@@ -334,70 +334,33 @@ Should be used as an optimization."
             (arg-qtypes slot-or-signal) (find-signal-arg-qtypes arg-types))))
   slot-or-signal)
 
-(defconstant +AccessPrivate+ #x00)
-(defconstant +AccessProtected+ #x01)
-(defconstant +AccessPublic+ #x02)
-(defconstant +MethodMethod+ #x00)
-(defconstant +MethodSignal+ #x04)
-(defconstant +MethodSlot+ #x08)
-(defconstant +MethodCompatibility+ #x10)
-(defconstant +MethodCloned+ #x20)
-(defconstant +MethodScriptable+ #x40)
-
-(defun make-metaobject-signature (class-name class-infos signals slots)
-  (let ((table (make-hash-table :test #'equal))
-        data)
-    (values
-     (with-output-to-string (stream)
-       (labels ((intern-string (s)
-                  (or (gethash s table)
-                      (setf (gethash s table)
-                            (prog1
-                                (file-position stream)
-                              (write-string s stream)
-                              (write-char (code-char 0) stream)))))
-                (add (x) (push x data))
-                (add-string (s) (add (intern-string s))))
-         (add 1)                          ;revision
-         (add (intern-string class-name)) ;class name
-         (add (length class-infos))       ;classinfo
-         (add (if (plusp (length class-infos)) 10 0))
-         (add (+ (length signals) (length slots)))
-         (add (+ 10 (* 2 (length class-infos)))) ;methods
-         (add 0)                                 ;properties
-         (add 0)
-         (add 0)                        ;enums/sets
-         (add 0)
-         (dolist (entry class-infos)
-           (add-string (key entry))
-           (add-string (value entry)))
-         (dolist (entry signals)
-           (add-string (full-name entry))
-           (add-string (remove #\, (full-name entry) :test-not #'eql))
-           (add-string (reply-type entry))
-           (add-string "")              ;tag
-           (add (logior +methodsignal+ +accessprotected+)))
-         (dolist (entry slots)
-           (add-string (full-name entry))
-           (add-string (remove #\, (full-name entry) :test-not #'eql))
-           (add-string (reply-type entry))
-           (add-string "")              ;tag
-           (add (logior +methodslot+ +accesspublic+)))
-         (add 0)))
-     (nreverse data))))
-
 (defun make-metaobject (parent class-name class-infos signals slots)
-  (multiple-value-bind (signature data)
-      (make-metaobject-signature class-name
-                                 class-infos signals slots)
-    (let ((dataptr (cffi:foreign-alloc :int :count (length data))))
-      (loop for x in data
-            for i from 0
-            do
-            (setf (cffi:mem-aref dataptr :int i) x))
-      (make-instance 'qobject
-                     :class (find-qclass "QMetaObject")
-                     :pointer
-                     (sw_make_metaobject (qobject-pointer parent)
-                                         (cffi:foreign-string-alloc signature :encoding :ascii)
-                                         dataptr)))))
+  (let ((list-class-infos (sw_qlist_string_new))
+        (list-signals (sw_qlist_string_new))
+	(list-slots (sw_qlist_string_new)))
+
+    (dolist (entry class-infos)
+      (sw_qlist_string_append list-class-infos
+                              (cffi:foreign-string-alloc (string (key entry))
+							 :encoding :ascii))
+      (sw_qlist_string_append list-class-infos
+	                      (cffi:foreign-string-alloc (string (value entry))
+							 :encoding :ascii)))
+    (dolist (entry signals)
+        (sw_qlist_string_append list-signals
+		                (cffi:foreign-string-alloc (string (full-name entry))
+							   :encoding :ascii)))
+    (dolist (entry slots)
+        (sw_qlist_string_append list-slots
+		                (cffi:foreign-string-alloc (string (full-name entry))
+							   :encoding :ascii)))
+    (make-instance 'qobject
+                   :class (find-qclass "QMetaObject")
+                   :pointer
+                   (sw_make_metaobject (qobject-pointer parent)
+                                       (cffi:foreign-string-alloc (coerce class-name
+									  'simple-string)
+								  :encoding :ascii)
+                                       list-class-infos
+				       list-signals
+				       list-slots))))

@@ -1,0 +1,12 @@
+
+
+x_1.cpp
+
+- x[0].s_enum = (long)QSslCertificate::RegularExpression; 
++ x[0].s_enum = (long)QSslCertificate::PatternSyntax::RegularExpression;
+
+- x[0].s_enum = (long)QSslCertificate::Wildcard; 
++ x[0].s_enum = (long)QSslCertificate::PatternSyntax::Wildcard;
+
+- x[0].s_enum = (long)QSslCertificate::FixedString; 
++ x[0].s_enum = (long)QSslCertificate::PatternSyntax::FixedString;

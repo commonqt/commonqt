@@ -3,6 +3,7 @@
 
 ;;; .cpp
 
+#|
 (defclass cpp->so (source-file)
   ())
 
@@ -60,6 +61,7 @@
                   (namestring (component-pathname c))
                   (namestring (output-file o c))))
     (error 'operation-error :component c :operation o)))
+|#
 
 ;;; system
 
@@ -67,14 +69,14 @@
   :description "Interface for the Qt GUI framework"
   :license "BSD"
   :components
-  (#-windows
+  (#|#-windows
    (:module "so"
     :pathname ""
     :serial t
     :components
     ((makefile "commonqt.pro")
      (:static-file "commonqt.h")
-     (cpp->so "commonqt" :depends-on ("commonqt.h"))))
+     (cpp->so "commonqt" :depends-on ("commonqt.h"))))|#
    (:module "lisp"
     :pathname ""
     :serial t

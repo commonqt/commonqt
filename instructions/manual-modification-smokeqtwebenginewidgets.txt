@@ -1,0 +1,21 @@
+
+
+x_1.cpp
+
+ // QWebEnginePage::LifecycleState lifecycleState() const
+- x[0].s_enum = xret;   
++ x[0].s_enum = (long)xret;
+
+// QWebEnginePage::LifecycleState recommendedState() const
+- x[0].s_enum = xret; 
++ x[0].s_enum = (long)xret;
+
+
+- x[0].s_enum = (long)QWebEnginePage::Active;   
++ x[0].s_enum = (long)QWebEnginePage::LifecycleState::Active;
+
+- x[0].s_enum = (long)QWebEnginePage::Frozen;   
++ x[0].s_enum = (long)QWebEnginePage::LifecycleState::Frozen;
+
+- x[0].s_enum = (long)QWebEnginePage::Discarded; 
++ x[0].s_enum = (long)QWebEnginePage::LifecycleState::Discarded;
